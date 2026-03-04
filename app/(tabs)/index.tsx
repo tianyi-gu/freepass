@@ -1,98 +1,99 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { FreepassHeader } from '@/components/freepass-header';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { FreepassColors } from '@/constants/theme';
 
 export default function HomeScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+      <FreepassHeader showLogo showBack={false} />
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.hero}>
+          <Text style={styles.heroTitle}>Welcome to Freepass</Text>
+          <Text style={styles.heroSubtitle}>
+            Resources to support your reintegration journey. Find housing, employment, and community support.
+          </Text>
+        </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <Pressable
+          style={styles.card}
+          onPress={() => router.push('/category-search' as never)}
+          android_ripple={{ color: FreepassColors.lightGray }}>
+          <View style={styles.cardIcon}>
+            <IconSymbol name="rectangle.stack.fill" size={32} color={FreepassColors.primary} />
+          </View>
+          <View style={styles.cardContent}>
+            <Text style={styles.cardTitle}>Category Search</Text>
+            <Text style={styles.cardSubtitle}>Browse housing, employment, and low-income assistance resources</Text>
+          </View>
+          <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
+        </Pressable>
+
+        <Pressable
+          style={styles.card}
+          onPress={() => router.push('/map-view' as never)}
+          android_ripple={{ color: FreepassColors.lightGray }}>
+          <View style={styles.cardIcon}>
+            <IconSymbol name="map.fill" size={32} color={FreepassColors.primary} />
+          </View>
+          <View style={styles.cardContent}>
+            <Text style={styles.cardTitle}>Resources Near You</Text>
+            <Text style={styles.cardSubtitle}>Find organizations and services in your area</Text>
+          </View>
+          <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
+        </Pressable>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: { flex: 1, backgroundColor: FreepassColors.white },
+  scroll: { flex: 1 },
+  scrollContent: { padding: 20, paddingBottom: 40 },
+  hero: {
+    marginBottom: 24,
   },
-  stepContainer: {
-    gap: 8,
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: FreepassColors.text,
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  heroSubtitle: {
+    fontSize: 16,
+    color: FreepassColors.textSecondary,
+    lineHeight: 24,
+  },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: FreepassColors.cardBg,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  cardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: FreepassColors.offWhite,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  cardContent: { flex: 1 },
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: FreepassColors.text,
+    marginBottom: 4,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: FreepassColors.textSecondary,
+    lineHeight: 20,
   },
 });

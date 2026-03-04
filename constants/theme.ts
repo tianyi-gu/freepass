@@ -1,29 +1,49 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Freepass app theme - warm, earthy palette for reintegration resources.
+ * Primary: reddish-brown/sienna for headers and brand.
  */
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+export const FreepassColors = {
+  primary: '#8B4513',      // Saddle brown - headers, primary buttons
+  primaryDark: '#6B3410',   // Darker brown - modals, secondary areas
+  accent: '#D2691E',        // Chocolate orange - accent, primary actions
+  accentLight: '#E8A75C',   // Lighter orange - highlights
+  destructive: '#C0392B',   // Red - delete actions
+  white: '#FFFFFF',
+  offWhite: '#FDF8F3',      // Cream - input backgrounds
+  lightGray: '#E8E4E0',
+  text: '#2C2419',
+  textSecondary: '#5C5248',
+  cardBg: '#F5F0EB',
+} as const;
+
+const tintColorLight = FreepassColors.accent;
+const tintColorDark = FreepassColors.accentLight;
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
+    text: FreepassColors.text,
+    background: FreepassColors.white,
     tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
+    icon: FreepassColors.textSecondary,
+    tabIconDefault: FreepassColors.textSecondary,
     tabIconSelected: tintColorLight,
+    primary: FreepassColors.primary,
+    accent: FreepassColors.accent,
+    card: FreepassColors.cardBg,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
+    text: FreepassColors.offWhite,
+    background: FreepassColors.primaryDark,
     tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
+    icon: FreepassColors.accentLight,
+    tabIconDefault: FreepassColors.textSecondary,
     tabIconSelected: tintColorDark,
+    primary: FreepassColors.primary,
+    accent: FreepassColors.accent,
+    card: FreepassColors.primaryDark,
   },
 };
 
