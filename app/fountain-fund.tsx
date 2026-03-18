@@ -1,5 +1,8 @@
 import { router } from 'expo-router';
+import { Linking } from 'react-native';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+const FOUNTAIN_FUND_URL = 'https://thefountainfund.org';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -22,10 +25,13 @@ export default function FountainFundScreen() {
           increases economic opportunities and reduces obstacles for formerly incarcerated people.
         </Text>
 
-        <View style={styles.ctaBtn}>
+        <Pressable
+          style={styles.ctaBtn}
+          onPress={() => Linking.openURL(FOUNTAIN_FUND_URL)}
+          android_ripple={{ color: FreepassColors.primaryDark }}>
           <IconSymbol name="globe" size={20} color={FreepassColors.white} />
           <Text style={styles.ctaText}>FOUNTAIN FUND WEBSITE</Text>
-        </View>
+        </Pressable>
 
         <Text style={styles.body}>
           Along with providing loans, the Fountain Fund is committed to offering information and resources related to

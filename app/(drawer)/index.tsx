@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
+import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
@@ -10,7 +11,6 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <FreepassHeader showLogo showMenu showBack={false} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Access Local Resources */}
         <View style={styles.sectionOrange}>
           <Text style={styles.sectionTitleDark}>Access Local Resources</Text>
           <Text style={styles.sectionTitleLight}>in a Quick List</Text>
@@ -27,7 +27,6 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* Financial Literacy */}
         <View style={[styles.sectionOrange, styles.sectionOrangeLight]}>
           <Text style={styles.sectionTitleDark}>Your Connection to</Text>
           <Text style={styles.sectionTitleLight}>Financial Literacy Access</Text>
@@ -44,7 +43,6 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* Give Feedback */}
         <View style={[styles.sectionOrange, styles.sectionOrangeLight]}>
           <Text style={styles.sectionTitleLight}>Give Feedback</Text>
           <Text style={styles.sectionBody}>
@@ -61,7 +59,6 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* Interview Library */}
         <View style={styles.sectionBrown}>
           <Text style={styles.sectionSubtitle}>What have I learned?</Text>
           <Text style={styles.sectionTitleOrange}>Interview Library</Text>
@@ -79,7 +76,6 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* Join FreePass */}
         <View style={styles.sectionBrown}>
           <Text style={styles.sectionTitleLight}>Join FreePass for Free!</Text>
           <Text style={styles.sectionBodyLight}>
@@ -94,6 +90,7 @@ export default function HomeScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      <FreepassTabBar activeTab="home" />
     </View>
   );
 }
@@ -101,7 +98,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: FreepassColors.white },
   scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 48 },
+  scrollContent: { paddingBottom: 60 },
   sectionOrange: {
     backgroundColor: FreepassColors.accent,
     padding: 24,

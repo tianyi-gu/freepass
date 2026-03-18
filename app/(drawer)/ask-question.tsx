@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
+import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
@@ -48,6 +49,7 @@ export default function AskQuestionScreen() {
           </Pressable>
         ))}
       </ScrollView>
+      <FreepassTabBar activeTab="qa" />
     </View>
   );
 }
@@ -55,7 +57,7 @@ export default function AskQuestionScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: FreepassColors.white },
   scroll: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 48 },
+  scrollContent: { padding: 20, paddingBottom: 60 },
   title: {
     fontSize: 24,
     fontWeight: '700',

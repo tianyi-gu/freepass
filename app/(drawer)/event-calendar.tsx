@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
+import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
@@ -69,6 +70,7 @@ export default function EventCalendarScreen() {
           </View>
         ))}
       </ScrollView>
+      <FreepassTabBar activeTab="events" />
     </View>
   );
 }
@@ -129,7 +131,7 @@ const styles = StyleSheet.create({
     color: FreepassColors.white,
   },
   scroll: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 48 },
+  scrollContent: { padding: 20, paddingBottom: 60 },
   intro: {
     fontSize: 15,
     color: FreepassColors.textSecondary,

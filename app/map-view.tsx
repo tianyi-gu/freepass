@@ -17,9 +17,7 @@ export default function MapViewScreen() {
           <IconSymbol name="chevron.left" size={18} color={FreepassColors.white} />
           <Text style={styles.backText}>Back</Text>
         </Pressable>
-        <Pressable style={styles.mapViewBtn}>
-          <Text style={styles.mapViewText}>Map View</Text>
-        </Pressable>
+        <Text style={styles.headerTitle}>Resources Near You</Text>
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.privacyCard}>
@@ -82,16 +80,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: FreepassColors.white,
   },
-  mapViewBtn: {
-    backgroundColor: FreepassColors.primaryDark,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  mapViewText: {
-    fontSize: 14,
-    fontWeight: '600',
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '700',
     color: FreepassColors.white,
+    textAlign: 'center',
+    marginLeft: 12,
   },
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 48 },

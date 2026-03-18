@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -15,7 +15,9 @@ export default function ListingScreen() {
           <IconSymbol name="chevron.left" size={18} color={FreepassColors.white} />
           <Text style={styles.headerBtnText}>Back</Text>
         </Pressable>
-        <Pressable style={styles.headerBtnCenter}>
+        <Pressable
+          style={styles.headerBtnCenter}
+          onPress={() => router.push('/modal/give-feedback' as never)}>
           <IconSymbol name="star.fill" size={16} color={FreepassColors.white} />
           <Text style={styles.headerBtnText}>VIEW FEEDBACK</Text>
         </Pressable>
@@ -42,7 +44,9 @@ export default function ListingScreen() {
             <IconSymbol name="map.fill" size={18} color={FreepassColors.white} />
             <Text style={styles.actionBtnText}>360 STREETVIEW</Text>
           </Pressable>
-          <Pressable style={styles.actionBtn}>
+          <Pressable
+            style={styles.actionBtn}
+            onPress={() => Linking.openURL('https://example.org')}>
             <IconSymbol name="globe" size={18} color={FreepassColors.white} />
             <Text style={styles.actionBtnText}>WEBSITE</Text>
           </Pressable>
