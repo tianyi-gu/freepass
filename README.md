@@ -1,50 +1,94 @@
-# Welcome to your Expo app 👋
+# FreePass
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**FreePass** is a cross-platform mobile app for **financial literacy**—learning resources, Q&A, events, messaging, and more. It’s built with [Expo](https://expo.dev) and [React Native](https://reactnative.dev), using [Expo Router](https://docs.expo.dev/router/introduction/) for file-based navigation.
 
-## Get started
+## Tech stack
 
-1. Install dependencies
+| Area | Choice |
+|------|--------|
+| Framework | Expo ~54, React 19, React Native 0.81 |
+| Navigation | Expo Router (stack + drawer), typed routes |
+| UI | React Native, `@expo/vector-icons`, custom theme (`constants/theme.ts`) |
+| Platforms | iOS, Android, Web (`react-native-web`) |
+
+The root layout uses a **drawer** for primary sections and a **stack** for detail screens, modals, and deep links.
+
+## Features (high level)
+
+- **Home & drawer** — Account, Message Board, Chat, Learning Academy, Event Calendar, Ask a Question, New User Guide  
+- **Community & content** — Listings, maps, street view, events, Q&A threads, community board, interview library  
+- **Programs** — Fountain Fund, Money Smart, loan inquiry, courses, staff view, quick list, signup  
+
+Screens live under `app/`; shared UI under `components/`.
+
+## Prerequisites
+
+- [Node.js](https://nodejs.org/) (LTS recommended)  
+- [npm](https://www.npmjs.com/) (or use `yarn` / `pnpm` if you prefer)  
+- For device builds: [Xcode](https://developer.apple.com/xcode/) (iOS), [Android Studio](https://developer.android.com/studio) (Android)  
+- [Expo CLI](https://docs.expo.dev/get-started/installation/) is used via `npx` (no global install required)
+
+## Getting started
+
+1. **Install dependencies**
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. **Start the dev server**
 
    ```bash
+   npm start
+   # or
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+3. **Run on a platform**
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   - Press `i` for iOS simulator, `a` for Android emulator, or scan the QR code with **Expo Go** on a physical device  
+   - **Web:** `npm run web` (or `npx expo start --web`)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Scripts
 
-## Get a fresh project
+| Script | Description |
+|--------|-------------|
+| `npm start` | Start Expo dev server |
+| `npm run ios` | Build/run iOS (dev client) |
+| `npm run android` | Build/run Android (dev client) |
+| `npm run web` | Start with web target |
+| `npm run lint` | Run ESLint (`expo lint`) |
+| `npm run reset-project` | Move current `app` code to `app-example` and scaffold a blank `app` (Expo template helper) |
 
-When you're ready, run:
+## Project layout
 
-```bash
-npm run reset-project
+```
+app/                 # Routes (Expo Router)
+  (drawer)/          # Main drawer screens (home, chat, academy, etc.)
+  modal/             # Modal presentations
+  _layout.tsx        # Root stack + theme
+components/          # Reusable UI (drawer, headers, etc.)
+constants/           # Theme and shared constants
+assets/              # Images and fonts
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Configuration
+
+- **`app.json`** — Expo app name, slug, icons, splash, iOS/Android/web settings  
+- **Deep linking** — `scheme: "freepass"` in `app.json`  
+- **New Architecture** — enabled in `app.json` (`newArchEnabled`)  
+- **Experiments** — typed routes, React Compiler (see `app.json`)
+
+## Building for production
+
+Use [EAS Build](https://docs.expo.dev/build/introduction/) or local `expo prebuild` + native tooling. See the [Expo distribution docs](https://docs.expo.dev/distribution/introduction/) for App Store and Play Store flows.
 
 ## Learn more
 
-To learn more about developing your project with Expo, look at the following resources:
+- [Expo documentation](https://docs.expo.dev/)  
+- [Expo Router](https://docs.expo.dev/router/introduction/)  
+- [React Native](https://reactnative.dev/docs/getting-started)
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+---
 
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+*Internal / private project — adjust licensing and contribution guidelines as needed.*
