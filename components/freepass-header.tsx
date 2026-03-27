@@ -101,7 +101,7 @@ export function FreepassLogo({ size = 32 }: { size?: number }) {
   return (
     <View style={[styles.logo, { height: size }]}>
       <Text style={[styles.logoText, { fontSize: size * 0.6 }]}>
-        <Text style={{ color: '#F4D03F' }}>f</Text>
+        <Text style={{ color: FreepassColors.accentLight }}>f</Text>
         <Text style={{ color: FreepassColors.accent }}>p</Text>
       </Text>
     </View>

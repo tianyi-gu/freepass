@@ -1,22 +1,23 @@
 /**
- * Freepass app theme - warm, earthy palette for reintegration resources.
- * Primary: reddish-brown/sienna for headers and brand.
+ * Freepass app theme - Fountain Fund blue & green palette.
+ * Primary: dark navy blue for headers and brand.
+ * Accent: green for CTAs and highlights.
  */
 
 import { Platform } from 'react-native';
 
 export const FreepassColors = {
-  primary: '#8B4513',      // Saddle brown - headers, primary buttons
-  primaryDark: '#6B3410',   // Darker brown - modals, secondary areas
-  accent: '#D2691E',        // Chocolate orange - accent, primary actions
-  accentLight: '#E8A75C',   // Lighter orange - highlights
-  destructive: '#C0392B',   // Red - delete actions
+  primary: '#1A3A5C',       // Dark navy blue - headers, primary buttons
+  primaryDark: '#122945',    // Deeper navy - modals, secondary areas
+  accent: '#2E8540',         // Fountain Fund green - accent, primary actions
+  accentLight: '#4CAF50',    // Lighter green - highlights, CTAs
+  destructive: '#C0392B',    // Red - delete actions
   white: '#FFFFFF',
-  offWhite: '#FDF8F3',      // Cream - input backgrounds
-  lightGray: '#E8E4E0',
-  text: '#2C2419',
-  textSecondary: '#5C5248',
-  cardBg: '#F5F0EB',
+  offWhite: '#F5F7FA',       // Cool off-white - input backgrounds
+  lightGray: '#E0E4E8',
+  text: '#1A2A3A',
+  textSecondary: '#4A5568',
+  cardBg: '#EDF2F7',
 } as const;
 
 const tintColorLight = FreepassColors.accent;

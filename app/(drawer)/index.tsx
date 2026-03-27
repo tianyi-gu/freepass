@@ -140,10 +140,10 @@ const styles = StyleSheet.create({
   heroImagePlaceholder: {
     width: '100%',
     height: 260,
-    backgroundColor: '#7A6552',
+    backgroundColor: '#2A4A6C',
   },
   heroContent: {
-    backgroundColor: '#B8733A',
+    backgroundColor: '#1A3A5C',
     padding: 24,
     paddingTop: 28,
     paddingBottom: 32,
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   heroFountainFund: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#F4D03F',
+    color: FreepassColors.accentLight,
     marginBottom: 2,
   },
   heroPhiladelphia: {
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   heroSubline: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F4D03F',
+    color: FreepassColors.accentLight,
     marginBottom: 16,
   },
   heroDescription: {
