@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
+import { FreepassLogo } from '@/components/freepass-header';
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
@@ -11,6 +12,39 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <FreepassHeader showLogo showMenu showBack={false} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Hero / Intro Section */}
+        <View>
+          <Image
+            source={require('@/assets/images/hero-crowd.png')}
+            style={styles.heroImage}
+            resizeMode="cover"
+          />
+          <View style={styles.heroContent}>
+            <View style={styles.heroTitleRow}>
+              <View style={styles.heroTitleText}>
+                <Text style={styles.heroFountainFund}>The Fountain Fund</Text>
+                <Text style={styles.heroPhiladelphia}>Philadelphia</Text>
+              </View>
+              <View style={styles.heroLogoBox}>
+                <FreepassLogo size={64} />
+              </View>
+            </View>
+            <Text style={styles.heroFreePass}>FreePass</Text>
+            <Text style={styles.heroSubline}>New user screen. Login / Signup</Text>
+            <Text style={styles.heroDescription}>
+              Welcome to your comprehensive resource portal –designed to empower the successful reentry journey in
+              Philadelphia and expanding areas.
+            </Text>
+            <Pressable
+              style={styles.heroSignUpButton}
+              onPress={() => router.push('/signup' as never)}
+              android_ripple={{ color: FreepassColors.primaryDark }}>
+              <IconSymbol name="plus" size={18} color={FreepassColors.white} />
+              <Text style={styles.ctaText}>SIGN UP</Text>
+            </Pressable>
+          </View>
+        </View>
+
         <View style={styles.sectionOrange}>
           <Text style={styles.sectionTitleDark}>Access Local Resources</Text>
           <Text style={styles.sectionTitleLight}>in a Quick List</Text>
@@ -99,6 +133,81 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: FreepassColors.white },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 60 },
+  heroImage: {
+    width: '100%',
+    height: 260,
+  },
+  heroImagePlaceholder: {
+    width: '100%',
+    height: 260,
+    backgroundColor: '#7A6552',
+  },
+  heroContent: {
+    backgroundColor: '#B8733A',
+    padding: 24,
+    paddingTop: 28,
+    paddingBottom: 32,
+  },
+  heroTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  heroTitleText: {
+    flex: 1,
+  },
+  heroLogoBox: {
+    width: 72,
+    height: 72,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 16,
+  },
+  heroFountainFund: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#F4D03F',
+    marginBottom: 2,
+  },
+  heroPhiladelphia: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: FreepassColors.white,
+  },
+  heroFreePass: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: FreepassColors.white,
+    marginBottom: 8,
+    letterSpacing: -1,
+  },
+  heroSubline: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#F4D03F',
+    marginBottom: 16,
+  },
+  heroDescription: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: FreepassColors.white,
+    opacity: 0.95,
+    marginBottom: 24,
+  },
+  heroSignUpButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: FreepassColors.accentLight,
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 30,
+    alignSelf: 'center',
+  },
   sectionOrange: {
     backgroundColor: FreepassColors.accent,
     padding: 24,

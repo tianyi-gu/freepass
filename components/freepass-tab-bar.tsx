@@ -7,7 +7,7 @@ import { FreepassColors } from '@/constants/theme';
 type TabId = 'home' | 'chat' | 'courses' | 'events' | 'qa';
 
 const TABS: { id: TabId; label: string; icon: string; route: string }[] = [
-  { id: 'home', label: 'Home', icon: 'house.fill', route: '/(drawer)/index' },
+  { id: 'home', label: 'Home', icon: 'house.fill', route: '/(drawer)' },
   { id: 'chat', label: 'Chat', icon: 'bubble.left.and.bubble.right.fill', route: '/(drawer)/chat' },
   { id: 'courses', label: 'Courses', icon: 'play.rectangle.fill', route: '/(drawer)/learning-academy' },
   { id: 'events', label: 'Events', icon: 'calendar', route: '/(drawer)/event-calendar' },
