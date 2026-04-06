@@ -5,6 +5,7 @@ import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { UserProvider } from '@/contexts/user-context';
 
 export const unstable_settings = {
   initialRouteName: '(drawer)',
@@ -15,6 +16,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      <UserProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(drawer)" />
@@ -41,9 +43,11 @@ export default function RootLayout() {
         <Stack.Screen name="course/[id]" />
         <Stack.Screen name="listing-draft/[id]" />
         <Stack.Screen name="signup" />
+        <Stack.Screen name="onboarding" />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
+    </UserProvider>
     </SafeAreaProvider>
   );
 }
