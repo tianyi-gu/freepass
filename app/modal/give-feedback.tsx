@@ -28,8 +28,13 @@ export default function GiveFeedbackModal() {
           numberOfLines={4}
         />
         <Pressable
-          style={styles.submitBtn}
-          onPress={() => router.back()}
+          style={[styles.submitBtn, !feedback.trim() && { opacity: 0.5 }]}
+          onPress={() => {
+            if (!feedback.trim()) return;
+            // TODO: Submit to backend
+            router.back();
+          }}
+          disabled={!feedback.trim()}
           android_ripple={{ color: FreepassColors.primaryDark }}>
           <Text style={styles.submitBtnText}>Submit Feedback</Text>
         </Pressable>

@@ -1,10 +1,38 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassColors } from '@/constants/theme';
 
 export default function AddEventScreen() {
+  const [form, setForm] = useState({
+    name: '',
+    instructor: '',
+    phone: '',
+    description: '',
+    startTime: '',
+    endTime: '',
+  });
+
+  const updateField = (key: keyof typeof form, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSubmit = useCallback(() => {
+    if (!form.name.trim()) {
+      Alert.alert('Missing info', 'Please enter an event name.');
+      return;
+    }
+    if (!form.startTime.trim()) {
+      Alert.alert('Missing info', 'Please enter a start time.');
+      return;
+    }
+    // TODO: Submit to backend
+    Alert.alert('Event Created', 'Your event has been submitted for review.', [
+      { text: 'OK', onPress: () => router.back() },
+    ]);
+  }, [form]);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -15,17 +43,48 @@ export default function AddEventScreen() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <InputField label="Event Name" placeholder="Enter event name..." />
-        <InputField label="Instructor / Host" placeholder="Enter instructor / host..." />
-        <InputField label="Main Image" placeholder="Choose Photo" multiline />
-        <InputField label="Contact Phone" placeholder="Enter phone number..." />
-        <InputField label="Description" placeholder="Enter description..." />
-        <InputField label="Start Time" placeholder="Thursday, May 4th, 2024 at 4:00 PM" />
-        <InputField label="End Time" placeholder="Thursday, May 4th, 2024 at 4:00 PM" />
+        <InputField
+          label="Event Name *"
+          placeholder="Enter event name..."
+          value={form.name}
+          onChangeText={(v) => updateField('name', v)}
+        />
+        <InputField
+          label="Instructor / Host"
+          placeholder="Enter instructor / host..."
+          value={form.instructor}
+          onChangeText={(v) => updateField('instructor', v)}
+        />
+        <InputField
+          label="Contact Phone"
+          placeholder="Enter phone number..."
+          value={form.phone}
+          onChangeText={(v) => updateField('phone', v)}
+          keyboardType="phone-pad"
+        />
+        <InputField
+          label="Description"
+          placeholder="Enter description..."
+          value={form.description}
+          onChangeText={(v) => updateField('description', v)}
+          multiline
+        />
+        <InputField
+          label="Start Time *"
+          placeholder="e.g. May 15, 2026 at 4:00 PM"
+          value={form.startTime}
+          onChangeText={(v) => updateField('startTime', v)}
+        />
+        <InputField
+          label="End Time"
+          placeholder="e.g. May 15, 2026 at 6:00 PM"
+          value={form.endTime}
+          onChangeText={(v) => updateField('endTime', v)}
+        />
 
         <Pressable
           style={styles.submitBtn}
-          onPress={() => router.back()}
+          onPress={handleSubmit}
           android_ripple={{ color: FreepassColors.primaryDark }}>
           <Text style={styles.submitBtnText}>CREATE EVENT</Text>
         </Pressable>
@@ -37,11 +96,17 @@ export default function AddEventScreen() {
 function InputField({
   label,
   placeholder,
+  value,
+  onChangeText,
   multiline,
+  keyboardType,
 }: {
   label: string;
   placeholder: string;
+  value: string;
+  onChangeText: (text: string) => void;
   multiline?: boolean;
+  keyboardType?: 'default' | 'phone-pad' | 'email-address';
 }) {
   return (
     <View style={styles.inputGroup}>
@@ -50,7 +115,10 @@ function InputField({
         style={[styles.input, multiline && styles.inputMultiline]}
         placeholder={placeholder}
         placeholderTextColor={FreepassColors.textSecondary}
+        value={value}
+        onChangeText={onChangeText}
         multiline={multiline}
+        keyboardType={keyboardType}
       />
     </View>
   );
@@ -99,7 +167,9 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     marginTop: 20,
+    backgroundColor: FreepassColors.accent,
     paddingVertical: 16,
+    borderRadius: 10,
     alignItems: 'center',
   },
   submitBtnText: {

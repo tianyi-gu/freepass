@@ -1,10 +1,25 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
 export default function AskQuestionModal() {
+  const [question, setQuestion] = useState('');
+  const [category, setCategory] = useState('');
+
+  const handleSubmit = () => {
+    if (!question.trim()) {
+      Alert.alert('Missing info', 'Please enter your question.');
+      return;
+    }
+    // TODO: Submit to backend
+    Alert.alert('Question Submitted', 'Your question has been posted.', [
+      { text: 'OK', onPress: () => router.back() },
+    ]);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -19,17 +34,22 @@ export default function AskQuestionModal() {
           style={styles.input}
           placeholder="Enter question..."
           placeholderTextColor={FreepassColors.textSecondary}
+          value={question}
+          onChangeText={setQuestion}
           multiline
         />
         <Text style={styles.label}>What category does this question fit into?</Text>
         <TextInput
-          style={styles.input}
-          placeholder="Select question category..."
+          style={styles.inputSingle}
+          placeholder="e.g. Housing, Employment, Legal..."
           placeholderTextColor={FreepassColors.textSecondary}
+          value={category}
+          onChangeText={setCategory}
         />
         <Pressable
-          style={styles.submitBtn}
-          onPress={() => router.back()}
+          style={[styles.submitBtn, !question.trim() && { opacity: 0.5 }]}
+          onPress={handleSubmit}
+          disabled={!question.trim()}
           android_ripple={{ color: FreepassColors.primaryDark }}>
           <Text style={styles.submitBtnText}>ASK QUESTION</Text>
         </Pressable>
@@ -75,6 +95,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
+    backgroundColor: FreepassColors.offWhite,
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 16,
+    color: FreepassColors.text,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: 20,
+  },
+  inputSingle: {
     backgroundColor: FreepassColors.offWhite,
     borderRadius: 10,
     padding: 14,

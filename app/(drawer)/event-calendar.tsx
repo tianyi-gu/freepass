@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
@@ -10,12 +11,21 @@ const MOCK_EVENTS = [
   {
     id: '1',
     name: 'Community Job Fair',
-    startTime: 'Thursday, May 4th, 2024 at 4:00 PM',
+    startTime: 'Thursday, May 4th, 2026 at 4:00 PM',
     description: 'Meet local employers and explore job opportunities.',
+    isPast: false,
   },
 ];
 
+type Tab = 'upcoming' | 'past';
+
 export default function EventCalendarScreen() {
+  const [activeTab, setActiveTab] = useState<Tab>('upcoming');
+
+  const filteredEvents = MOCK_EVENTS.filter((e) =>
+    activeTab === 'upcoming' ? !e.isPast : e.isPast
+  );
+
   return (
     <View style={styles.container}>
       <FreepassHeader showLogo showMenu showBack={false} />
@@ -33,12 +43,16 @@ export default function EventCalendarScreen() {
         </View>
       </View>
       <View style={styles.tabs}>
-        <View style={[styles.tab, styles.tabActive]}>
-          <Text style={styles.tabActiveText}>Upcoming</Text>
-        </View>
-        <View style={styles.tab}>
-          <Text style={styles.tabText}>Past</Text>
-        </View>
+        <Pressable
+          style={[styles.tab, activeTab === 'upcoming' && styles.tabActive]}
+          onPress={() => setActiveTab('upcoming')}>
+          <Text style={activeTab === 'upcoming' ? styles.tabActiveText : styles.tabText}>Upcoming</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tab, activeTab === 'past' && styles.tabActive]}
+          onPress={() => setActiveTab('past')}>
+          <Text style={activeTab === 'past' ? styles.tabActiveText : styles.tabText}>Past</Text>
+        </Pressable>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -51,7 +65,18 @@ export default function EventCalendarScreen() {
           coming up.
         </Text>
 
-        {MOCK_EVENTS.map((event) => (
+        {filteredEvents.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>
+              {activeTab === 'upcoming' ? 'No upcoming events' : 'No past events'}
+            </Text>
+            <Text style={styles.emptySub}>
+              {activeTab === 'upcoming' ? 'Check back soon or add your own!' : 'Past events will appear here.'}
+            </Text>
+          </View>
+        )}
+
+        {filteredEvents.map((event) => (
           <View key={event.id} style={styles.eventCard}>
             <View style={styles.eventImage}>
               <Text style={styles.eventImageText}>fp</Text>
@@ -137,6 +162,20 @@ const styles = StyleSheet.create({
     color: FreepassColors.textSecondary,
     lineHeight: 22,
     marginBottom: 12,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: FreepassColors.textSecondary,
+  },
+  emptySub: {
+    fontSize: 14,
+    color: FreepassColors.textSecondary,
+    marginTop: 4,
   },
   eventCard: {
     backgroundColor: FreepassColors.cardBg,

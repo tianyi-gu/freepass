@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -64,11 +64,15 @@ export default function ListingScreen() {
           <Text style={styles.contactName}>Main Name</Text>
           <Text style={styles.contactEmail}>Main Contact Email</Text>
           <View style={styles.contactActions}>
-            <Pressable style={styles.contactBtn}>
+            <Pressable
+              style={styles.contactBtn}
+              onPress={() => Alert.alert('Email', 'Email functionality will be available once resources are loaded from the database.')}>
               <IconSymbol name="envelope.fill" size={16} color={FreepassColors.white} />
               <Text style={styles.contactBtnText}>Email</Text>
             </Pressable>
-            <Pressable style={styles.contactBtn}>
+            <Pressable
+              style={styles.contactBtn}
+              onPress={() => Alert.alert('Call', 'Call functionality will be available once resources are loaded from the database.')}>
               <IconSymbol name="phone.fill" size={16} color={FreepassColors.white} />
               <Text style={styles.contactBtnText}>Call</Text>
             </Pressable>
@@ -80,11 +84,15 @@ export default function ListingScreen() {
           <Text style={styles.contactName}>Secondary Name</Text>
           <Text style={styles.contactEmail}>Secondary Contact Email</Text>
           <View style={styles.contactActions}>
-            <Pressable style={styles.contactBtn}>
+            <Pressable
+              style={styles.contactBtn}
+              onPress={() => Alert.alert('Email', 'Email functionality will be available once resources are loaded from the database.')}>
               <IconSymbol name="envelope.fill" size={16} color={FreepassColors.white} />
               <Text style={styles.contactBtnText}>Email</Text>
             </Pressable>
-            <Pressable style={styles.contactBtn}>
+            <Pressable
+              style={styles.contactBtn}
+              onPress={() => Alert.alert('Call', 'Call functionality will be available once resources are loaded from the database.')}>
               <IconSymbol name="phone.fill" size={16} color={FreepassColors.white} />
               <Text style={styles.contactBtnText}>Call</Text>
             </Pressable>

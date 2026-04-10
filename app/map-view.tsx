@@ -37,7 +37,8 @@ export default function MapViewScreen() {
         <Text style={styles.sectionTitle}>More Resources Nearby</Text>
         <View style={styles.mapPlaceholder}>
           <IconSymbol name="map.fill" size={64} color={FreepassColors.lightGray} />
-          <Text style={styles.mapPlaceholderText}>St. Louis, Missouri</Text>
+          <Text style={styles.mapPlaceholderText}>Philadelphia, Pennsylvania</Text>
+          <Text style={styles.mapPlaceholderSub}>Map integration coming soon</Text>
         </View>
         {MOCK_NEARBY.map((r) => (
           <Pressable
@@ -138,6 +139,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: FreepassColors.textSecondary,
+  },
+  mapPlaceholderSub: {
+    marginTop: 4,
+    fontSize: 13,
+    color: FreepassColors.textSecondary,
+    fontStyle: 'italic',
   },
   resourceCard: {
     flexDirection: 'row',

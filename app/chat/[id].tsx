@@ -10,6 +10,16 @@ export default function ChatThreadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
   const [message, setMessage] = useState('');
+  const [messages, setMessages] = useState<{ id: string; text: string; fromMe: boolean; time: string }[]>([]);
+
+  const handleSend = () => {
+    if (!message.trim()) return;
+    setMessages((prev) => [
+      ...prev,
+      { id: String(Date.now()), text: message.trim(), fromMe: true, time: 'Just now' },
+    ]);
+    setMessage('');
+  };
 
   return (
     <View style={styles.container}>
@@ -42,10 +52,19 @@ export default function ChatThreadScreen() {
         </View>
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>No messages yet</Text>
-          <Text style={styles.placeholderSub}>Start the conversation by typing below</Text>
-        </View>
+        {messages.length === 0 ? (
+          <View style={styles.placeholder}>
+            <Text style={styles.placeholderText}>No messages yet</Text>
+            <Text style={styles.placeholderSub}>Start the conversation by typing below</Text>
+          </View>
+        ) : (
+          messages.map((msg) => (
+            <View key={msg.id} style={[styles.msgBubble, msg.fromMe && styles.msgBubbleMine]}>
+              <Text style={[styles.msgText, msg.fromMe && styles.msgTextMine]}>{msg.text}</Text>
+              <Text style={styles.msgTime}>{msg.time}</Text>
+            </View>
+          ))
+        )}
       </ScrollView>
       <View style={styles.inputBar}>
         <TextInput
@@ -55,7 +74,7 @@ export default function ChatThreadScreen() {
           value={message}
           onChangeText={setMessage}
         />
-        <Pressable style={styles.sendBtn} android_ripple={{ color: FreepassColors.accent }}>
+        <Pressable style={styles.sendBtn} onPress={handleSend} android_ripple={{ color: FreepassColors.accent }}>
           <IconSymbol name="paperplane.fill" size={24} color={FreepassColors.white} />
         </Pressable>
       </View>
@@ -66,7 +85,36 @@ export default function ChatThreadScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: FreepassColors.white },
   scroll: { flex: 1 },
-  scrollContent: { flex: 1, padding: 20, justifyContent: 'center' },
+  scrollContent: { flexGrow: 1, padding: 20, justifyContent: 'center' },
+  msgBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: FreepassColors.cardBg,
+    borderRadius: 16,
+    borderBottomLeftRadius: 4,
+    padding: 12,
+    marginBottom: 8,
+    maxWidth: '80%',
+  },
+  msgBubbleMine: {
+    alignSelf: 'flex-end',
+    backgroundColor: FreepassColors.accent,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 4,
+  },
+  msgText: {
+    fontSize: 15,
+    color: FreepassColors.text,
+    lineHeight: 21,
+  },
+  msgTextMine: {
+    color: FreepassColors.white,
+  },
+  msgTime: {
+    fontSize: 11,
+    color: FreepassColors.textSecondary,
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
   placeholder: {
     alignItems: 'center',
   },

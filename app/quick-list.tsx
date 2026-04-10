@@ -16,9 +16,14 @@ export default function QuickListScreen() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const resources = showFavoritesOnly
-    ? MOCK_RESOURCES.filter((r) => r.isFavorite)
-    : MOCK_RESOURCES;
+  const resources = MOCK_RESOURCES.filter((r) => {
+    if (showFavoritesOnly && !r.isFavorite) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return r.name.toLowerCase().includes(q) || r.phone.includes(q);
+    }
+    return true;
+  });
 
   return (
     <View style={styles.container}>

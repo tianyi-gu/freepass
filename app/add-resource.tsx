@@ -1,34 +1,49 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
-function FormField({
-  label,
-  placeholder,
-  multiline,
-}: {
-  label: string;
-  placeholder: string;
-  multiline?: boolean;
-}) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        style={[styles.input, multiline && styles.inputMultiline]}
-        placeholder={placeholder}
-        placeholderTextColor={FreepassColors.textSecondary}
-        multiline={multiline}
-      />
-    </View>
-  );
-}
-
 export default function AddResourceScreen() {
+  const [form, setForm] = useState({
+    companyName: '',
+    location: '',
+    serviceType1: '',
+    serviceType2: '',
+    serviceType3: '',
+    about: '',
+    description: '',
+    phone: '',
+    email: '',
+    website: '',
+    zipCode: '',
+    hours: '',
+    mainContact: '',
+    tags: '',
+    notes: '',
+    verified: false,
+  });
+
+  const updateField = (key: string, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSubmit = useCallback(() => {
+    if (!form.companyName.trim()) {
+      Alert.alert('Missing info', 'Please enter a company name.');
+      return;
+    }
+    if (!form.phone.trim() && !form.email.trim()) {
+      Alert.alert('Missing info', 'Please enter at least a phone number or email.');
+      return;
+    }
+    // TODO: Submit to backend
+    Alert.alert('Resource Submitted', 'Thank you! Your resource has been submitted for review.', [
+      { text: 'OK', onPress: () => router.back() },
+    ]);
+  }, [form]);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -39,7 +54,12 @@ export default function AddResourceScreen() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <FormField label="Company Name" placeholder="Enter Company Name..." />
+        <FormField
+          label="Company Name *"
+          placeholder="Enter Company Name..."
+          value={form.companyName}
+          onChangeText={(v) => updateField('companyName', v)}
+        />
         <View style={styles.field}>
           <Text style={styles.sectionLabel}>LOCATION</Text>
           <View style={styles.locationInput}>
@@ -48,59 +68,72 @@ export default function AddResourceScreen() {
               style={styles.inputInline}
               placeholder="Search by name or address."
               placeholderTextColor={FreepassColors.textSecondary}
+              value={form.location}
+              onChangeText={(v) => updateField('location', v)}
             />
           </View>
         </View>
-        <FormField label="Lat Long" placeholder="Enter Lat Long..." />
-        <FormField label="TexID 1" placeholder="Enter tex ID 1..." />
-        <FormField label="TexID 2" placeholder="Enter tex ID 2..." />
-        <FormField label="Service Type 1" placeholder="Enter service type 1..." />
-        <FormField label="Service Type 2" placeholder="Enter service type 2..." />
-        <FormField label="Service Type 3" placeholder="Enter service type 3..." />
-        <FormField label="About" placeholder="Enter about..." multiline />
-        <FormField label="Text Description" placeholder="Enter text description..." multiline />
-        <FormField label="Phone Number" placeholder="Enter phone number..." />
-        <FormField label="Phone 2" placeholder="Enter phone 2..." />
-        <FormField label="Extension" placeholder="Enter extension..." />
-        <FormField label="Web Address" placeholder="Enter web address..." />
-        <FormField label="Main Email" placeholder="Enter main email..." />
-        <FormField label="Zip Code" placeholder="Enter zip code..." />
-        <FormField label="Country" placeholder="Enter country..." />
-        <FormField label="Region" placeholder="Enter region..." />
-        <FormField label="Work Hours" placeholder="Enter hours..." />
-        <FormField label="Date of Service" placeholder="Thursday, May 29, 2026 at 6:00 PM" />
-        <FormField label="Main Contact" placeholder="Enter main contact..." />
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>Image</Text>
-          <Pressable style={styles.imageUpload}>
-            <Text style={styles.imageUploadText}>Choose Photo</Text>
-          </Pressable>
-        </View>
-        <FormField label="Tags" placeholder="Enter tags..." />
-        <FormField label="Notes" placeholder="Enter notes..." multiline />
-        <View style={styles.field}>
-          <View style={styles.verifyRow}>
-            <View style={styles.radio} />
-            <Text style={styles.fieldLabel}>Verify</Text>
-          </View>
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.sectionLabel}>SEARCH INDEX</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter search index..."
-            placeholderTextColor={FreepassColors.textSecondary}
-          />
-        </View>
+        <FormField label="Service Type 1" placeholder="Enter service type..." value={form.serviceType1} onChangeText={(v) => updateField('serviceType1', v)} />
+        <FormField label="Service Type 2" placeholder="Enter service type..." value={form.serviceType2} onChangeText={(v) => updateField('serviceType2', v)} />
+        <FormField label="Service Type 3" placeholder="Enter service type..." value={form.serviceType3} onChangeText={(v) => updateField('serviceType3', v)} />
+        <FormField label="About" placeholder="Enter about..." value={form.about} onChangeText={(v) => updateField('about', v)} multiline />
+        <FormField label="Text Description" placeholder="Enter text description..." value={form.description} onChangeText={(v) => updateField('description', v)} multiline />
+        <FormField label="Phone Number *" placeholder="Enter phone number..." value={form.phone} onChangeText={(v) => updateField('phone', v)} keyboardType="phone-pad" />
+        <FormField label="Web Address" placeholder="Enter web address..." value={form.website} onChangeText={(v) => updateField('website', v)} keyboardType="url" />
+        <FormField label="Main Email *" placeholder="Enter main email..." value={form.email} onChangeText={(v) => updateField('email', v)} keyboardType="email-address" />
+        <FormField label="Zip Code" placeholder="Enter zip code..." value={form.zipCode} onChangeText={(v) => updateField('zipCode', v)} keyboardType="number-pad" />
+        <FormField label="Work Hours" placeholder="e.g. Mon-Fri 9am-5pm" value={form.hours} onChangeText={(v) => updateField('hours', v)} />
+        <FormField label="Main Contact" placeholder="Enter main contact..." value={form.mainContact} onChangeText={(v) => updateField('mainContact', v)} />
+        <FormField label="Tags" placeholder="e.g. housing, legal, employment" value={form.tags} onChangeText={(v) => updateField('tags', v)} />
+        <FormField label="Notes" placeholder="Enter notes..." value={form.notes} onChangeText={(v) => updateField('notes', v)} multiline />
 
         <Pressable
-          style={styles.submitBtn}
-          onPress={() => router.back()}
+          style={styles.verifyRow}
+          onPress={() => setForm((prev) => ({ ...prev, verified: !prev.verified }))}>
+          <View style={[styles.radio, form.verified && styles.radioSelected]} />
+          <Text style={styles.fieldLabel}>Verify this information is accurate</Text>
+        </Pressable>
+
+        <Pressable
+          style={[styles.submitBtn, !form.verified && styles.submitBtnDisabled]}
+          onPress={handleSubmit}
+          disabled={!form.verified}
           android_ripple={{ color: FreepassColors.primaryDark }}>
           <Text style={styles.submitBtnText}>CREATE FREE PASS RESOURCE</Text>
         </Pressable>
-        <Text style={styles.thankYou}>THANK YOU!</Text>
       </ScrollView>
+    </View>
+  );
+}
+
+function FormField({
+  label,
+  placeholder,
+  value,
+  onChangeText,
+  multiline,
+  keyboardType,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  multiline?: boolean;
+  keyboardType?: 'default' | 'phone-pad' | 'email-address' | 'url' | 'number-pad';
+}) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        style={[styles.input, multiline && styles.inputMultiline]}
+        placeholder={placeholder}
+        placeholderTextColor={FreepassColors.textSecondary}
+        value={value}
+        onChangeText={onChangeText}
+        multiline={multiline}
+        keyboardType={keyboardType}
+        autoCapitalize={keyboardType === 'email-address' || keyboardType === 'url' ? 'none' : 'sentences'}
+      />
     </View>
   );
 }
@@ -172,48 +205,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: FreepassColors.lightGray,
   },
-  imageUpload: {
-    height: 120,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: FreepassColors.lightGray,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  imageUploadText: {
-    fontSize: 16,
-    color: FreepassColors.textSecondary,
-  },
   verifyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    marginTop: 8,
+    marginBottom: 20,
   },
   radio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
     borderColor: FreepassColors.primary,
+  },
+  radioSelected: {
+    backgroundColor: FreepassColors.accent,
+    borderColor: FreepassColors.accent,
   },
   submitBtn: {
     backgroundColor: FreepassColors.accent,
     paddingVertical: 16,
     borderRadius: 10,
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 16,
+  },
+  submitBtnDisabled: {
+    opacity: 0.5,
   },
   submitBtnText: {
     fontSize: 16,
     fontWeight: '700',
     color: FreepassColors.white,
-  },
-  thankYou: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: FreepassColors.primary,
-    textAlign: 'center',
   },
 });

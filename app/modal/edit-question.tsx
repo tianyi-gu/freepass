@@ -1,10 +1,31 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
 export default function EditQuestionModal() {
+  const [text, setText] = useState('');
+
+  const handleUpdate = () => {
+    if (!text.trim()) {
+      Alert.alert('Empty question', 'Please enter your question.');
+      return;
+    }
+    // TODO: Update via backend
+    Alert.alert('Updated', 'Your question has been updated.', [
+      { text: 'OK', onPress: () => router.back() },
+    ]);
+  };
+
+  const handleDelete = () => {
+    Alert.alert('Delete Question', 'Are you sure you want to delete this question?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => router.back() },
+    ]);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -16,19 +37,18 @@ export default function EditQuestionModal() {
       <View style={styles.body}>
         <TextInput
           style={styles.input}
-          placeholder="User Question question"
+          placeholder="Edit your question..."
           placeholderTextColor={FreepassColors.textSecondary}
+          value={text}
+          onChangeText={setText}
         />
-        <Pressable
-          style={styles.updateBtn}
-          onPress={() => router.back()}
-          android_ripple={{ color: FreepassColors.primaryDark }}>
+        <Pressable style={styles.updateBtn} onPress={handleUpdate} android_ripple={{ color: FreepassColors.primaryDark }}>
           <Text style={styles.btnText}>UPDATE</Text>
         </Pressable>
         <Pressable style={styles.cancelBtn} onPress={() => router.back()}>
           <Text style={styles.btnText}>CANCEL</Text>
         </Pressable>
-        <Pressable style={styles.deleteBtn} onPress={() => router.back()}>
+        <Pressable style={styles.deleteBtn} onPress={handleDelete}>
           <Text style={styles.btnText}>DELETE</Text>
         </Pressable>
       </View>

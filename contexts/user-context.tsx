@@ -1,15 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Session } from '@supabase/supabase-js';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-const STORAGE_KEY_USER = '@freepass_user';
+import { supabase } from '@/lib/supabase';
+
+const GUEST_STORAGE_KEY = '@freepass_guest';
 
 export interface UserProfile {
+  id: string;
   email?: string;
   displayName?: string;
   isGuest: boolean;
   onboardingComplete: boolean;
   surveyAnswers: Record<string, string | string[]>;
-  createdAt: string;
 }
 
 interface UserContextValue {
@@ -25,74 +28,134 @@ interface UserContextValue {
 
 const UserContext = createContext<UserContextValue | null>(null);
 
+function sessionToProfile(session: Session, profile?: { display_name?: string; onboarding_complete?: boolean }): UserProfile {
+  return {
+    id: session.user.id,
+    email: session.user.email,
+    displayName: profile?.display_name ?? session.user.user_metadata?.display_name ?? session.user.email?.split('@')[0],
+    isGuest: false,
+    onboardingComplete: profile?.onboarding_complete ?? false,
+    surveyAnswers: {},
+  };
+}
+
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Load initial auth state
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY_USER).then((stored) => {
-      if (stored) {
-        setUser(JSON.parse(stored));
+    async function init() {
+      // Check for guest session first
+      const guestData = await AsyncStorage.getItem(GUEST_STORAGE_KEY);
+      if (guestData) {
+        setUser(JSON.parse(guestData));
+        setIsLoading(false);
+        return;
+      }
+
+      // Check Supabase session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name, onboarding_complete')
+          .eq('id', session.user.id)
+          .single();
+        setUser(sessionToProfile(session, profile ?? undefined));
       }
       setIsLoading(false);
+    }
+    init();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name, onboarding_complete')
+          .eq('id', session.user.id)
+          .single();
+        setUser(sessionToProfile(session, profile ?? undefined));
+        // Clear guest data if they sign in
+        await AsyncStorage.removeItem(GUEST_STORAGE_KEY);
+      } else {
+        // Only clear user if no guest session
+        const guestData = await AsyncStorage.getItem(GUEST_STORAGE_KEY);
+        if (!guestData) {
+          setUser(null);
+        }
+      }
     });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const persist = useCallback(async (profile: UserProfile) => {
-    await AsyncStorage.setItem(STORAGE_KEY_USER, JSON.stringify(profile));
-    setUser(profile);
+  const signUp = useCallback(async (email: string, password: string, displayName: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { display_name: displayName },
+      },
+    });
+    if (error) throw error;
   }, []);
 
-  const signUp = useCallback(async (email: string, _password: string, displayName: string) => {
-    // TODO: Replace with real backend auth
-    const profile: UserProfile = {
-      email,
-      displayName,
-      isGuest: false,
-      onboardingComplete: false,
-      surveyAnswers: {},
-      createdAt: new Date().toISOString(),
-    };
-    await persist(profile);
-  }, [persist]);
-
-  const logIn = useCallback(async (email: string, _password: string) => {
-    // TODO: Replace with real backend auth
-    const profile: UserProfile = {
-      email,
-      displayName: email.split('@')[0],
-      isGuest: false,
-      onboardingComplete: true, // returning user, skip onboarding
-      surveyAnswers: {},
-      createdAt: new Date().toISOString(),
-    };
-    await persist(profile);
-  }, [persist]);
+  const logIn = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  }, []);
 
   const continueAsGuest = useCallback(async () => {
-    const profile: UserProfile = {
+    const guestProfile: UserProfile = {
+      id: 'guest',
       isGuest: true,
-      onboardingComplete: true, // guests skip onboarding
+      onboardingComplete: true,
       surveyAnswers: {},
-      createdAt: new Date().toISOString(),
     };
-    await persist(profile);
-  }, [persist]);
+    await AsyncStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(guestProfile));
+    setUser(guestProfile);
+  }, []);
 
   const saveSurveyAnswers = useCallback(async (answers: Record<string, string | string[]>) => {
-    if (!user) return;
-    const updated = { ...user, surveyAnswers: { ...user.surveyAnswers, ...answers } };
-    await persist(updated);
-  }, [user, persist]);
+    if (!user || user.isGuest) return;
+
+    // Upsert each answer to Supabase
+    const upserts = Object.entries(answers).map(([questionId, answer]) => ({
+      user_id: user.id,
+      question_id: questionId,
+      answer: JSON.stringify(answer),
+    }));
+
+    if (upserts.length > 0) {
+      await supabase
+        .from('survey_answers')
+        .upsert(upserts, { onConflict: 'user_id,question_id' });
+    }
+
+    setUser((prev) => prev ? {
+      ...prev,
+      surveyAnswers: { ...prev.surveyAnswers, ...answers },
+    } : prev);
+  }, [user]);
 
   const completeOnboarding = useCallback(async () => {
     if (!user) return;
-    const updated = { ...user, onboardingComplete: true };
-    await persist(updated);
-  }, [user, persist]);
+
+    if (!user.isGuest) {
+      await supabase
+        .from('profiles')
+        .update({ onboarding_complete: true })
+        .eq('id', user.id);
+    }
+
+    setUser((prev) => prev ? { ...prev, onboardingComplete: true } : prev);
+  }, [user]);
 
   const logOut = useCallback(async () => {
-    await AsyncStorage.removeItem(STORAGE_KEY_USER);
+    await AsyncStorage.removeItem(GUEST_STORAGE_KEY);
+    await supabase.auth.signOut();
     setUser(null);
   }, []);
 

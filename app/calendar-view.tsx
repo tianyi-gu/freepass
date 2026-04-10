@@ -1,44 +1,91 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const DATES = Array.from({ length: 31 }, (_, i) => i + 1);
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function getDaysInMonth(year: number, month: number) {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function getFirstDayOfMonth(year: number, month: number) {
+  return new Date(year, month, 1).getDay();
+}
 
 export default function CalendarViewScreen() {
+  const today = new Date();
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth());
+
+  const daysInMonth = getDaysInMonth(year, month);
+  const firstDay = getFirstDayOfMonth(year, month);
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+
+  const goToPrevMonth = () => {
+    if (month === 0) {
+      setMonth(11);
+      setYear((y) => y - 1);
+    } else {
+      setMonth((m) => m - 1);
+    }
+  };
+
+  const goToNextMonth = () => {
+    if (month === 11) {
+      setMonth(0);
+      setYear((y) => y + 1);
+    } else {
+      setMonth((m) => m + 1);
+    }
+  };
+
+  // Build calendar grid with leading blanks for first week offset
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <Pressable onPress={() => router.back()}>
+          <IconSymbol name="chevron.left" size={20} color={FreepassColors.white} />
+        </Pressable>
         <Text style={styles.headerTitle}>Calendar View</Text>
-        <Pressable>
+        <Pressable onPress={() => { setMonth(today.getMonth()); setYear(today.getFullYear()); }}>
           <IconSymbol name="calendar" size={24} color={FreepassColors.white} />
         </Pressable>
       </View>
 
       <View style={styles.calendar}>
         <View style={styles.monthNav}>
-          <Pressable>
+          <Pressable onPress={goToPrevMonth} hitSlop={12}>
             <IconSymbol name="chevron.left" size={24} color={FreepassColors.white} />
           </Pressable>
-          <Text style={styles.monthText}>March 2026</Text>
-          <Pressable>
+          <Text style={styles.monthText}>{MONTH_NAMES[month]} {year}</Text>
+          <Pressable onPress={goToNextMonth} hitSlop={12}>
             <IconSymbol name="chevron.right" size={24} color={FreepassColors.white} />
           </Pressable>
         </View>
         <View style={styles.daysRow}>
           {DAYS.map((d) => (
-            <Text key={d} style={styles.dayHeader}>
-              {d}
-            </Text>
+            <Text key={d} style={styles.dayHeader}>{d}</Text>
           ))}
         </View>
         <View style={styles.datesGrid}>
-          {DATES.map((d) => (
-            <View key={d} style={[styles.dateCell, d === 3 && styles.dateToday]}>
-              <Text style={[styles.dateText, d === 3 && styles.dateTodayText]}>{d}</Text>
+          {cells.map((d, i) => (
+            <View key={i} style={[styles.dateCell, d !== null && isCurrentMonth && d === today.getDate() && styles.dateToday]}>
+              {d !== null && (
+                <Text style={[styles.dateText, isCurrentMonth && d === today.getDate() && styles.dateTodayText]}>
+                  {d}
+                </Text>
+              )}
             </View>
           ))}
         </View>
@@ -46,14 +93,9 @@ export default function CalendarViewScreen() {
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={styles.eventsTitle}>All Upcoming Events</Text>
-        <View style={styles.eventCard}>
-          <View style={styles.eventLogo}>
-            <Text style={styles.eventLogoText}>fp</Text>
-          </View>
-          <View style={styles.eventInfo}>
-            <Text style={styles.eventName}>Event Name</Text>
-            <Text style={styles.eventTime}>Start Time</Text>
-          </View>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>No events this month</Text>
+          <Text style={styles.emptySub}>Events will appear here once added.</Text>
         </View>
         <Pressable
           style={styles.addEventBtn}
@@ -108,6 +150,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: FreepassColors.white,
+    width: '14.28%',
+    textAlign: 'center',
   },
   datesGrid: {
     flexDirection: 'row',
@@ -121,11 +165,10 @@ const styles = StyleSheet.create({
   dateToday: {
     backgroundColor: FreepassColors.white,
     borderRadius: 20,
-    marginHorizontal: '2%',
   },
   dateText: {
     fontSize: 14,
-    color: FreepassColors.text,
+    color: FreepassColors.white,
   },
   dateTodayText: {
     color: FreepassColors.primary,
@@ -139,38 +182,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
   },
-  eventCard: {
-    flexDirection: 'row',
+  emptyState: {
     alignItems: 'center',
-    backgroundColor: FreepassColors.cardBg,
-    borderRadius: 12,
-    padding: 16,
+    paddingVertical: 24,
     marginBottom: 16,
   },
-  eventLogo: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    backgroundColor: FreepassColors.accentLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  eventLogoText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: FreepassColors.primary,
-  },
-  eventInfo: { flex: 1 },
-  eventName: {
+  emptyText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: FreepassColors.text,
-  },
-  eventTime: {
-    fontSize: 13,
     color: FreepassColors.textSecondary,
-    marginTop: 2,
+    fontWeight: '600',
+  },
+  emptySub: {
+    fontSize: 14,
+    color: FreepassColors.textSecondary,
+    marginTop: 4,
   },
   addEventBtn: {
     flexDirection: 'row',

@@ -1,0 +1,52 @@
+import { useEffect, useState } from 'react';
+
+import { supabase } from '@/lib/supabase';
+
+export interface AppEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  address: string | null;
+  event_date: string;
+  end_date: string | null;
+  instructor: string | null;
+}
+
+export function useEvents() {
+  const [events, setEvents] = useState<AppEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from('events')
+      .select('*')
+      .gte('event_date', new Date().toISOString())
+      .order('event_date')
+      .then(({ data }) => {
+        setEvents(data ?? []);
+        setLoading(false);
+      });
+  }, []);
+
+  return { events, loading };
+}
+
+export function useEvent(id: string) {
+  const [event, setEvent] = useState<AppEvent | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from('events')
+      .select('*')
+      .eq('id', id)
+      .single()
+      .then(({ data }) => {
+        setEvent(data);
+        setLoading(false);
+      });
+  }, [id]);
+
+  return { event, loading };
+}

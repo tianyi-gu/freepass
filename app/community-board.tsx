@@ -32,6 +32,20 @@ const MOCK_POSTS = [
 
 export default function CommunityBoardScreen() {
   const [comment, setComment] = useState('');
+  const [posts, setPosts] = useState(MOCK_POSTS);
+
+  const handlePost = () => {
+    if (!comment.trim()) return;
+    const newPost = {
+      id: String(Date.now()),
+      author: 'You',
+      time: 'Just now',
+      body: comment.trim(),
+      replies: 0,
+    };
+    setPosts([newPost, ...posts]);
+    setComment('');
+  };
 
   return (
     <View style={styles.container}>
@@ -51,14 +65,18 @@ export default function CommunityBoardScreen() {
             onChangeText={setComment}
             multiline
           />
-          <Pressable style={styles.postBtn} android_ripple={{ color: FreepassColors.primaryDark }}>
+          <Pressable
+            style={[styles.postBtn, !comment.trim() && { opacity: 0.5 }]}
+            onPress={handlePost}
+            disabled={!comment.trim()}
+            android_ripple={{ color: FreepassColors.primaryDark }}>
             <IconSymbol name="paperplane.fill" size={18} color={FreepassColors.white} />
             <Text style={styles.postBtnText}>POST</Text>
           </Pressable>
         </View>
 
         <Text style={styles.sectionTitle}>Recent Posts</Text>
-        {MOCK_POSTS.map((post) => (
+        {posts.map((post) => (
           <View key={post.id} style={styles.postCard}>
             <View style={styles.postHeader}>
               <Text style={styles.postAuthor}>{post.author}</Text>

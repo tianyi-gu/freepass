@@ -1,10 +1,24 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
 export default function AnswerQuestionModal() {
+  const [answer, setAnswer] = useState('');
+
+  const handleSubmit = () => {
+    if (!answer.trim()) {
+      Alert.alert('Missing info', 'Please enter your answer.');
+      return;
+    }
+    // TODO: Submit to backend
+    Alert.alert('Answer Submitted', 'Your answer has been posted.', [
+      { text: 'OK', onPress: () => router.back() },
+    ]);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -19,11 +33,14 @@ export default function AnswerQuestionModal() {
           style={styles.input}
           placeholder="Answer the question..."
           placeholderTextColor={FreepassColors.textSecondary}
+          value={answer}
+          onChangeText={setAnswer}
           multiline
         />
         <Pressable
-          style={styles.submitBtn}
-          onPress={() => router.back()}
+          style={[styles.submitBtn, !answer.trim() && { opacity: 0.5 }]}
+          onPress={handleSubmit}
+          disabled={!answer.trim()}
           android_ripple={{ color: FreepassColors.primaryDark }}>
           <Text style={styles.submitBtnText}>ANSWER</Text>
         </Pressable>
