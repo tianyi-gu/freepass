@@ -4,11 +4,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
-type TabId = 'home' | 'chat' | 'courses' | 'events' | 'qa';
+type TabId = 'home' | 'chat' | 'casey' | 'courses' | 'events' | 'qa';
 
 const TABS: { id: TabId; label: string; icon: string; route: string }[] = [
   { id: 'home', label: 'Home', icon: 'house.fill', route: '/(drawer)' },
-  { id: 'chat', label: 'Chat', icon: 'bubble.left.and.bubble.right.fill', route: '/(drawer)/chat' },
+  { id: 'casey', label: 'Casey', icon: 'sparkles', route: '/(drawer)/casey' },
   { id: 'courses', label: 'Courses', icon: 'play.rectangle.fill', route: '/(drawer)/learning-academy' },
   { id: 'events', label: 'Events', icon: 'calendar', route: '/(drawer)/event-calendar' },
   { id: 'qa', label: 'Q&A', icon: 'questionmark.circle.fill', route: '/(drawer)/ask-question' },

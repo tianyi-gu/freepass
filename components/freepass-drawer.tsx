@@ -7,6 +7,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
 const MENU_ITEMS = [
+  { id: 'casey', label: 'Casey (AI Assistant)', icon: 'sparkles', route: '/(drawer)/casey' },
   { id: 'account', label: 'Account', icon: 'person.fill', route: '/(drawer)/account' },
   { id: 'message-board', label: 'Message Board', icon: 'rectangle.grid.2x2.fill', route: '/(drawer)/message-board' },
   { id: 'chat', label: 'Chat', icon: 'bubble.left.and.bubble.right.fill', route: '/(drawer)/chat' },
@@ -88,6 +89,7 @@ function getDrawerRoute(route: string): string {
     '/(drawer)/event-calendar': 'event-calendar',
     '/(drawer)/ask-question': 'ask-question',
     '/(drawer)/user-guide': 'user-guide',
+    '/(drawer)/casey': 'casey',
   };
   return map[route] ?? 'index';
 }
