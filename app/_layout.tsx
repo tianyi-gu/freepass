@@ -44,6 +44,7 @@ export default function RootLayout() {
         <Stack.Screen name="listing-draft/[id]" />
         <Stack.Screen name="signup" />
         <Stack.Screen name="onboarding" />
+        <Stack.Screen name="documents" />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

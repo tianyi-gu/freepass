@@ -82,6 +82,18 @@ create table public.saved_resources (
   unique(user_id, resource_id)
 );
 
+-- 7. USER DOCUMENTS — certifications, IDs, and other important documents
+create table public.user_documents (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  name text not null,
+  category text not null default 'Other',  -- ID, Certification, Medical, Legal, Employment, Other
+  storage_path text not null,  -- path in the 'documents' storage bucket
+  notes text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
 -- ============================================================
 -- ROW LEVEL SECURITY
 -- ============================================================
@@ -92,6 +104,7 @@ alter table public.resource_categories enable row level security;
 alter table public.resources enable row level security;
 alter table public.events enable row level security;
 alter table public.saved_resources enable row level security;
+alter table public.user_documents enable row level security;
 
 -- Profiles: users can read/update their own profile
 create policy "Users can view own profile"
@@ -128,6 +141,46 @@ create policy "Users can save resources"
 create policy "Users can unsave resources"
   on public.saved_resources for delete using (auth.uid() = user_id);
 
+-- User documents: users manage their own private documents
+create policy "Users can view own documents"
+  on public.user_documents for select using (auth.uid() = user_id);
+create policy "Users can insert own documents"
+  on public.user_documents for insert with check (auth.uid() = user_id);
+create policy "Users can update own documents"
+  on public.user_documents for update using (auth.uid() = user_id);
+create policy "Users can delete own documents"
+  on public.user_documents for delete using (auth.uid() = user_id);
+
+-- ============================================================
+-- STORAGE BUCKET — private bucket for user documents
+-- Run these separately in Supabase Dashboard if the bucket doesn't exist:
+--   Storage → New bucket → name: 'documents', Public: false
+-- Then run the policies below.
+-- ============================================================
+
+-- Storage policies for the 'documents' bucket
+-- Users can upload/read/delete only files in their own folder (named by user id)
+create policy "Users can upload own documents"
+  on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'documents'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "Users can view own documents"
+  on storage.objects for select to authenticated
+  using (
+    bucket_id = 'documents'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "Users can delete own documents"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'documents'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
 -- ============================================================
 -- AUTO-UPDATE TIMESTAMPS
 -- ============================================================
@@ -154,6 +207,10 @@ create trigger events_updated_at
 
 create trigger survey_answers_updated_at
   before update on public.survey_answers
+  for each row execute function public.handle_updated_at();
+
+create trigger user_documents_updated_at
+  before update on public.user_documents
   for each row execute function public.handle_updated_at();
 
 -- ============================================================

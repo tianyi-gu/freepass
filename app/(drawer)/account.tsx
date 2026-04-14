@@ -54,6 +54,14 @@ export default function AccountScreen() {
               <Text style={styles.menuLabel}>Browse Resources</Text>
               <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
             </Pressable>
+            <Pressable
+              style={styles.menuRow}
+              onPress={() => router.push('/documents' as never)}
+              android_ripple={{ color: FreepassColors.lightGray }}>
+              <IconSymbol name="doc.text.fill" size={22} color={FreepassColors.primary} />
+              <Text style={styles.menuLabel}>My Documents</Text>
+              <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
+            </Pressable>
           </View>
         </ScrollView>
       </View>
@@ -105,6 +113,14 @@ export default function AccountScreen() {
             android_ripple={{ color: FreepassColors.lightGray }}>
             <IconSymbol name="map.fill" size={22} color={FreepassColors.primary} />
             <Text style={styles.menuLabel}>Saved Resources</Text>
+            <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
+          </Pressable>
+          <Pressable
+            style={styles.menuRow}
+            onPress={() => router.push('/documents' as never)}
+            android_ripple={{ color: FreepassColors.lightGray }}>
+            <IconSymbol name="doc.text.fill" size={22} color={FreepassColors.primary} />
+            <Text style={styles.menuLabel}>My Documents</Text>
             <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
           </Pressable>
           <Pressable
