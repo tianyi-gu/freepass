@@ -25,6 +25,7 @@ export default function DrawerLayout() {
       <Drawer.Screen name="ask-question" options={{ drawerLabel: () => null }} />
       <Drawer.Screen name="user-guide" options={{ drawerLabel: () => null }} />
       <Drawer.Screen name="casey" options={{ drawerLabel: () => null }} />
+      <Drawer.Screen name="budget" options={{ drawerLabel: () => null }} />
     </Drawer>
   );
 }

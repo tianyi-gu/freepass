@@ -14,6 +14,7 @@ const MENU_ITEMS = [
   { id: 'learning-academy', label: 'Learning Academy', icon: 'book.fill', route: '/(drawer)/learning-academy' },
   { id: 'event-calendar', label: 'Event Calendar', icon: 'calendar', route: '/(drawer)/event-calendar' },
   { id: 'ask-question', label: 'Ask a Question', icon: 'questionmark.circle.fill', route: '/(drawer)/ask-question' },
+  { id: 'budget', label: 'Budget Manager', icon: 'chart.bar.fill', route: '/(drawer)/budget' },
   { id: 'user-guide', label: 'New User Guide', icon: 'doc.text.fill', route: '/(drawer)/user-guide' },
 ] as const;
 
@@ -90,6 +91,7 @@ function getDrawerRoute(route: string): string {
     '/(drawer)/ask-question': 'ask-question',
     '/(drawer)/user-guide': 'user-guide',
     '/(drawer)/casey': 'casey',
+    '/(drawer)/budget': 'budget',
   };
   return map[route] ?? 'index';
 }
