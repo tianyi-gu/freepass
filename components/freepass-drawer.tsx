@@ -9,6 +9,7 @@ import { FreepassColors } from '@/constants/theme';
 const MENU_ITEMS = [
   { id: 'casey', label: 'Casey (AI Assistant)', icon: 'sparkles', route: '/(drawer)/casey' },
   { id: 'account', label: 'Account', icon: 'person.fill', route: '/(drawer)/account' },
+  { id: 'documents', label: 'My Documents', icon: 'doc.text.fill', route: '/documents' },
   { id: 'message-board', label: 'Message Board', icon: 'rectangle.grid.2x2.fill', route: '/(drawer)/message-board' },
   { id: 'chat', label: 'Chat', icon: 'bubble.left.and.bubble.right.fill', route: '/(drawer)/chat' },
   { id: 'learning-academy', label: 'Learning Academy', icon: 'book.fill', route: '/(drawer)/learning-academy' },
@@ -45,7 +46,11 @@ export function FreepassDrawerContent(props: any) {
               style={[styles.menuItem, isActive && styles.menuItemActive]}
               onPress={() => {
               props.navigation.closeDrawer();
-              props.navigation.navigate(getDrawerRoute(item.route) as never);
+              if (item.route.startsWith('/(drawer)/')) {
+                props.navigation.navigate(getDrawerRoute(item.route) as never);
+              } else {
+                router.push(item.route as never);
+              }
             }}>
               <IconSymbol
                 name={item.icon as any}

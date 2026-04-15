@@ -6,9 +6,13 @@ import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { useUser } from '@/contexts/user-context';
+import { useDocuments } from '@/hooks/use-documents';
 
 export default function AccountScreen() {
   const { user, logOut } = useUser();
+  const documentsUserId = user && !user.isGuest ? user.id : null;
+  const { documents } = useDocuments(documentsUserId);
+  const docCount = documents.length;
 
   const handleLogOut = useCallback(async () => {
     await logOut();
@@ -121,6 +125,11 @@ export default function AccountScreen() {
             android_ripple={{ color: FreepassColors.lightGray }}>
             <IconSymbol name="doc.text.fill" size={22} color={FreepassColors.primary} />
             <Text style={styles.menuLabel}>My Documents</Text>
+            {docCount > 0 && (
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>{docCount}</Text>
+              </View>
+            )}
             <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
           </Pressable>
           <Pressable
@@ -290,5 +299,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: FreepassColors.destructive,
+  },
+  countBadge: {
+    backgroundColor: FreepassColors.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 24,
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  countBadgeText: {
+    color: FreepassColors.white,
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

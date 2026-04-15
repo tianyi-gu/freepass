@@ -6,8 +6,15 @@ import { FreepassLogo } from '@/components/freepass-header';
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { useUser } from '@/contexts/user-context';
+import { useDocuments } from '@/hooks/use-documents';
 
 export default function HomeScreen() {
+  const { user } = useUser();
+  const documentsUserId = user && !user.isGuest ? user.id : null;
+  const { documents } = useDocuments(documentsUserId);
+  const showDocumentsPrompt = !!documentsUserId && documents.length === 0;
+
   return (
     <View style={styles.container}>
       <FreepassHeader showLogo showMenu showBack={false} />
@@ -44,6 +51,29 @@ export default function HomeScreen() {
             </Pressable>
           </View>
         </View>
+
+        {showDocumentsPrompt && (
+          <View style={styles.docPromptCard}>
+            <View style={styles.docPromptHeader}>
+              <View style={styles.docPromptIconWrap}>
+                <IconSymbol name="doc.text.fill" size={22} color={FreepassColors.white} />
+              </View>
+              <View style={styles.docPromptTitleWrap}>
+                <Text style={styles.docPromptTitle}>Keep your documents safe</Text>
+                <Text style={styles.docPromptBody}>
+                  Snap a photo of your ID, certifications, or paperwork. Only you can see them.
+                </Text>
+              </View>
+            </View>
+            <Pressable
+              style={styles.docPromptButton}
+              onPress={() => router.push('/documents' as never)}
+              android_ripple={{ color: FreepassColors.primaryDark }}>
+              <IconSymbol name="plus" size={16} color={FreepassColors.white} />
+              <Text style={styles.docPromptButtonText}>ADD A DOCUMENT</Text>
+            </Pressable>
+          </View>
+        )}
 
         <View style={styles.sectionOrange}>
           <Text style={styles.sectionTitleDark}>Access Local Resources</Text>
@@ -289,6 +319,52 @@ const styles = StyleSheet.create({
   },
   ctaText: {
     fontSize: 15,
+    fontWeight: '700',
+    color: FreepassColors.white,
+  },
+  docPromptCard: {
+    backgroundColor: FreepassColors.accent,
+    margin: 16,
+    padding: 18,
+    borderRadius: 12,
+  },
+  docPromptHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 14,
+  },
+  docPromptIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  docPromptTitleWrap: { flex: 1 },
+  docPromptTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: FreepassColors.white,
+    marginBottom: 4,
+  },
+  docPromptBody: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255,255,255,0.9)',
+  },
+  docPromptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: FreepassColors.primary,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  docPromptButtonText: {
+    fontSize: 13,
     fontWeight: '700',
     color: FreepassColors.white,
   },

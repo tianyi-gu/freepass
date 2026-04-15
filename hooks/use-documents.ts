@@ -137,6 +137,23 @@ export function useDocuments(userId: string | null) {
     [],
   );
 
+  const updateDocument = useCallback(
+    async (
+      id: string,
+      updates: { name?: string; category?: DocumentCategory; notes?: string | null },
+    ) => {
+      const { error } = await supabase
+        .from('user_documents')
+        .update(updates)
+        .eq('id', id);
+      if (error) throw error;
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === id ? { ...d, ...updates } as UserDocument : d)),
+      );
+    },
+    [],
+  );
+
   const getSignedUrl = useCallback(async (storagePath: string): Promise<string | null> => {
     const { data, error } = await supabase.storage
       .from(BUCKET)
@@ -152,6 +169,7 @@ export function useDocuments(userId: string | null) {
     reload: load,
     uploadDocument,
     deleteDocument,
+    updateDocument,
     getSignedUrl,
   };
 }

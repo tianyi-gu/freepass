@@ -31,8 +31,15 @@ import {
 export default function DocumentsScreen() {
   const { user } = useUser();
   const userId = user && !user.isGuest ? user.id : null;
-  const { documents, isLoading, isUploading, uploadDocument, deleteDocument, getSignedUrl } =
-    useDocuments(userId);
+  const {
+    documents,
+    isLoading,
+    isUploading,
+    uploadDocument,
+    deleteDocument,
+    updateDocument,
+    getSignedUrl,
+  } = useDocuments(userId);
 
   const [uploadModal, setUploadModal] = useState(false);
   const [pickerModal, setPickerModal] = useState(false);
@@ -41,6 +48,8 @@ export default function DocumentsScreen() {
   const [docCategory, setDocCategory] = useState<DocumentCategory>('Other');
   const [docNotes, setDocNotes] = useState('');
   const [viewerDoc, setViewerDoc] = useState<UserDocument | null>(null);
+  const [editingDoc, setEditingDoc] = useState<UserDocument | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Prompt guests / logged-out users to sign up
   if (!user || user.isGuest) {
@@ -106,6 +115,38 @@ export default function DocumentsScreen() {
       Alert.alert('Upload failed', err?.message ?? 'Please try again.');
     }
   }, [pendingUri, docName, docCategory, docNotes, uploadDocument]);
+
+  const handleStartEdit = useCallback((doc: UserDocument) => {
+    setEditingDoc(doc);
+    setDocName(doc.name);
+    setDocCategory(doc.category as DocumentCategory);
+    setDocNotes(doc.notes ?? '');
+    setViewerDoc(null);
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingDoc) return;
+    if (!docName.trim()) {
+      Alert.alert('Missing name', 'Please give this document a name.');
+      return;
+    }
+    setIsSavingEdit(true);
+    try {
+      await updateDocument(editingDoc.id, {
+        name: docName.trim(),
+        category: docCategory,
+        notes: docNotes.trim() || null,
+      });
+      setEditingDoc(null);
+      setDocName('');
+      setDocCategory('Other');
+      setDocNotes('');
+    } catch (err: any) {
+      Alert.alert('Save failed', err?.message ?? 'Please try again.');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }, [editingDoc, docName, docCategory, docNotes, updateDocument]);
 
   const handleDelete = useCallback(
     (doc: UserDocument) => {
@@ -291,9 +332,86 @@ export default function DocumentsScreen() {
           doc={viewerDoc}
           getSignedUrl={getSignedUrl}
           onClose={() => setViewerDoc(null)}
+          onEdit={() => handleStartEdit(viewerDoc)}
           onDelete={() => handleDelete(viewerDoc)}
         />
       )}
+
+      {/* Edit modal */}
+      <Modal visible={!!editingDoc} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <ScrollView
+            style={styles.uploadSheet}
+            contentContainerStyle={styles.uploadSheetContent}
+            keyboardShouldPersistTaps="handled">
+            <View style={styles.modalHeader}>
+              <Text style={styles.sheetTitle}>Edit document</Text>
+              <Pressable onPress={() => setEditingDoc(null)} hitSlop={8}>
+                <IconSymbol name="xmark" size={20} color={FreepassColors.text} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.inputLabel}>Document name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Driver's License"
+              value={docName}
+              onChangeText={setDocName}
+              placeholderTextColor={FreepassColors.textSecondary}
+            />
+
+            <Text style={styles.inputLabel}>Category</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.categoryPicker}>
+              {DOCUMENT_CATEGORIES.map((cat) => (
+                <Pressable
+                  key={cat}
+                  style={[
+                    styles.categoryChip,
+                    docCategory === cat && { backgroundColor: CATEGORY_COLORS[cat] },
+                  ]}
+                  onPress={() => setDocCategory(cat)}>
+                  <IconSymbol
+                    name={CATEGORY_ICONS[cat] as any}
+                    size={14}
+                    color={docCategory === cat ? FreepassColors.white : CATEGORY_COLORS[cat]}
+                  />
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      docCategory === cat && styles.categoryChipTextActive,
+                    ]}>
+                    {cat}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.inputLabel}>Notes (optional)</Text>
+            <TextInput
+              style={[styles.input, styles.inputMultiline]}
+              placeholder="e.g. Expires 2028"
+              value={docNotes}
+              onChangeText={setDocNotes}
+              placeholderTextColor={FreepassColors.textSecondary}
+              multiline
+            />
+
+            <Pressable
+              style={[styles.saveBtn, isSavingEdit && styles.saveBtnDisabled]}
+              onPress={handleSaveEdit}
+              disabled={isSavingEdit}>
+              {isSavingEdit ? (
+                <ActivityIndicator color={FreepassColors.white} />
+              ) : (
+                <Text style={styles.saveBtnText}>Save Changes</Text>
+              )}
+            </Pressable>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -367,11 +485,13 @@ function DocumentViewer({
   doc,
   getSignedUrl,
   onClose,
+  onEdit,
   onDelete,
 }: {
   doc: UserDocument;
   getSignedUrl: (path: string) => Promise<string | null>;
   onClose: () => void;
+  onEdit: () => void;
   onDelete: () => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -396,6 +516,9 @@ function DocumentViewer({
           <Text style={styles.viewerTitle} numberOfLines={1}>
             {doc.name}
           </Text>
+          <Pressable onPress={onEdit} style={styles.viewerIconBtn} hitSlop={8}>
+            <IconSymbol name="pencil" size={20} color={FreepassColors.white} />
+          </Pressable>
           <Pressable onPress={onDelete} style={styles.viewerIconBtn} hitSlop={8}>
             <IconSymbol name="trash.fill" size={20} color="#FF6B6B" />
           </Pressable>
