@@ -16,6 +16,7 @@ export default function SignupScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [zipCode, setZipCode] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSignUp = useCallback(async () => {
@@ -25,14 +26,14 @@ export default function SignupScreen() {
     }
     setLoading(true);
     try {
-      await signUp(email.trim(), password, name.trim());
+      await signUp(email.trim(), password, name.trim(), zipCode.trim() || undefined);
       router.replace('/onboarding' as never);
-    } catch {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } catch (err) {
+      Alert.alert('Sign Up Failed', (err as Error).message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [name, email, password, signUp]);
+  }, [name, email, password, zipCode, signUp]);
 
   const handleLogIn = useCallback(async () => {
     if (!email.trim() || !password.trim()) {
@@ -43,8 +44,8 @@ export default function SignupScreen() {
     try {
       await logIn(email.trim(), password);
       router.replace('/(drawer)');
-    } catch {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } catch (err) {
+      Alert.alert('Login Failed', (err as Error).message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -155,6 +156,19 @@ export default function SignupScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
+                returnKeyType="next"
+              />
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Zip Code</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Your Philadelphia zip code (optional)"
+                placeholderTextColor={FreepassColors.textSecondary}
+                value={zipCode}
+                onChangeText={setZipCode}
+                keyboardType="number-pad"
+                maxLength={5}
                 returnKeyType="done"
               />
             </View>

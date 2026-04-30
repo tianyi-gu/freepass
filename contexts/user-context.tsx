@@ -18,7 +18,7 @@ export interface UserProfile {
 interface UserContextValue {
   user: UserProfile | null;
   isLoading: boolean;
-  signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  signUp: (email: string, password: string, displayName: string, zipCode?: string) => Promise<void>;
   logIn: (email: string, password: string) => Promise<void>;
   continueAsGuest: () => Promise<void>;
   saveSurveyAnswers: (answers: Record<string, string | string[]>) => Promise<void>;
@@ -91,8 +91,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, displayName: string) => {
-    const { error } = await supabase.auth.signUp({
+  const signUp = useCallback(async (email: string, password: string, displayName: string, zipCode?: string) => {
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -100,6 +100,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
       },
     });
     if (error) throw error;
+
+    // Update profile with zip code if provided
+    if (zipCode && data.user) {
+      await supabase
+        .from('profiles')
+        .update({ zip_code: zipCode })
+        .eq('id', data.user.id);
+    }
+
+    // If email confirmation is required, the session will be null
+    // but the user was still created successfully
+    if (data.user && !data.session) {
+      // Auto sign in since this is a mobile app and we don't need email confirmation
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) throw signInError;
+    }
   }, []);
 
   const logIn = useCallback(async (email: string, password: string) => {
