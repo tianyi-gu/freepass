@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassLogo } from '@/components/freepass-header';
@@ -56,12 +56,17 @@ export default function SignupScreen() {
   }, [continueAsGuest]);
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <View style={styles.container}>
       <FreepassHeader showLogo showBack={mode !== 'welcome'} showMenu={false} />
+      <KeyboardAvoidingView
+        style={styles.scroll}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
         <View style={styles.branding}>
           <Text style={styles.subtitle}>The Fountain Fund Philadelphia</Text>
           <FreepassLogo size={48} />
@@ -126,6 +131,7 @@ export default function SignupScreen() {
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
+                returnKeyType="next"
               />
             </View>
             <View style={styles.field}>
@@ -149,6 +155,7 @@ export default function SignupScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
+                returnKeyType="done"
               />
             </View>
 
@@ -200,6 +207,7 @@ export default function SignupScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
+                returnKeyType="done"
               />
             </View>
 
@@ -223,7 +231,9 @@ export default function SignupScreen() {
           </>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
+    </TouchableWithoutFeedback>
   );
 }
 

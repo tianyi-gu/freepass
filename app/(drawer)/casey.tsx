@@ -1,6 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from 'expo-speech-recognition';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +18,7 @@ import {
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
@@ -124,7 +130,46 @@ export default function CaseyScreen() {
   const [messages, setMessages] = useState<Message[]>([OPENING_MESSAGE]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const listRef = useRef<FlatList>(null);
+
+  // Speech recognition event handlers
+  useSpeechRecognitionEvent('result', (event) => {
+    const transcript = event.results[0]?.transcript ?? '';
+    setInput(transcript);
+    if (event.isFinal) {
+      setIsListening(false);
+    }
+  });
+
+  useSpeechRecognitionEvent('end', () => {
+    setIsListening(false);
+  });
+
+  useSpeechRecognitionEvent('error', (event) => {
+    setIsListening(false);
+    if (event.error !== 'no-speech') {
+      Alert.alert('Speech error', event.message || 'Could not recognize speech. Please try again.');
+    }
+  });
+
+  const toggleListening = useCallback(async () => {
+    if (isListening) {
+      ExpoSpeechRecognitionModule.stop();
+      return;
+    }
+    const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!granted) {
+      Alert.alert('Permission needed', 'Please allow microphone and speech recognition access in Settings.');
+      return;
+    }
+    setIsListening(true);
+    ExpoSpeechRecognitionModule.start({
+      lang: 'en-US',
+      interimResults: true,
+      addsPunctuation: true,
+    });
+  }, [isListening]);
 
   useEffect(() => {
     supabase
@@ -240,12 +285,22 @@ export default function CaseyScreen() {
           </View>
         )}
         <View style={styles.inputRow}>
+          <Pressable
+            style={[styles.micBtn, isListening && styles.micBtnActive]}
+            onPress={toggleListening}
+            disabled={loading}>
+            <IconSymbol
+              name={isListening ? 'stop.fill' : 'mic.fill'}
+              size={20}
+              color={isListening ? FreepassColors.white : FreepassColors.primary}
+            />
+          </Pressable>
           <TextInput
             style={styles.input}
             value={input}
             onChangeText={setInput}
-            placeholder="Message Casey..."
-            placeholderTextColor={FreepassColors.textSecondary}
+            placeholder={isListening ? 'Listening...' : 'Message Casey...'}
+            placeholderTextColor={isListening ? FreepassColors.accent : FreepassColors.textSecondary}
             multiline
             maxLength={500}
             returnKeyType="send"
@@ -353,6 +408,20 @@ const styles = StyleSheet.create({
     color: FreepassColors.text,
     borderWidth: 1,
     borderColor: FreepassColors.lightGray,
+  },
+  micBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: FreepassColors.offWhite,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: FreepassColors.lightGray,
+  },
+  micBtnActive: {
+    backgroundColor: FreepassColors.destructive,
+    borderColor: FreepassColors.destructive,
   },
   sendBtn: {
     height: 44,

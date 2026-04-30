@@ -1,12 +1,16 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 
@@ -290,107 +294,127 @@ export default function BudgetScreen() {
 
       {/* Add Expense Modal */}
       <Modal visible={showAddExpense} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Expense</Text>
-              <Pressable onPress={() => setShowAddExpense(false)} hitSlop={8}>
-                <IconSymbol name="xmark" size={20} color={FreepassColors.text} />
-              </Pressable>
-            </View>
-
-            <Text style={styles.inputLabel}>Amount ($)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0.00"
-              keyboardType="decimal-pad"
-              value={expenseAmount}
-              onChangeText={setExpenseAmount}
-              placeholderTextColor={FreepassColors.textSecondary}
-            />
-
-            <Text style={styles.inputLabel}>Description</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Groceries at Aldi"
-              value={expenseDesc}
-              onChangeText={setExpenseDesc}
-              placeholderTextColor={FreepassColors.textSecondary}
-            />
-
-            <Text style={styles.inputLabel}>Category</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryPicker}>
-              {EXPENSE_CATEGORIES.map((cat) => (
-                <Pressable
-                  key={cat}
-                  style={[
-                    styles.categoryChip,
-                    expenseCategory === cat && { backgroundColor: CATEGORY_COLORS[cat] },
-                  ]}
-                  onPress={() => setExpenseCategory(cat)}>
-                  <IconSymbol
-                    name={CATEGORY_ICONS[cat] as any}
-                    size={14}
-                    color={expenseCategory === cat ? FreepassColors.white : CATEGORY_COLORS[cat]}
-                  />
-                  <Text
-                    style={[
-                      styles.categoryChipText,
-                      expenseCategory === cat && styles.categoryChipTextActive,
-                    ]}>
-                    {cat}
-                  </Text>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <KeyboardAvoidingView
+            style={styles.modalOverlay}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <ScrollView
+              style={styles.modalSheet}
+              contentContainerStyle={styles.modalSheetContent}
+              keyboardShouldPersistTaps="handled"
+              bounces={false}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Add Expense</Text>
+                <Pressable onPress={() => setShowAddExpense(false)} hitSlop={8}>
+                  <IconSymbol name="xmark" size={20} color={FreepassColors.text} />
                 </Pressable>
-              ))}
+              </View>
+
+              <Text style={styles.inputLabel}>Amount ($)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+                value={expenseAmount}
+                onChangeText={setExpenseAmount}
+                placeholderTextColor={FreepassColors.textSecondary}
+                returnKeyType="done"
+              />
+
+              <Text style={styles.inputLabel}>Description</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Groceries at Aldi"
+                value={expenseDesc}
+                onChangeText={setExpenseDesc}
+                placeholderTextColor={FreepassColors.textSecondary}
+                returnKeyType="done"
+              />
+
+              <Text style={styles.inputLabel}>Category</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryPicker}>
+                {EXPENSE_CATEGORIES.map((cat) => (
+                  <Pressable
+                    key={cat}
+                    style={[
+                      styles.categoryChip,
+                      expenseCategory === cat && { backgroundColor: CATEGORY_COLORS[cat] },
+                    ]}
+                    onPress={() => setExpenseCategory(cat)}>
+                    <IconSymbol
+                      name={CATEGORY_ICONS[cat] as any}
+                      size={14}
+                      color={expenseCategory === cat ? FreepassColors.white : CATEGORY_COLORS[cat]}
+                    />
+                    <Text
+                      style={[
+                        styles.categoryChipText,
+                        expenseCategory === cat && styles.categoryChipTextActive,
+                      ]}>
+                      {cat}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+
+              <Text style={styles.inputLabel}>Tag (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. weekly, essential"
+                value={expenseTag}
+                onChangeText={setExpenseTag}
+                placeholderTextColor={FreepassColors.textSecondary}
+                returnKeyType="done"
+              />
+
+              <Pressable style={styles.saveBtn} onPress={handleAddExpense}>
+                <Text style={styles.saveBtnText}>Save Expense</Text>
+              </Pressable>
             </ScrollView>
-
-            <Text style={styles.inputLabel}>Tag (optional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. weekly, essential"
-              value={expenseTag}
-              onChangeText={setExpenseTag}
-              placeholderTextColor={FreepassColors.textSecondary}
-            />
-
-            <Pressable style={styles.saveBtn} onPress={handleAddExpense}>
-              <Text style={styles.saveBtnText}>Save Expense</Text>
-            </Pressable>
-          </View>
-        </View>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Set Budget Modal */}
       <Modal visible={showSetBudget} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Set Monthly Budget</Text>
-              <Pressable onPress={() => setShowSetBudget(false)} hitSlop={8}>
-                <IconSymbol name="xmark" size={20} color={FreepassColors.text} />
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <KeyboardAvoidingView
+            style={styles.modalOverlay}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <ScrollView
+              style={styles.modalSheet}
+              contentContainerStyle={styles.modalSheetContent}
+              keyboardShouldPersistTaps="handled"
+              bounces={false}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Set Monthly Budget</Text>
+                <Pressable onPress={() => setShowSetBudget(false)} hitSlop={8}>
+                  <IconSymbol name="xmark" size={20} color={FreepassColors.text} />
+                </Pressable>
+              </View>
+
+              <Text style={styles.inputLabel}>Monthly Budget ($)</Text>
+              <TextInput
+                style={styles.inputLarge}
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+                value={budgetInput}
+                onChangeText={setBudgetInput}
+                placeholderTextColor={FreepassColors.textSecondary}
+                returnKeyType="done"
+              />
+
+              <Text style={styles.budgetHint}>
+                Set a realistic monthly budget based on your income. You'll get alerts when you're
+                close to or over your limit.
+              </Text>
+
+              <Pressable style={styles.saveBtn} onPress={handleSetBudget}>
+                <Text style={styles.saveBtnText}>Save Budget</Text>
               </Pressable>
-            </View>
-
-            <Text style={styles.inputLabel}>Monthly Budget ($)</Text>
-            <TextInput
-              style={styles.inputLarge}
-              placeholder="0.00"
-              keyboardType="decimal-pad"
-              value={budgetInput}
-              onChangeText={setBudgetInput}
-              placeholderTextColor={FreepassColors.textSecondary}
-            />
-
-            <Text style={styles.budgetHint}>
-              Set a realistic monthly budget based on your income. You'll get alerts when you're
-              close to or over your limit.
-            </Text>
-
-            <Pressable style={styles.saveBtn} onPress={handleSetBudget}>
-              <Text style={styles.saveBtnText}>Save Budget</Text>
-            </Pressable>
-          </View>
-        </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </Modal>
 
       <FreepassTabBar activeTab="budget" />
@@ -553,10 +577,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
-  modalContent: {
+  modalSheet: {
     backgroundColor: FreepassColors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    maxHeight: '90%',
+  },
+  modalSheetContent: {
     padding: 24,
     paddingBottom: 40,
   },
