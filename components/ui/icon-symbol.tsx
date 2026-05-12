@@ -49,6 +49,11 @@ const MAPPING = {
   'info.circle': 'info',
   'chart.line.uptrend.xyaxis': 'trending-up',
   'building.2.fill': 'business',
+  'mic.fill': 'mic',
+  'speaker.wave.2.fill': 'volume-up',
+  'speaker.slash.fill': 'volume-off',
+  'stop.fill': 'stop',
+  'person.fill.viewfinder': 'record-voice-over',
 } as IconMapping;
 
 /**

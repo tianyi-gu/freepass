@@ -2,6 +2,7 @@ import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
+import * as Speech from 'expo-speech';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -125,13 +126,82 @@ function buildGroqMessages(
   return msgs;
 }
 
+type VoiceGender = 'female' | 'male';
+
+// Pick a platform voice by gender. iOS has well-known names; Android uses language filtering.
+async function pickVoice(gender: VoiceGender): Promise<string | undefined> {
+  const voices = await Speech.getAvailableVoicesAsync();
+  const enVoices = voices.filter((v) => v.language.startsWith('en'));
+
+  if (Platform.OS === 'ios') {
+    // Preferred iOS voices by gender
+    const preferred =
+      gender === 'female'
+        ? ['com.apple.voice.compact.en-US.Samantha', 'com.apple.ttsbundle.Samantha-compact']
+        : ['com.apple.voice.compact.en-GB.Daniel', 'com.apple.ttsbundle.Daniel-compact'];
+    for (const id of preferred) {
+      if (enVoices.find((v) => v.identifier === id)) return id;
+    }
+    // Fallback: pick any en voice with matching quality hint in name
+    const keyword = gender === 'female' ? /samantha|karen|moira|fiona|tessa/i : /daniel|aaron|arthur|fred|oliver/i;
+    const match = enVoices.find((v) => keyword.test(v.identifier) || keyword.test(v.name));
+    if (match) return match.identifier;
+  }
+
+  // Android / fallback: use gender field if available, otherwise pick first en voice
+  const genderMatch = enVoices.find(
+    (v) => (v as any).gender === gender || (v as any).gender === (gender === 'female' ? 2 : 1)
+  );
+  if (genderMatch) return genderMatch.identifier;
+
+  return enVoices[0]?.identifier;
+}
+
 export default function CaseyScreen() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [messages, setMessages] = useState<Message[]>([OPENING_MESSAGE]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [voiceGender, setVoiceGender] = useState<VoiceGender>('female');
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
+
+  // Speak a message with the selected voice
+  const speakText = useCallback(
+    async (text: string, msgId: string) => {
+      // Stop any current speech first
+      await Speech.stop();
+      const voiceId = await pickVoice(voiceGender);
+      setSpeakingMsgId(msgId);
+      setIsSpeaking(true);
+      Speech.speak(text, {
+        voice: voiceId,
+        language: 'en-US',
+        rate: 0.95,
+        onDone: () => {
+          setIsSpeaking(false);
+          setSpeakingMsgId(null);
+        },
+        onStopped: () => {
+          setIsSpeaking(false);
+          setSpeakingMsgId(null);
+        },
+        onError: () => {
+          setIsSpeaking(false);
+          setSpeakingMsgId(null);
+        },
+      });
+    },
+    [voiceGender]
+  );
+
+  const stopSpeaking = useCallback(async () => {
+    await Speech.stop();
+    setIsSpeaking(false);
+    setSpeakingMsgId(null);
+  }, []);
 
   // Speech recognition event handlers
   useSpeechRecognitionEvent('result', (event) => {
@@ -170,6 +240,13 @@ export default function CaseyScreen() {
       addsPunctuation: true,
     });
   }, [isListening]);
+
+  // Stop speech when leaving the screen
+  useEffect(() => {
+    return () => {
+      Speech.stop();
+    };
+  }, []);
 
   useEffect(() => {
     supabase
@@ -223,10 +300,14 @@ export default function CaseyScreen() {
         json?.choices?.[0]?.message?.content ??
         "I'm sorry, I couldn't find a good match right now. Try rephrasing your question.";
 
+      const replyId = (Date.now() + 1).toString();
       setMessages((prev) => [
         ...prev,
-        { id: (Date.now() + 1).toString(), role: 'bot', text: reply },
+        { id: replyId, role: 'bot', text: reply },
       ]);
+
+      // Auto-read Casey's response
+      speakText(reply, replyId);
     } catch (err) {
       console.error('[Casey] Error:', err);
       setMessages((prev) => [
@@ -244,6 +325,7 @@ export default function CaseyScreen() {
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isUser = item.role === 'user';
+    const isCurrentlySpeaking = isSpeaking && speakingMsgId === item.id;
     return (
       <View style={[styles.msgRow, isUser && styles.msgRowUser]}>
         {!isUser && (
@@ -253,6 +335,19 @@ export default function CaseyScreen() {
         )}
         <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleBot]}>
           <Text style={[styles.bubbleText, isUser && styles.bubbleTextUser]}>{item.text}</Text>
+          {!isUser && (
+            <Pressable
+              style={styles.speakerBtn}
+              onPress={() =>
+                isCurrentlySpeaking ? stopSpeaking() : speakText(item.text, item.id)
+              }>
+              <IconSymbol
+                name={isCurrentlySpeaking ? 'speaker.slash.fill' : 'speaker.wave.2.fill'}
+                size={16}
+                color={isCurrentlySpeaking ? FreepassColors.destructive : FreepassColors.textSecondary}
+              />
+            </Pressable>
+          )}
         </View>
       </View>
     );
@@ -261,6 +356,20 @@ export default function CaseyScreen() {
   return (
     <View style={styles.container}>
       <FreepassHeader showMenu title="Casey" />
+      <View style={styles.voiceBar}>
+        <IconSymbol name="speaker.wave.2.fill" size={16} color={FreepassColors.textSecondary} />
+        <Text style={styles.voiceLabel}>Voice:</Text>
+        <Pressable
+          style={[styles.voiceOption, voiceGender === 'female' && styles.voiceOptionActive]}
+          onPress={() => { setVoiceGender('female'); if (isSpeaking) stopSpeaking(); }}>
+          <Text style={[styles.voiceOptionText, voiceGender === 'female' && styles.voiceOptionTextActive]}>Female</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.voiceOption, voiceGender === 'male' && styles.voiceOptionActive]}
+          onPress={() => { setVoiceGender('male'); if (isSpeaking) stopSpeaking(); }}>
+          <Text style={[styles.voiceOptionText, voiceGender === 'male' && styles.voiceOptionTextActive]}>Male</Text>
+        </Pressable>
+      </View>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -438,5 +547,45 @@ const styles = StyleSheet.create({
     color: FreepassColors.white,
     fontWeight: '600',
     fontSize: 15,
+  },
+  voiceBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: FreepassColors.lightGray,
+    backgroundColor: FreepassColors.offWhite,
+  },
+  voiceLabel: {
+    fontSize: 13,
+    color: FreepassColors.textSecondary,
+    fontWeight: '500',
+  },
+  voiceOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: FreepassColors.white,
+    borderWidth: 1,
+    borderColor: FreepassColors.lightGray,
+  },
+  voiceOptionActive: {
+    backgroundColor: FreepassColors.primary,
+    borderColor: FreepassColors.primary,
+  },
+  voiceOptionText: {
+    fontSize: 13,
+    color: FreepassColors.textSecondary,
+    fontWeight: '500',
+  },
+  voiceOptionTextActive: {
+    color: FreepassColors.white,
+  },
+  speakerBtn: {
+    alignSelf: 'flex-end',
+    marginTop: 6,
+    padding: 4,
   },
 });
