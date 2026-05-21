@@ -1,17 +1,39 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 
-const MOCK_COURSES = [
-  { id: '1', name: 'Money Smart Process', description: 'FDIC financial literacy certification' },
-  { id: '2', name: 'New Loan Inquiry Process', description: 'Access capital through Fountain Fund loans' },
-];
+interface Course {
+  id: string;
+  name: string;
+  description: string | null;
+  course_type: string | null;
+  web_link: string | null;
+  video_link: string | null;
+}
 
 export default function LearningAcademyScreen() {
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from('courses')
+      .select('id, name, description, course_type, web_link, video_link')
+      .eq('in_learning_academy', true)
+      .eq('is_hidden', false)
+      .order('display_order', { ascending: true, nullsFirst: false })
+      .then(({ data }) => {
+        setCourses(data ?? []);
+        setLoading(false);
+      });
+  }, []);
+
   return (
     <View style={styles.container}>
       <FreepassHeader showLogo showMenu showBack={false} />
@@ -58,19 +80,31 @@ export default function LearningAcademyScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>FreePass Courses provided by The Fountain Fund</Text>
-        {MOCK_COURSES.map((c) => (
-          <Pressable
-            key={c.id}
-            style={styles.courseCard}
-            onPress={() => router.push(`/course/${c.id}` as never)}
-            android_ripple={{ color: FreepassColors.lightGray }}>
-            <View style={styles.courseImage} />
-            <View style={styles.courseContent}>
-              <Text style={styles.courseName}>{c.name}</Text>
-              <Text style={styles.courseDesc}>{c.description}</Text>
-            </View>
-          </Pressable>
-        ))}
+        {loading ? (
+          <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 20 }} />
+        ) : courses.length === 0 ? (
+          <Text style={styles.emptyText}>No courses available yet.</Text>
+        ) : (
+          courses.map((c) => (
+            <Pressable
+              key={c.id}
+              style={styles.courseCard}
+              onPress={() => {
+                const link = c.web_link || c.video_link;
+                if (link) router.push(link as never);
+              }}
+              android_ripple={{ color: FreepassColors.lightGray }}>
+              <View style={styles.courseImage}>
+                <IconSymbol name="book.fill" size={28} color={FreepassColors.textSecondary} />
+              </View>
+              <View style={styles.courseContent}>
+                <Text style={styles.courseName}>{c.name}</Text>
+                {c.description && <Text style={styles.courseDesc} numberOfLines={2}>{c.description}</Text>}
+                {c.course_type && <Text style={styles.courseType}>{c.course_type}</Text>}
+              </View>
+            </Pressable>
+          ))
+        )}
 
         <View style={styles.darkSection}>
           <Text style={styles.darkText}>
@@ -178,6 +212,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: FreepassColors.lightGray,
     marginRight: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   courseContent: { flex: 1 },
   courseName: {
@@ -189,5 +225,17 @@ const styles = StyleSheet.create({
   courseDesc: {
     fontSize: 14,
     color: FreepassColors.textSecondary,
+  },
+  courseType: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: FreepassColors.accent,
+    marginTop: 4,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: FreepassColors.textSecondary,
+    textAlign: 'center',
+    marginTop: 20,
   },
 });

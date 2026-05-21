@@ -1,16 +1,51 @@
-import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 
-const MOCK_ANSWERS = [
-  { id: '1', name: 'Staff Member', upvotes: 5 },
-  { id: '2', name: 'Community Helper', upvotes: 3 },
-  { id: '3', name: 'Resource Guide', upvotes: 2 },
-];
+interface Answer {
+  id: string;
+  answer: string;
+  answered_by: string | null;
+  upvotes: number;
+}
+
+interface Question {
+  id: string;
+  question: string;
+  upvotes: number;
+  category: string | null;
+}
 
 export default function QuestionViewScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const [question, setQuestion] = useState<Question | null>(null);
+  const [answers, setAnswers] = useState<Answer[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) return;
+    Promise.all([
+      supabase.from('questions').select('*').eq('id', id).single(),
+      supabase.from('answers').select('*').eq('question_id', id).order('upvotes', { ascending: false }),
+    ]).then(([qRes, aRes]) => {
+      if (qRes.data) setQuestion(qRes.data);
+      if (aRes.data) setAnswers(aRes.data);
+      setLoading(false);
+    });
+  }, [id]);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={FreepassColors.white} size="large" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -21,31 +56,34 @@ export default function QuestionViewScreen() {
         <Text style={styles.headerTitle}>Question View</Text>
         <View style={styles.upvoteBtn}>
           <IconSymbol name="hand.thumbsup.fill" size={18} color={FreepassColors.white} />
-          <Text style={styles.upvoteText}>Upvotes</Text>
+          <Text style={styles.upvoteText}>{question?.upvotes ?? 0}</Text>
         </View>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.questionCard}>
           <Text style={styles.questionLabel}>Question:</Text>
-          <Text style={styles.questionText}>How do I apply for housing assistance in my area?</Text>
+          <Text style={styles.questionText}>{question?.question ?? 'Question not found'}</Text>
+          {question?.category && <Text style={styles.categoryTag}>{question.category}</Text>}
         </View>
 
-        <Text style={styles.answersLabel}>Answers:</Text>
-        {MOCK_ANSWERS.map((a) => (
-          <View key={a.id} style={styles.answerCard}>
-            <View style={styles.answerMain}>
-              <Text style={styles.answerName}>{a.name}</Text>
-              <Pressable style={styles.answerUpvote}>
-                <IconSymbol name="hand.thumbsup.fill" size={16} color={FreepassColors.textSecondary} />
-                <Text style={styles.answerUpvoteText}>Upvotes</Text>
-              </Pressable>
-              <Pressable hitSlop={8}>
-                <IconSymbol name="ellipsis" size={20} color={FreepassColors.textSecondary} />
-              </Pressable>
+        <Text style={styles.answersLabel}>Answers ({answers.length}):</Text>
+        {answers.length === 0 ? (
+          <Text style={styles.noAnswers}>No answers yet. Be the first to respond!</Text>
+        ) : (
+          answers.map((a) => (
+            <View key={a.id} style={styles.answerCard}>
+              <Text style={styles.answerText}>{a.answer}</Text>
+              <View style={styles.answerMain}>
+                <Text style={styles.answerName}>{a.answered_by ?? 'Anonymous'}</Text>
+                <Pressable style={styles.answerUpvote}>
+                  <IconSymbol name="hand.thumbsup.fill" size={16} color={FreepassColors.textSecondary} />
+                  <Text style={styles.answerUpvoteText}>{a.upvotes}</Text>
+                </Pressable>
+              </View>
             </View>
-          </View>
-        ))}
+          ))
+        )}
       </ScrollView>
 
       <Pressable
@@ -135,10 +173,28 @@ const styles = StyleSheet.create({
   answerUpvote: {
     alignItems: 'center',
   },
+  answerText: {
+    fontSize: 15,
+    color: FreepassColors.text,
+    lineHeight: 22,
+    marginBottom: 10,
+  },
   answerUpvoteText: {
     fontSize: 10,
     color: FreepassColors.textSecondary,
     marginTop: 2,
+  },
+  categoryTag: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: FreepassColors.accent,
+    marginTop: 8,
+  },
+  noAnswers: {
+    fontSize: 15,
+    color: FreepassColors.accentLight,
+    textAlign: 'center',
+    marginTop: 20,
   },
   addAnswerBtn: {
     position: 'absolute',

@@ -1,18 +1,37 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 
-const MOCK_QUESTIONS = [
-  { id: '1', title: 'How do I apply for housing assistance?', answersCount: 3 },
-  { id: '2', title: 'What documents are needed for employment programs?', answersCount: 5 },
-  { id: '3', title: 'Where can I find free legal services?', answersCount: 2 },
-];
+interface Question {
+  id: string;
+  question: string;
+  category: string | null;
+  upvotes: number;
+  is_faq: boolean;
+  answers: { count: number }[];
+}
 
 export default function AskQuestionScreen() {
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from('questions')
+      .select('id, question, category, upvotes, is_faq, answers(count)')
+      .order('upvotes', { ascending: false })
+      .then(({ data }) => {
+        setQuestions((data as unknown as Question[]) ?? []);
+        setLoading(false);
+      });
+  }, []);
+
   return (
     <View style={styles.container}>
       <FreepassHeader showLogo showMenu showBack={false} />
@@ -32,22 +51,30 @@ export default function AskQuestionScreen() {
         </Pressable>
 
         <Text style={styles.sectionTitle}>Browse Questions</Text>
-        {MOCK_QUESTIONS.map((q) => (
-          <Pressable
-            key={q.id}
-            style={styles.questionCard}
-            onPress={() => router.push(`/question/${q.id}` as never)}
-            android_ripple={{ color: FreepassColors.lightGray }}>
-            <View style={styles.questionIcon}>
-              <IconSymbol name="doc.text.fill" size={24} color={FreepassColors.textSecondary} />
-            </View>
-            <View style={styles.questionContent}>
-              <Text style={styles.questionTitle}>{q.title}</Text>
-              <Text style={styles.questionMeta}>Answers: {q.answersCount}</Text>
-            </View>
-            <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
-          </Pressable>
-        ))}
+        {loading ? (
+          <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 20 }} />
+        ) : questions.length === 0 ? (
+          <Text style={styles.emptyText}>No questions yet. Be the first to ask!</Text>
+        ) : (
+          questions.map((q) => (
+            <Pressable
+              key={q.id}
+              style={styles.questionCard}
+              onPress={() => router.push(`/question/${q.id}` as never)}
+              android_ripple={{ color: FreepassColors.lightGray }}>
+              <View style={styles.questionIcon}>
+                <IconSymbol name="doc.text.fill" size={24} color={FreepassColors.textSecondary} />
+              </View>
+              <View style={styles.questionContent}>
+                <Text style={styles.questionTitle}>{q.question}</Text>
+                <Text style={styles.questionMeta}>
+                  {q.answers?.[0]?.count ?? 0} answers · {q.upvotes} upvotes{q.is_faq ? ' · FAQ' : ''}
+                </Text>
+              </View>
+              <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
+            </Pressable>
+          ))
+        )}
       </ScrollView>
       <FreepassTabBar activeTab="home" />
     </View>
@@ -118,5 +145,11 @@ const styles = StyleSheet.create({
   questionMeta: {
     fontSize: 13,
     color: FreepassColors.textSecondary,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: FreepassColors.textSecondary,
+    textAlign: 'center',
+    marginTop: 20,
   },
 });
