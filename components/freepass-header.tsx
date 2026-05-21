@@ -1,6 +1,7 @@
 import { DrawerActions } from '@react-navigation/native';
 import { router, useNavigation } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
@@ -23,10 +24,11 @@ export function FreepassHeader({
   onBack,
 }: FreepassHeaderProps) {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const handleBack = onBack ?? (() => router.back());
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
       <View style={styles.left}>
         {showMenu && (
           <Pressable
@@ -116,7 +118,6 @@ const styles = StyleSheet.create({
     backgroundColor: FreepassColors.primary,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingTop: 48,
   },
   headerBar: {
     flexDirection: 'row',

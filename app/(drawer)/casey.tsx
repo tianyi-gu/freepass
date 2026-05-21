@@ -46,14 +46,13 @@ Rules:
 
 type Resource = {
   name: string;
-  location: string;
-  type1: string;
-  type2: string;
-  type3: string;
+  address: string;
+  city: string;
   description: string;
   phone: string;
   website: string;
   hours: string;
+  tags: string[];
 };
 
 type Message = {
@@ -78,7 +77,7 @@ function filterResources(resources: Resource[], query: string): Resource[] {
 
   const scored = resources
     .map((r) => {
-      const haystack = [r.type1, r.type2, r.type3, r.name, r.description]
+      const haystack = [...(r.tags || []), r.name, r.description]
         .join(' ')
         .toLowerCase();
       const hits = keywords.filter((kw) => haystack.includes(kw)).length;
@@ -96,7 +95,7 @@ function buildContext(resources: Resource[]): string {
   return resources
     .map(
       (r) =>
-        `Org: ${r.name} | Services: ${r.type1}, ${r.type2}, ${r.type3} | Phone: ${r.phone} | ${r.description}`
+        `Org: ${r.name} | Location: ${r.address}, ${r.city} | Services: ${(r.tags || []).join(', ')} | Phone: ${r.phone} | ${r.description}`
     )
     .join('\n');
 }
@@ -251,7 +250,7 @@ export default function CaseyScreen() {
   useEffect(() => {
     supabase
       .from('resources')
-      .select('name, location, type1, type2, type3, description, phone, website, hours')
+      .select('name, address, city, description, phone, website, hours, tags')
       .then(({ data, error }) => {
         if (error) { console.error('[Casey] Supabase fetch error:', error); return; }
         if (data) setResources(data as Resource[]);

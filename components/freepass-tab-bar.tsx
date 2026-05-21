@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
-type TabId = 'home' | 'chat' | 'casey' | 'courses' | 'events' | 'qa' | 'budget';
+type TabId = 'home' | 'chat' | 'casey' | 'courses' | 'events' | 'budget';
 
 const TABS: { id: TabId; label: string; icon: string; route: string }[] = [
   { id: 'home', label: 'Home', icon: 'house.fill', route: '/(drawer)' },
@@ -15,8 +16,9 @@ const TABS: { id: TabId; label: string; icon: string; route: string }[] = [
 ];
 
 export function FreepassTabBar({ activeTab }: { activeTab: TabId }) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 12) }]}>
       {TABS.map((tab) => {
         const isActive = activeTab === tab.id;
         return (
@@ -44,7 +46,7 @@ const styles = StyleSheet.create({
     backgroundColor: FreepassColors.primary,
     paddingVertical: 12,
     paddingHorizontal: 8,
-    paddingBottom: 28,
+    paddingBottom: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.1)',
   },

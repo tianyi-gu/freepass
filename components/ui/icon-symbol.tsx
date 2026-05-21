@@ -54,6 +54,17 @@ const MAPPING = {
   'speaker.slash.fill': 'volume-off',
   'stop.fill': 'stop',
   'person.fill.viewfinder': 'record-voice-over',
+  'sparkles': 'auto-awesome',
+  'camera.fill': 'photo-camera',
+  'photo.fill': 'photo-library',
+  'pencil': 'edit',
+  'trash.fill': 'delete',
+  'exclamationmark.triangle.fill': 'warning',
+  'chart.bar.fill': 'bar-chart',
+  'fork.knife': 'restaurant',
+  'car.fill': 'directions-car',
+  'bolt.fill': 'bolt',
+  'ellipsis.circle.fill': 'more-horiz',
 } as IconMapping;
 
 /**

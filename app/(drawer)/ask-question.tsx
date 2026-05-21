@@ -49,7 +49,7 @@ export default function AskQuestionScreen() {
           </Pressable>
         ))}
       </ScrollView>
-      <FreepassTabBar activeTab="qa" />
+      <FreepassTabBar activeTab="home" />
     </View>
   );
 }

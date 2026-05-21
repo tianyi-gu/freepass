@@ -95,6 +95,17 @@ create table public.user_documents (
 );
 
 -- ============================================================
+-- INDEXES — speed up frequent queries
+-- ============================================================
+
+create index idx_survey_answers_user_id on public.survey_answers(user_id);
+create index idx_resources_category_id on public.resources(category_id);
+create index idx_resources_is_published on public.resources(is_published) where is_published = true;
+create index idx_saved_resources_user_id on public.saved_resources(user_id);
+create index idx_user_documents_user_id on public.user_documents(user_id);
+create index idx_events_is_published_date on public.events(is_published, event_date) where is_published = true;
+
+-- ============================================================
 -- ROW LEVEL SECURITY
 -- ============================================================
 

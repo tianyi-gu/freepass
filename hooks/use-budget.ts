@@ -79,21 +79,20 @@ export function useBudget() {
     await AsyncStorage.setItem(BUDGET_KEY, amount.toString());
   }, []);
 
-  const addExpense = useCallback(async (expense: Omit<Expense, 'id'>) => {
-    const newExpense: Expense = { ...expense, id: Date.now().toString() };
-    setExpensesState((prev) => {
-      const updated = [newExpense, ...prev];
-      AsyncStorage.setItem(EXPENSES_KEY, JSON.stringify(updated));
-      return updated;
-    });
+  // Persist expenses to AsyncStorage whenever they change (after initial load)
+  useEffect(() => {
+    if (!isLoading) {
+      AsyncStorage.setItem(EXPENSES_KEY, JSON.stringify(expenses));
+    }
+  }, [expenses, isLoading]);
+
+  const addExpense = useCallback((expense: Omit<Expense, 'id'>) => {
+    const newExpense: Expense = { ...expense, id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}` };
+    setExpensesState((prev) => [newExpense, ...prev]);
   }, []);
 
-  const deleteExpense = useCallback(async (id: string) => {
-    setExpensesState((prev) => {
-      const updated = prev.filter((e) => e.id !== id);
-      AsyncStorage.setItem(EXPENSES_KEY, JSON.stringify(updated));
-      return updated;
-    });
+  const deleteExpense = useCallback((id: string) => {
+    setExpensesState((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
   const getMonthExpenses = useCallback(

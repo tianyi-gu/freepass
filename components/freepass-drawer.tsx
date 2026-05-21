@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { FreepassLogo } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { useUser } from '@/contexts/user-context';
 
 const MENU_ITEMS = [
   { id: 'casey', label: 'Casey (AI Assistant)', icon: 'sparkles', route: '/(drawer)/casey' },
@@ -20,13 +21,9 @@ const MENU_ITEMS = [
 ] as const;
 
 export function FreepassDrawerContent(props: any) {
+  const { user } = useUser();
   const state = props.state;
   const currentRoute = state.routes[state.index]?.name;
-
-  const handleNavigate = (route: string) => {
-    props.navigation.closeDrawer();
-    router.push(route as never);
-  };
 
   return (
     <View style={styles.container}>
@@ -80,7 +77,7 @@ export function FreepassDrawerContent(props: any) {
 
       <View style={styles.footer}>
         <FreepassLogo size={24} />
-        <Text style={styles.userName}>User Account Name</Text>
+        <Text style={styles.userName}>{user?.displayName ?? (user?.isGuest ? 'Guest' : 'Account')}</Text>
       </View>
     </View>
   );

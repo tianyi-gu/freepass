@@ -88,7 +88,7 @@ export default function BudgetScreen() {
       `You're $${overBy.toFixed(2)} over budget. Try to reduce daily spending by $${(overBy / Math.max(1, 30 - now.getDate())).toFixed(2)} for the rest of the month.`,
     );
     return suggestions;
-  }, [isOverBudget, sortedCategories, topCategory, categoryTotals, currentTotal, monthlyBudget, now]);
+  }, [isOverBudget, sortedCategories, topCategory, categoryTotals, currentTotal, monthlyBudget, now.getMonth(), now.getDate()]);
 
   const handleAddExpense = useCallback(() => {
     const amount = parseFloat(expenseAmount);

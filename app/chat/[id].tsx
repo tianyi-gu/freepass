@@ -1,5 +1,4 @@
-import { DrawerActions } from '@react-navigation/native';
-import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -8,7 +7,6 @@ import { FreepassColors } from '@/constants/theme';
 
 export default function ChatThreadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const navigation = useNavigation();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<{ id: string; text: string; fromMe: boolean; time: string }[]>([]);
 
@@ -29,8 +27,8 @@ export default function ChatThreadScreen() {
             <IconSymbol name="chevron.left" size={18} color={FreepassColors.white} />
             <Text style={styles.backText}>Back</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>Full Name</Text>
-          <Pressable onPress={() => navigation.dispatch(DrawerActions.openDrawer())} style={styles.profileBtn}>
+          <Text style={styles.headerTitle}>Chat</Text>
+          <Pressable onPress={() => router.push('/(drawer)/account' as never)} style={styles.profileBtn}>
             <IconSymbol name="person.fill" size={22} color={FreepassColors.white} />
           </Pressable>
         </View>

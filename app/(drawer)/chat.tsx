@@ -21,7 +21,7 @@ export default function ChatScreen() {
           <Pressable onPress={() => navigation.dispatch(DrawerActions.openDrawer())} style={styles.menuBtn}>
             <IconSymbol name="line.3.horizontal" size={22} color={FreepassColors.white} />
           </Pressable>
-          <Text style={styles.headerTitle}>Full Name</Text>
+          <Text style={styles.headerTitle}>Chat</Text>
           <View style={styles.headerRight}>
             <IconSymbol name="person.fill" size={22} color={FreepassColors.white} />
           </View>

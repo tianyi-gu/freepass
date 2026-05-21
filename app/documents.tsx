@@ -51,26 +51,6 @@ export default function DocumentsScreen() {
   const [editingDoc, setEditingDoc] = useState<UserDocument | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
-  // Prompt guests / logged-out users to sign up
-  if (!user || user.isGuest) {
-    return (
-      <View style={styles.container}>
-        <FreepassHeader title="My Documents" showBack />
-        <View style={styles.centerContent}>
-          <IconSymbol name="doc.text.fill" size={64} color={FreepassColors.lightGray} />
-          <Text style={styles.emptyTitle}>Sign in to store documents</Text>
-          <Text style={styles.emptyBody}>
-            Create a free account to securely save IDs, certifications, and other important
-            documents. They&apos;ll stay private to you.
-          </Text>
-          <Pressable style={styles.signUpBtn} onPress={() => router.push('/signup')}>
-            <Text style={styles.signUpBtnText}>CREATE AN ACCOUNT</Text>
-          </Pressable>
-        </View>
-      </View>
-    );
-  }
-
   const handlePickFromCamera = useCallback(async () => {
     setPickerModal(false);
     const uri = await takePhoto();
@@ -105,7 +85,6 @@ export default function DocumentsScreen() {
         category: docCategory,
         notes: docNotes.trim() || undefined,
       });
-      // Reset
       setPendingUri(null);
       setDocName('');
       setDocCategory('Other');
@@ -172,6 +151,26 @@ export default function DocumentsScreen() {
     },
     [deleteDocument, viewerDoc],
   );
+
+  // Prompt guests / logged-out users to sign up (after all hooks)
+  if (!user || user.isGuest) {
+    return (
+      <View style={styles.container}>
+        <FreepassHeader title="My Documents" showBack />
+        <View style={styles.centerContent}>
+          <IconSymbol name="doc.text.fill" size={64} color={FreepassColors.lightGray} />
+          <Text style={styles.emptyTitle}>Sign in to store documents</Text>
+          <Text style={styles.emptyBody}>
+            Create a free account to securely save IDs, certifications, and other important
+            documents. They&apos;ll stay private to you.
+          </Text>
+          <Pressable style={styles.signUpBtn} onPress={() => router.push('/signup')}>
+            <Text style={styles.signUpBtnText}>CREATE AN ACCOUNT</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
