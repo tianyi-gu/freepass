@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -6,46 +5,8 @@ import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
-const MOCK_POSTS = [
-  {
-    id: '1',
-    author: 'User A',
-    time: '2 days ago',
-    body: 'I found this great housing resource in North Philly. They helped me get my application in order. Happy to share details!',
-    replies: 5,
-  },
-  {
-    id: '2',
-    author: 'User B',
-    time: '1 day ago',
-    body: 'Job fair at the community center this Thursday. Anyone else planning to go?',
-    replies: 8,
-  },
-  {
-    id: '3',
-    author: 'User C',
-    time: '5 hours ago',
-    body: 'Recommendation for financial coaching – The Fountain Fund has been really helpful. Check out their courses in the Learning Academy.',
-    replies: 3,
-  },
-];
-
 export default function CommunityBoardScreen() {
   const [comment, setComment] = useState('');
-  const [posts, setPosts] = useState(MOCK_POSTS);
-
-  const handlePost = () => {
-    if (!comment.trim()) return;
-    const newPost = {
-      id: String(Date.now()),
-      author: 'You',
-      time: 'Just now',
-      body: comment.trim(),
-      replies: 0,
-    };
-    setPosts([newPost, ...posts]);
-    setComment('');
-  };
 
   return (
     <View style={styles.container}>
@@ -67,7 +28,6 @@ export default function CommunityBoardScreen() {
           />
           <Pressable
             style={[styles.postBtn, !comment.trim() && { opacity: 0.5 }]}
-            onPress={handlePost}
             disabled={!comment.trim()}
             android_ripple={{ color: FreepassColors.primaryDark }}>
             <IconSymbol name="paperplane.fill" size={18} color={FreepassColors.white} />
@@ -76,19 +36,11 @@ export default function CommunityBoardScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>Recent Posts</Text>
-        {posts.map((post) => (
-          <View key={post.id} style={styles.postCard}>
-            <View style={styles.postHeader}>
-              <Text style={styles.postAuthor}>{post.author}</Text>
-              <Text style={styles.postTime}>{post.time}</Text>
-            </View>
-            <Text style={styles.postBody}>{post.body}</Text>
-            <Pressable style={styles.replyBtn}>
-              <IconSymbol name="bubble.left.and.bubble.right.fill" size={16} color={FreepassColors.primary} />
-              <Text style={styles.replyText}>{post.replies} replies</Text>
-            </Pressable>
-          </View>
-        ))}
+        <View style={styles.emptyState}>
+          <IconSymbol name="bubble.left.and.bubble.right.fill" size={40} color={FreepassColors.lightGray} />
+          <Text style={styles.emptyTitle}>No posts yet</Text>
+          <Text style={styles.emptyText}>Be the first to share with the community!</Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -136,41 +88,19 @@ const styles = StyleSheet.create({
     color: FreepassColors.text,
     marginBottom: 16,
   },
-  postCard: {
-    backgroundColor: FreepassColors.cardBg,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  postHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  emptyState: {
     alignItems: 'center',
-    marginBottom: 8,
+    paddingVertical: 40,
   },
-  postAuthor: {
-    fontSize: 15,
+  emptyTitle: {
+    fontSize: 17,
     fontWeight: '700',
     color: FreepassColors.text,
+    marginTop: 12,
   },
-  postTime: {
-    fontSize: 13,
-    color: FreepassColors.textSecondary,
-  },
-  postBody: {
-    fontSize: 15,
-    color: FreepassColors.text,
-    lineHeight: 22,
-    marginBottom: 12,
-  },
-  replyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  replyText: {
+  emptyText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: FreepassColors.primary,
+    color: FreepassColors.textSecondary,
+    marginTop: 4,
   },
 });

@@ -1,15 +1,13 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
-
-const MOCK_NEARBY = [
-  { id: '1', name: 'Housing Resource Center', phone: '(555) 123-4567' },
-  { id: '2', name: 'Employment Services Inc', phone: '(555) 234-5678' },
-];
+import { useResources } from '@/hooks/use-resources';
 
 export default function MapViewScreen() {
+  const { resources, loading } = useResources();
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -40,7 +38,9 @@ export default function MapViewScreen() {
           <Text style={styles.mapPlaceholderText}>Philadelphia, Pennsylvania</Text>
           <Text style={styles.mapPlaceholderSub}>Map integration coming soon</Text>
         </View>
-        {MOCK_NEARBY.map((r) => (
+        {loading ? (
+          <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 20 }} />
+        ) : resources.map((r) => (
           <Pressable
             key={r.id}
             style={styles.resourceCard}
@@ -51,7 +51,8 @@ export default function MapViewScreen() {
             </View>
             <View style={styles.cardContent}>
               <Text style={styles.cardName}>{r.name}</Text>
-              <Text style={styles.cardDetail}>{r.phone}</Text>
+              {r.phone && <Text style={styles.cardDetail}>{r.phone}</Text>}
+              {r.address && <Text style={styles.cardDetail}>{r.address}</Text>}
             </View>
           </Pressable>
         ))}

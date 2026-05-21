@@ -5,13 +5,6 @@ import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
-const MOCK_TOPICS = [
-  { id: '1', title: 'Housing Tips in Philadelphia', replies: 12, lastPost: '2 days ago' },
-  { id: '2', title: 'Job Fair This Week – Share Your Experience', replies: 8, lastPost: '1 day ago' },
-  { id: '3', title: 'Best Resources for Legal Aid?', replies: 15, lastPost: '3 hours ago' },
-  { id: '4', title: 'Financial Coaching – Recommendations', replies: 5, lastPost: '5 days ago' },
-];
-
 export default function MessageBoardScreen() {
   return (
     <View style={styles.container}>
@@ -37,24 +30,11 @@ export default function MessageBoardScreen() {
         </Pressable>
 
         <Text style={styles.sectionTitle}>Recent Topics</Text>
-        {MOCK_TOPICS.map((topic) => (
-          <Pressable
-            key={topic.id}
-            style={styles.topicCard}
-            onPress={() => router.push('/community-board' as never)}
-            android_ripple={{ color: FreepassColors.lightGray }}>
-            <View style={styles.topicIcon}>
-              <IconSymbol name="bubble.left.and.bubble.right.fill" size={24} color={FreepassColors.primary} />
-            </View>
-            <View style={styles.topicContent}>
-              <Text style={styles.topicTitle}>{topic.title}</Text>
-              <Text style={styles.topicMeta}>
-                {topic.replies} replies · {topic.lastPost}
-              </Text>
-            </View>
-            <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
-          </Pressable>
-        ))}
+        <View style={styles.emptyState}>
+          <IconSymbol name="bubble.left.and.bubble.right.fill" size={40} color={FreepassColors.lightGray} />
+          <Text style={styles.emptyTitle}>No topics yet</Text>
+          <Text style={styles.emptySubtext}>Community discussions will appear here.</Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -104,32 +84,19 @@ const styles = StyleSheet.create({
     color: FreepassColors.text,
     marginBottom: 16,
   },
-  topicCard: {
-    flexDirection: 'row',
+  emptyState: {
     alignItems: 'center',
-    backgroundColor: FreepassColors.cardBg,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
+    paddingVertical: 40,
   },
-  topicIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: FreepassColors.accentLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  topicContent: { flex: 1 },
-  topicTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
     color: FreepassColors.text,
-    marginBottom: 4,
+    marginTop: 12,
   },
-  topicMeta: {
-    fontSize: 13,
+  emptySubtext: {
+    fontSize: 14,
     color: FreepassColors.textSecondary,
+    marginTop: 4,
   },
 });

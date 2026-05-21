@@ -1,29 +1,47 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 
-const MOCK_EVENTS = [
-  {
-    id: '1',
-    name: 'Community Job Fair',
-    startTime: 'Thursday, May 4th, 2026 at 4:00 PM',
-    description: 'Meet local employers and explore job opportunities.',
-    isPast: false,
-  },
-];
+interface EventItem {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  event_date: string;
+  end_date: string | null;
+  instructor: string | null;
+}
 
 type Tab = 'upcoming' | 'past';
 
 export default function EventCalendarScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('upcoming');
+  const [allEvents, setAllEvents] = useState<EventItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredEvents = MOCK_EVENTS.filter((e) =>
-    activeTab === 'upcoming' ? !e.isPast : e.isPast
+  useEffect(() => {
+    supabase
+      .from('events')
+      .select('*')
+      .order('event_date', { ascending: false })
+      .then(({ data }) => {
+        setAllEvents(data ?? []);
+        setLoading(false);
+      });
+  }, []);
+
+  const now = new Date().toISOString();
+  const filteredEvents = useMemo(
+    () => allEvents.filter((e) =>
+      activeTab === 'upcoming' ? e.event_date >= now : e.event_date < now
+    ),
+    [allEvents, activeTab, now]
   );
 
   return (
@@ -65,7 +83,9 @@ export default function EventCalendarScreen() {
           coming up.
         </Text>
 
-        {filteredEvents.length === 0 && (
+        {loading ? (
+          <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 20 }} />
+        ) : filteredEvents.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>
               {activeTab === 'upcoming' ? 'No upcoming events' : 'No past events'}
@@ -74,26 +94,27 @@ export default function EventCalendarScreen() {
               {activeTab === 'upcoming' ? 'Check back soon or add your own!' : 'Past events will appear here.'}
             </Text>
           </View>
+        ) : (
+          filteredEvents.map((event) => (
+            <View key={event.id} style={styles.eventCard}>
+              <View style={styles.eventImage}>
+                <Text style={styles.eventImageText}>fp</Text>
+              </View>
+              <View style={styles.eventContent}>
+                <Text style={styles.eventTime}>{new Date(event.event_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</Text>
+                <Text style={styles.eventName}>{event.title}</Text>
+                {event.description && <Text style={styles.eventDesc} numberOfLines={3}>{event.description}</Text>}
+                {event.instructor && <Text style={styles.eventInstructor}>Hosted by {event.instructor}</Text>}
+                <Pressable
+                  style={styles.detailsBtn}
+                  onPress={() => router.push(`/event/${event.id}` as never)}
+                  android_ripple={{ color: FreepassColors.primaryDark }}>
+                  <Text style={styles.detailsBtnText}>SEE DETAILS</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))
         )}
-
-        {filteredEvents.map((event) => (
-          <View key={event.id} style={styles.eventCard}>
-            <View style={styles.eventImage}>
-              <Text style={styles.eventImageText}>fp</Text>
-            </View>
-            <View style={styles.eventContent}>
-              <Text style={styles.eventTime}>{event.startTime}</Text>
-              <Text style={styles.eventName}>{event.name}</Text>
-              <Text style={styles.eventDesc}>{event.description}</Text>
-              <Pressable
-                style={styles.detailsBtn}
-                onPress={() => router.push(`/event/${event.id}` as never)}
-                android_ripple={{ color: FreepassColors.primaryDark }}>
-                <Text style={styles.detailsBtnText}>SEE DETAILS</Text>
-              </Pressable>
-            </View>
-          </View>
-        ))}
       </ScrollView>
       <FreepassTabBar activeTab="events" />
     </View>
@@ -209,8 +230,14 @@ const styles = StyleSheet.create({
   eventDesc: {
     fontSize: 14,
     color: FreepassColors.textSecondary,
-    marginBottom: 12,
+    marginBottom: 8,
     lineHeight: 20,
+  },
+  eventInstructor: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: FreepassColors.accent,
+    marginBottom: 12,
   },
   detailsBtn: {
     alignSelf: 'flex-start',

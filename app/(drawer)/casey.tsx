@@ -2,7 +2,8 @@ import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
-import * as Speech from 'expo-speech';
+import { Audio } from 'expo-av';
+import { File as ExpoFile, Paths } from 'expo-file-system';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -127,34 +128,11 @@ function buildGroqMessages(
 
 type VoiceGender = 'female' | 'male';
 
-// Pick a platform voice by gender. iOS has well-known names; Android uses language filtering.
-async function pickVoice(gender: VoiceGender): Promise<string | undefined> {
-  const voices = await Speech.getAvailableVoicesAsync();
-  const enVoices = voices.filter((v) => v.language.startsWith('en'));
-
-  if (Platform.OS === 'ios') {
-    // Preferred iOS voices by gender
-    const preferred =
-      gender === 'female'
-        ? ['com.apple.voice.compact.en-US.Samantha', 'com.apple.ttsbundle.Samantha-compact']
-        : ['com.apple.voice.compact.en-GB.Daniel', 'com.apple.ttsbundle.Daniel-compact'];
-    for (const id of preferred) {
-      if (enVoices.find((v) => v.identifier === id)) return id;
-    }
-    // Fallback: pick any en voice with matching quality hint in name
-    const keyword = gender === 'female' ? /samantha|karen|moira|fiona|tessa/i : /daniel|aaron|arthur|fred|oliver/i;
-    const match = enVoices.find((v) => keyword.test(v.identifier) || keyword.test(v.name));
-    if (match) return match.identifier;
-  }
-
-  // Android / fallback: use gender field if available, otherwise pick first en voice
-  const genderMatch = enVoices.find(
-    (v) => (v as any).gender === gender || (v as any).gender === (gender === 'female' ? 2 : 1)
-  );
-  if (genderMatch) return genderMatch.identifier;
-
-  return enVoices[0]?.identifier;
-}
+const GROQ_TTS_URL = 'https://api.groq.com/openai/v1/audio/speech';
+const TTS_VOICES: Record<VoiceGender, string> = {
+  female: 'Arista-PlayAI',
+  male: 'Fritz-PlayAI',
+};
 
 export default function CaseyScreen() {
   const [resources, setResources] = useState<Resource[]>([]);
@@ -167,40 +145,77 @@ export default function CaseyScreen() {
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
 
-  // Speak a message with the selected voice
-  const speakText = useCallback(
-    async (text: string, msgId: string) => {
-      // Stop any current speech first
-      await Speech.stop();
-      const voiceId = await pickVoice(voiceGender);
-      setSpeakingMsgId(msgId);
-      setIsSpeaking(true);
-      Speech.speak(text, {
-        voice: voiceId,
-        language: 'en-US',
-        rate: 0.95,
-        onDone: () => {
-          setIsSpeaking(false);
-          setSpeakingMsgId(null);
-        },
-        onStopped: () => {
-          setIsSpeaking(false);
-          setSpeakingMsgId(null);
-        },
-        onError: () => {
-          setIsSpeaking(false);
-          setSpeakingMsgId(null);
-        },
-      });
-    },
-    [voiceGender]
-  );
+  const soundRef = useRef<Audio.Sound | null>(null);
 
   const stopSpeaking = useCallback(async () => {
-    await Speech.stop();
+    if (soundRef.current) {
+      try { await soundRef.current.stopAsync(); } catch {}
+      try { await soundRef.current.unloadAsync(); } catch {}
+      soundRef.current = null;
+    }
     setIsSpeaking(false);
     setSpeakingMsgId(null);
   }, []);
+
+  // Speak a message using Groq cloud TTS (PlayAI voices)
+  const speakText = useCallback(
+    async (text: string, msgId: string) => {
+      await stopSpeaking();
+      setSpeakingMsgId(msgId);
+      setIsSpeaking(true);
+
+      try {
+        const res = await fetch(GROQ_TTS_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.EXPO_PUBLIC_GROQ_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'playai-tts',
+            input: text,
+            voice: TTS_VOICES[voiceGender],
+            response_format: 'mp3',
+          }),
+        });
+
+        if (!res.ok) throw new Error(`TTS HTTP ${res.status}`);
+
+        const blob = await res.blob();
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+
+        const ttsFile = new ExpoFile(Paths.cache, `casey_tts_${Date.now()}.mp3`);
+        ttsFile.write(base64, { encoding: 'base64' });
+
+        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: ttsFile.uri },
+          { shouldPlay: true }
+        );
+        soundRef.current = sound;
+
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            setIsSpeaking(false);
+            setSpeakingMsgId(null);
+            sound.unloadAsync();
+            soundRef.current = null;
+            try { ttsFile.delete(); } catch {}
+          }
+        });
+      } catch (err) {
+        console.error('[Casey TTS]', err);
+        setIsSpeaking(false);
+        setSpeakingMsgId(null);
+      }
+    },
+    [voiceGender, stopSpeaking]
+  );
 
   // Speech recognition event handlers
   useSpeechRecognitionEvent('result', (event) => {
@@ -240,10 +255,13 @@ export default function CaseyScreen() {
     });
   }, [isListening]);
 
-  // Stop speech when leaving the screen
+  // Stop audio when leaving the screen
   useEffect(() => {
     return () => {
-      Speech.stop();
+      if (soundRef.current) {
+        soundRef.current.stopAsync().catch(() => {});
+        soundRef.current.unloadAsync().catch(() => {});
+      }
     };
   }, []);
 

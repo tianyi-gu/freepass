@@ -1,19 +1,16 @@
 import { DrawerActions } from '@react-navigation/native';
 import { router, useNavigation } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
-
-const MOCK_CHANNELS = [
-  { id: '1', name: 'Housing Resource Center' },
-  { id: '2', name: 'Employment Services' },
-  { id: '3', name: 'Community Support Group' },
-];
+import { useResources } from '@/hooks/use-resources';
 
 export default function ChatScreen() {
   const navigation = useNavigation();
+  const { resources, loading } = useResources();
+
   return (
     <View style={styles.container}>
       <View style={styles.headerBar}>
@@ -55,23 +52,28 @@ export default function ChatScreen() {
             <Text style={styles.addChannelText}>Add a Channel</Text>
           </Pressable>
         </View>
-        {MOCK_CHANNELS.map((channel) => (
-          <Pressable
-            key={channel.id}
-            style={styles.channelItem}
-            onPress={() => router.push(`/chat/${channel.id}` as never)}
-            android_ripple={{ color: FreepassColors.lightGray }}>
-            <View style={styles.channelIcon}>
-              <IconSymbol name="person.fill" size={24} color={FreepassColors.textSecondary} />
-            </View>
-            <View style={styles.channelContent}>
-              <Text style={styles.channelName}>{channel.name}</Text>
-              <Text style={styles.channelMeta}>Full Name - Company Name - Created Date</Text>
-            </View>
-            <IconSymbol name="square.and.pencil" size={18} color={FreepassColors.textSecondary} />
-            <IconSymbol name="ellipsis" size={18} color={FreepassColors.textSecondary} />
-          </Pressable>
-        ))}
+        {loading ? (
+          <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 20 }} />
+        ) : resources.length === 0 ? (
+          <Text style={styles.emptyText}>No channels available.</Text>
+        ) : (
+          resources.map((r) => (
+            <Pressable
+              key={r.id}
+              style={styles.channelItem}
+              onPress={() => router.push(`/chat/${r.id}` as never)}
+              android_ripple={{ color: FreepassColors.lightGray }}>
+              <View style={styles.channelIcon}>
+                <IconSymbol name="person.fill" size={24} color={FreepassColors.textSecondary} />
+              </View>
+              <View style={styles.channelContent}>
+                <Text style={styles.channelName}>{r.name}</Text>
+                {r.phone && <Text style={styles.channelMeta}>{r.phone}</Text>}
+              </View>
+              <IconSymbol name="square.and.pencil" size={18} color={FreepassColors.textSecondary} />
+            </Pressable>
+          ))
+        )}
       </ScrollView>
       <FreepassTabBar activeTab="chat" />
     </View>
@@ -167,5 +169,11 @@ const styles = StyleSheet.create({
   channelMeta: {
     fontSize: 13,
     color: FreepassColors.textSecondary,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: FreepassColors.textSecondary,
+    textAlign: 'center',
+    marginTop: 20,
   },
 });

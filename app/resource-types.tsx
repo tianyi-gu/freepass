@@ -1,18 +1,20 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
-
-const MOCK_RESOURCES = [
-  { id: '1', name: 'Housing Resource Center', phone: '(555) 123-4567', web: 'www.example.org' },
-  { id: '2', name: 'Employment Services Inc', phone: '(555) 234-5678', web: 'www.example2.org' },
-  { id: '3', name: 'Community Legal Aid', phone: '(555) 345-6789', web: 'www.example3.org' },
-  { id: '4', name: 'Health Services Hub', phone: '(555) 456-7890', web: 'www.example4.org' },
-];
+import { useResources, useResourceCategories } from '@/hooks/use-resources';
 
 export default function ResourceTypesScreen() {
+  const { categories } = useResourceCategories();
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+  const { resources, loading } = useResources(selectedCategory);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  const selectedName = categories.find(c => c.id === selectedCategory)?.name ?? 'Select a Category...';
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -23,15 +25,31 @@ export default function ResourceTypesScreen() {
       </View>
       <View style={styles.banner}>
         <Text style={styles.bannerTitle}>Sort by Type of Resource</Text>
-        <View style={styles.filterDropdown}>
+        <Pressable style={styles.filterDropdown} onPress={() => setDropdownOpen(!dropdownOpen)}>
           <IconSymbol name="chevron.down" size={20} color={FreepassColors.textSecondary} />
-          <Text style={styles.filterPlaceholder}>Select a Category...</Text>
+          <Text style={styles.filterPlaceholder}>{selectedName}</Text>
           <IconSymbol name="chevron.down" size={18} color={FreepassColors.textSecondary} style={styles.filterArrow} />
-        </View>
+        </Pressable>
+        {dropdownOpen && (
+          <View style={styles.dropdown}>
+            <Pressable style={styles.dropdownItem} onPress={() => { setSelectedCategory(undefined); setDropdownOpen(false); }}>
+              <Text style={styles.dropdownText}>All Categories</Text>
+            </Pressable>
+            {categories.map(c => (
+              <Pressable key={c.id} style={styles.dropdownItem} onPress={() => { setSelectedCategory(c.id); setDropdownOpen(false); }}>
+                <Text style={styles.dropdownText}>{c.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {MOCK_RESOURCES.map((r) => (
+        {loading ? (
+          <ActivityIndicator color={FreepassColors.white} style={{ marginTop: 20 }} />
+        ) : resources.length === 0 ? (
+          <Text style={styles.emptyText}>No resources found for this category.</Text>
+        ) : resources.map((r) => (
           <Pressable
             key={r.id}
             style={styles.resourceCard}
@@ -42,8 +60,8 @@ export default function ResourceTypesScreen() {
             </View>
             <View style={styles.cardContent}>
               <Text style={styles.cardName}>{r.name}</Text>
-              <Text style={styles.cardDetail}>{r.phone}</Text>
-              <Text style={styles.cardDetail}>{r.web}</Text>
+              {r.phone && <Text style={styles.cardDetail}>{r.phone}</Text>}
+              {r.website && <Text style={styles.cardDetail}>{r.website}</Text>}
             </View>
             <Pressable style={styles.favoriteBtn} hitSlop={8}>
               <IconSymbol name="heart" size={22} color={FreepassColors.lightGray} />
@@ -134,4 +152,26 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   favoriteBtn: { padding: 4 },
+  dropdown: {
+    backgroundColor: FreepassColors.white,
+    borderRadius: 10,
+    marginTop: 8,
+    maxHeight: 250,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: FreepassColors.lightGray,
+  },
+  dropdownText: {
+    fontSize: 15,
+    color: FreepassColors.text,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: FreepassColors.accentLight,
+    textAlign: 'center',
+    marginTop: 20,
+  },
 });

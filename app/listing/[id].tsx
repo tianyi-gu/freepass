@@ -1,12 +1,32 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { useResource } from '@/hooks/use-resources';
 
 export default function ListingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { resource, loading } = useResource(id);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={FreepassColors.primary} size="large" />
+      </View>
+    );
+  }
+
+  if (!resource) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <Text style={{ fontSize: 16, color: FreepassColors.textSecondary }}>Resource not found.</Text>
+        <Pressable onPress={() => router.back()} style={{ marginTop: 12 }}>
+          <Text style={{ color: FreepassColors.primary, fontWeight: '600' }}>Go back</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -29,14 +49,14 @@ export default function ListingScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.imagePlaceholder}>
           <IconSymbol name="map.fill" size={48} color={FreepassColors.textSecondary} />
-          <Text style={styles.imagePlaceholderText}>Company Image</Text>
+          <Text style={styles.imagePlaceholderText}>{resource.name}</Text>
         </View>
 
         <View style={styles.detailsCard}>
-          <Text style={styles.companyName}>Company Name</Text>
-          <Text style={styles.detail}>Street Address</Text>
-          <Text style={styles.detail}>Phone Number</Text>
-          <Text style={styles.detail}>Text Description</Text>
+          <Text style={styles.companyName}>{resource.name}</Text>
+          {resource.address && <Text style={styles.detail}>{resource.address}</Text>}
+          {resource.phone && <Text style={styles.detail}>{resource.phone}</Text>}
+          {resource.description && <Text style={styles.detail}>{resource.description}</Text>}
         </View>
 
         <View style={styles.actionRow}>
@@ -44,75 +64,56 @@ export default function ListingScreen() {
             <IconSymbol name="map.fill" size={18} color={FreepassColors.white} />
             <Text style={styles.actionBtnText}>360 STREETVIEW</Text>
           </Pressable>
-          <Pressable
-            style={styles.actionBtn}
-            onPress={() => Linking.openURL('https://example.org')}>
-            <IconSymbol name="globe" size={18} color={FreepassColors.white} />
-            <Text style={styles.actionBtnText}>WEBSITE</Text>
-          </Pressable>
+          {resource.website && (
+            <Pressable
+              style={styles.actionBtn}
+              onPress={() => {
+                const url = resource.website!.startsWith('http') ? resource.website! : `https://${resource.website}`;
+                Linking.openURL(url);
+              }}>
+              <IconSymbol name="globe" size={18} color={FreepassColors.white} />
+              <Text style={styles.actionBtnText}>WEBSITE</Text>
+            </Pressable>
+          )}
         </View>
+
+        {resource.tags && resource.tags.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Services Offered:</Text>
+            {resource.tags.map((tag, i) => (
+              <Text key={i} style={styles.sectionItem}>+ {tag}</Text>
+            ))}
+          </View>
+        )}
+
+        {resource.email && (
+          <View style={styles.contactCard}>
+            <Text style={styles.contactLabel}>Contact</Text>
+            <Text style={styles.contactEmail}>{resource.email}</Text>
+            <View style={styles.contactActions}>
+              <Pressable
+                style={styles.contactBtn}
+                onPress={() => Linking.openURL(`mailto:${resource.email}`)}>
+                <IconSymbol name="envelope.fill" size={16} color={FreepassColors.white} />
+                <Text style={styles.contactBtnText}>Email</Text>
+              </Pressable>
+              {resource.phone && (
+                <Pressable
+                  style={styles.contactBtn}
+                  onPress={() => Linking.openURL(`tel:${resource.phone!.replace(/[^0-9+]/g, '')}`)}>
+                  <IconSymbol name="phone.fill" size={16} color={FreepassColors.white} />
+                  <Text style={styles.contactBtnText}>Call</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Services Offered:</Text>
-          <Text style={styles.sectionItem}>+ Service Type 1</Text>
-          <Text style={styles.sectionItem}>+ Service Type 2</Text>
-          <Text style={styles.sectionItem}>+ Service Type 3</Text>
-        </View>
-
-        <View style={styles.contactCard}>
-          <Text style={styles.contactLabel}>Main Contact Position</Text>
-          <Text style={styles.contactName}>Main Name</Text>
-          <Text style={styles.contactEmail}>Main Contact Email</Text>
-          <View style={styles.contactActions}>
-            <Pressable
-              style={styles.contactBtn}
-              onPress={() => Alert.alert('Email', 'Email functionality will be available once resources are loaded from the database.')}>
-              <IconSymbol name="envelope.fill" size={16} color={FreepassColors.white} />
-              <Text style={styles.contactBtnText}>Email</Text>
-            </Pressable>
-            <Pressable
-              style={styles.contactBtn}
-              onPress={() => Alert.alert('Call', 'Call functionality will be available once resources are loaded from the database.')}>
-              <IconSymbol name="phone.fill" size={16} color={FreepassColors.white} />
-              <Text style={styles.contactBtnText}>Call</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.contactCard}>
-          <Text style={styles.contactLabel}>Secondary Contact Position</Text>
-          <Text style={styles.contactName}>Secondary Name</Text>
-          <Text style={styles.contactEmail}>Secondary Contact Email</Text>
-          <View style={styles.contactActions}>
-            <Pressable
-              style={styles.contactBtn}
-              onPress={() => Alert.alert('Email', 'Email functionality will be available once resources are loaded from the database.')}>
-              <IconSymbol name="envelope.fill" size={16} color={FreepassColors.white} />
-              <Text style={styles.contactBtnText}>Email</Text>
-            </Pressable>
-            <Pressable
-              style={styles.contactBtn}
-              onPress={() => Alert.alert('Call', 'Call functionality will be available once resources are loaded from the database.')}>
-              <IconSymbol name="phone.fill" size={16} color={FreepassColors.white} />
-              <Text style={styles.contactBtnText}>Call</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Highlights</Text>
-          <Text style={styles.sectionItem}>✓ Replies Often</Text>
-          <Text style={styles.sectionItem}>✓ Contacted Often</Text>
-          <Text style={styles.highlightNote}>
-            This organization has been personally interviewed about their offered services and how to access them.
-          </Text>
           <View style={styles.actionsRow}>
             <Pressable style={styles.sectionBtn} onPress={() => router.push('/map-view' as never)}>
               <IconSymbol name="map.fill" size={16} color={FreepassColors.white} />
               <Text style={styles.sectionBtnText}>MAP VIEW</Text>
-            </Pressable>
-            <Pressable style={styles.sectionBtn}>
-              <Text style={styles.sectionBtnText}>MORE INFO</Text>
             </Pressable>
             <Pressable
               style={styles.sectionBtn}
@@ -122,30 +123,12 @@ export default function ListingScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Hours of operation</Text>
-          <Text style={styles.sectionText}>Hours</Text>
-        </View>
-
-        <Pressable style={styles.messagesCard}>
-          <IconSymbol name="bubble.left.and.bubble.right.fill" size={20} color={FreepassColors.primary} />
-          <Text style={styles.messagesText}>View recent messages and feedback on Company Name</Text>
-        </Pressable>
-
-        <Text style={styles.similarTitle}>Similar Resources</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.similarScroll}>
-          {[1, 2].map((i) => (
-            <View key={i} style={styles.similarCard}>
-              <View style={styles.similarImage} />
-              <View style={styles.similarFooter}>
-                <Text style={styles.similarName}>FreePass Resource</Text>
-                <Pressable style={styles.viewBtn}>
-                  <Text style={styles.viewBtnText}>View</Text>
-                </Pressable>
-              </View>
-            </View>
-          ))}
-        </ScrollView>
+        {resource.hours && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Hours of operation</Text>
+            <Text style={styles.sectionText}>{resource.hours}</Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );

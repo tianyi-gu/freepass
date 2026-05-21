@@ -1,18 +1,13 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
-
-const MOCK_COMPANIES = [
-  'Housing Resource Center',
-  'Employment Services',
-  'Community Support Group',
-  'Legal Aid Office',
-  'Health Services',
-];
+import { useResources } from '@/hooks/use-resources';
 
 export default function RecentMessagesModal() {
+  const { resources, loading } = useResources();
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -28,19 +23,25 @@ export default function RecentMessagesModal() {
         </Pressable>
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {MOCK_COMPANIES.map((name) => (
-          <Pressable
-            key={name}
-            style={styles.channelItem}
-            onPress={() => {
-              router.back();
-              router.push('/chat/1' as never);
-            }}
-            android_ripple={{ color: FreepassColors.primaryDark }}>
-            <Text style={styles.channelName}>{name}</Text>
-            <IconSymbol name="chevron.right" size={18} color={FreepassColors.white} />
-          </Pressable>
-        ))}
+        {loading ? (
+          <ActivityIndicator color={FreepassColors.accentLight} style={{ marginTop: 20 }} />
+        ) : resources.length === 0 ? (
+          <Text style={styles.emptyText}>No channels available.</Text>
+        ) : (
+          resources.map((r) => (
+            <Pressable
+              key={r.id}
+              style={styles.channelItem}
+              onPress={() => {
+                router.back();
+                router.push(`/chat/${r.id}` as never);
+              }}
+              android_ripple={{ color: FreepassColors.primaryDark }}>
+              <Text style={styles.channelName}>{r.name}</Text>
+              <IconSymbol name="chevron.right" size={18} color={FreepassColors.white} />
+            </Pressable>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -103,5 +104,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: FreepassColors.white,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: FreepassColors.accentLight,
+    textAlign: 'center',
+    marginTop: 20,
   },
 });

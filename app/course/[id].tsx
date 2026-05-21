@@ -1,11 +1,62 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
+
+interface Course {
+  id: string;
+  name: string;
+  description: string | null;
+  course_type: string | null;
+  video_link: string | null;
+  web_link: string | null;
+}
+
+interface CourseTask {
+  id: string;
+  title: string;
+  description: string | null;
+  sort_order: number;
+}
 
 export default function CourseViewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [course, setCourse] = useState<Course | null>(null);
+  const [tasks, setTasks] = useState<CourseTask[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from('courses').select('*').eq('id', id).single(),
+      supabase.from('course_tasks').select('*').eq('course_id', id).order('sort_order'),
+    ]).then(([courseRes, tasksRes]) => {
+      setCourse(courseRes.data);
+      setTasks(tasksRes.data ?? []);
+      setLoading(false);
+    });
+  }, [id]);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={FreepassColors.white} size="large" />
+      </View>
+    );
+  }
+
+  if (!course) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <Text style={{ fontSize: 16, color: FreepassColors.accentLight }}>Course not found.</Text>
+        <Pressable onPress={() => router.back()} style={{ marginTop: 12 }}>
+          <Text style={{ color: FreepassColors.white, fontWeight: '600' }}>Go back</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -20,37 +71,48 @@ export default function CourseViewScreen() {
         <Text style={styles.bannerLogo}>FP</Text>
       </View>
       <View style={styles.titleBar}>
-        <Text style={styles.courseName}>Course Name</Text>
+        <Text style={styles.courseName}>{course.name}</Text>
+        {course.course_type && <Text style={styles.courseType}>{course.course_type}</Text>}
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionTitle}>Description</Text>
-        <Text style={styles.description}>Course description placeholder.</Text>
+        {course.description && (
+          <>
+            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={styles.description}>{course.description}</Text>
+          </>
+        )}
 
-        <View style={styles.videoPlaceholder}>
-          <IconSymbol name="play.rectangle.fill" size={64} color={FreepassColors.lightGray} />
-        </View>
-        <View style={styles.videoControls} />
+        {course.video_link && (
+          <Pressable
+            style={styles.videoPlaceholder}
+            onPress={() => Linking.openURL(course.video_link!)}>
+            <IconSymbol name="play.rectangle.fill" size={64} color={FreepassColors.primary} />
+            <Text style={styles.videoLinkText}>Tap to watch video</Text>
+          </Pressable>
+        )}
 
-        <Pressable style={styles.reviewBtn} android_ripple={{ color: FreepassColors.primaryDark }}>
-          <IconSymbol name="doc.text.fill" size={20} color={FreepassColors.white} />
-          <Text style={styles.reviewBtnText}>REVIEW COURSE INFORMATION</Text>
-        </Pressable>
+        {course.web_link && (
+          <Pressable
+            style={styles.reviewBtn}
+            onPress={() => Linking.openURL(course.web_link!)}
+            android_ripple={{ color: FreepassColors.primaryDark }}>
+            <IconSymbol name="globe" size={20} color={FreepassColors.white} />
+            <Text style={styles.reviewBtnText}>OPEN COURSE LINK</Text>
+          </Pressable>
+        )}
 
-        <Text style={styles.sectionTitle}>Relevant Resources</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.resourcesScroll}>
-          {[1, 2, 3].map((i) => (
-            <View key={i} style={styles.resourceCard}>
-              <View style={styles.resourceImage} />
-              <View style={styles.resourceFooter}>
-                <Text style={styles.resourceName}>FreePass Resource</Text>
-                <Pressable style={styles.viewBtn}>
-                  <Text style={styles.viewBtnText}>View</Text>
-                </Pressable>
+        {tasks.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Course Tasks</Text>
+            {tasks.map((task) => (
+              <View key={task.id} style={styles.taskCard}>
+                <Text style={styles.taskTitle}>{task.title}</Text>
+                {task.description && <Text style={styles.taskDesc}>{task.description}</Text>}
               </View>
-            </View>
-          ))}
-        </ScrollView>
+            ))}
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -116,9 +178,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  videoControls: {
-    height: 40,
-    marginBottom: 24,
+  videoLinkText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: FreepassColors.primary,
+    fontWeight: '600',
   },
   reviewBtn: {
     flexDirection: 'row',
@@ -135,33 +199,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: FreepassColors.white,
   },
-  resourcesScroll: { marginHorizontal: -20 },
-  resourceCard: {
-    width: 160,
-    marginRight: 12,
+  courseType: {
+    fontSize: 14,
+    color: FreepassColors.accentLight,
+    marginTop: 4,
   },
-  resourceImage: {
-    height: 100,
-    backgroundColor: FreepassColors.lightGray,
-    borderRadius: 8,
-    marginBottom: 8,
+  taskCard: {
+    backgroundColor: FreepassColors.primaryDark,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 10,
   },
-  resourceFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  resourceName: {
-    fontSize: 12,
-    fontWeight: '600',
+  taskTitle: {
+    fontSize: 15,
+    fontWeight: '700',
     color: FreepassColors.white,
   },
-  viewBtn: {
-    paddingVertical: 4,
-  },
-  viewBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
+  taskDesc: {
+    fontSize: 14,
     color: FreepassColors.accentLight,
+    marginTop: 4,
+    lineHeight: 20,
   },
 });

@@ -1,24 +1,40 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 
-const MOCK_QUESTIONS = [
-  { id: '1', title: 'Question', answersCount: 0 },
-  { id: '2', title: 'Question', answersCount: 0 },
-  { id: '3', title: 'Question', answersCount: 0 },
-  { id: '4', title: 'Question', answersCount: 0 },
-];
-
-const MOCK_DRAFTS = [
-  { id: '1', name: 'Company Name', phone: 'Phone Number', web: 'Web Address' },
-  { id: '2', name: 'Company Name', phone: 'Phone Number', web: 'Web Address' },
-  { id: '3', name: 'Company Name', phone: 'Phone Number', web: 'Web Address' },
-];
+interface Question {
+  id: string;
+  question: string;
+  category: string | null;
+  answer_count: number;
+}
 
 export default function StaffViewScreen() {
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from('questions')
+      .select('id, question, category, answers(count)')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        const mapped = (data ?? []).map((q: any) => ({
+          id: q.id,
+          question: q.question,
+          category: q.category,
+          answer_count: q.answers?.[0]?.count ?? 0,
+        }));
+        setQuestions(mapped.filter((q: Question) => q.answer_count === 0));
+        setLoading(false);
+      });
+  }, []);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -36,45 +52,32 @@ export default function StaffViewScreen() {
         <Text style={styles.sectionLabel}>Resource User Feedback</Text>
         <Text style={styles.sectionTitle}>Unanswered Questions</Text>
 
-        {MOCK_QUESTIONS.map((q) => (
-          <View key={q.id} style={styles.questionCard}>
-            <View style={styles.questionIcon}>
-              <IconSymbol name="doc.text.fill" size={24} color={FreepassColors.textSecondary} />
+        {loading ? (
+          <ActivityIndicator color={FreepassColors.accentLight} style={{ marginTop: 12 }} />
+        ) : questions.length === 0 ? (
+          <Text style={styles.emptyText}>All questions have been answered!</Text>
+        ) : (
+          questions.map((q) => (
+            <View key={q.id} style={styles.questionCard}>
+              <View style={styles.questionIcon}>
+                <IconSymbol name="doc.text.fill" size={24} color={FreepassColors.textSecondary} />
+              </View>
+              <View style={styles.questionContent}>
+                <Text style={styles.questionTitle} numberOfLines={2}>{q.question}</Text>
+                <Text style={styles.questionMeta}>Answers: {q.answer_count}</Text>
+              </View>
+              <Pressable
+                style={styles.answerBtn}
+                onPress={() => router.push(`/question/${q.id}` as never)}
+                android_ripple={{ color: FreepassColors.primaryDark }}>
+                <Text style={styles.answerBtnText}>ANSWER</Text>
+              </Pressable>
             </View>
-            <View style={styles.questionContent}>
-              <Text style={styles.questionTitle}>{q.title}</Text>
-              <Text style={styles.questionMeta}>Answers: {q.answersCount}</Text>
-            </View>
-            <Pressable
-              style={styles.answerBtn}
-              onPress={() => router.push('/modal/answer-question' as never)}
-              android_ripple={{ color: FreepassColors.primaryDark }}>
-              <Text style={styles.answerBtnText}>ANSWER</Text>
-            </Pressable>
-          </View>
-        ))}
+          ))
+        )}
 
         <Text style={styles.sectionTitle}>Draft (New) Resources to Review</Text>
-
-        {MOCK_DRAFTS.map((d) => (
-          <Pressable
-            key={d.id}
-            style={styles.draftCard}
-            onPress={() => router.push(`/listing-draft/${d.id}` as never)}
-            android_ripple={{ color: FreepassColors.primaryDark }}>
-            <View style={styles.draftIcon}>
-              <IconSymbol name="doc.text.fill" size={24} color={FreepassColors.textSecondary} />
-            </View>
-            <View style={styles.draftContent}>
-              <Text style={styles.draftName}>{d.name}</Text>
-              <Text style={styles.draftMeta}>{d.phone}</Text>
-              <Text style={styles.draftMeta}>{d.web}</Text>
-            </View>
-            <Pressable style={styles.checkbox}>
-              <View style={styles.checkboxBox} />
-            </Pressable>
-          </Pressable>
-        ))}
+        <Text style={styles.emptyText}>No draft resources pending review.</Text>
       </ScrollView>
     </View>
   );
@@ -169,40 +172,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: FreepassColors.white,
   },
-  draftCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: FreepassColors.accent,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
-  },
-  draftIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  draftContent: { flex: 1 },
-  draftName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: FreepassColors.white,
-  },
-  draftMeta: {
-    fontSize: 12,
-    color: FreepassColors.primaryDark,
-    marginTop: 2,
-  },
-  checkbox: { padding: 4 },
-  checkboxBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: FreepassColors.white,
+  emptyText: {
+    fontSize: 15,
+    color: FreepassColors.accentLight,
+    marginBottom: 16,
   },
 });

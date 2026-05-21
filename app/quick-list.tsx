@@ -1,29 +1,27 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
-
-const MOCK_RESOURCES = [
-  { id: '1', name: 'Housing Resource Center', phone: '(555) 123-4567', web: 'www.example.org', isFavorite: false },
-  { id: '2', name: 'Employment Services Inc', phone: '(555) 234-5678', web: 'www.example2.org', isFavorite: true },
-  { id: '3', name: 'Community Legal Aid', phone: '(555) 345-6789', web: 'www.example3.org', isFavorite: false },
-];
+import { useResources } from '@/hooks/use-resources';
+import { useSavedResources } from '@/hooks/use-saved-resources';
 
 export default function QuickListScreen() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const { resources: allResources, loading } = useResources();
+  const { isSaved, toggleSave } = useSavedResources();
 
-  const resources = MOCK_RESOURCES.filter((r) => {
-    if (showFavoritesOnly && !r.isFavorite) return false;
+  const resources = useMemo(() => allResources.filter((r) => {
+    if (showFavoritesOnly && !isSaved(r.id)) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      return r.name.toLowerCase().includes(q) || r.phone.includes(q);
+      return r.name.toLowerCase().includes(q) || (r.phone ?? '').includes(q) || (r.tags ?? []).some(t => t.toLowerCase().includes(q));
     }
     return true;
-  });
+  }), [allResources, showFavoritesOnly, searchQuery, isSaved]);
 
   return (
     <View style={styles.container}>
@@ -94,7 +92,9 @@ export default function QuickListScreen() {
           </Pressable>
         </View>
 
-        {resources.map((r) => (
+        {loading ? (
+          <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 20 }} />
+        ) : resources.map((r) => (
           <Pressable
             key={r.id}
             style={styles.resourceCard}
@@ -105,14 +105,14 @@ export default function QuickListScreen() {
             </View>
             <View style={styles.cardContent}>
               <Text style={styles.cardName}>{r.name}</Text>
-              <Text style={styles.cardDetail}>{r.phone}</Text>
-              <Text style={styles.cardDetail}>{r.web}</Text>
+              {r.phone && <Text style={styles.cardDetail}>{r.phone}</Text>}
+              {r.website && <Text style={styles.cardDetail}>{r.website}</Text>}
             </View>
-            <Pressable style={styles.favoriteBtn} hitSlop={8}>
+            <Pressable style={styles.favoriteBtn} hitSlop={8} onPress={() => toggleSave(r.id)}>
               <IconSymbol
-                name={r.isFavorite ? 'heart.fill' : 'heart'}
+                name={isSaved(r.id) ? 'heart.fill' : 'heart'}
                 size={22}
-                color={r.isFavorite ? FreepassColors.accent : FreepassColors.lightGray}
+                color={isSaved(r.id) ? FreepassColors.accent : FreepassColors.lightGray}
               />
             </Pressable>
           </Pressable>

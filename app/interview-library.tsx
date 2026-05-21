@@ -1,18 +1,37 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 
-const MOCK_COURSES = [
-  { id: '1', name: 'Reentry Job Search Basics', description: 'Learn strategies for finding employment after reentry.' },
-  { id: '2', name: 'Housing Resources Guide', description: 'Navigate housing options and applications in your area.' },
-  { id: '3', name: 'Financial Literacy Fundamentals', description: 'Building credit and managing your finances.' },
-  { id: '4', name: 'Organization Interview: Community Legal Aid', description: 'Hear from staff about services and what to expect.' },
-];
+interface Course {
+  id: string;
+  name: string;
+  description: string | null;
+  course_type: string | null;
+  video_link: string | null;
+  web_link: string | null;
+}
 
 export default function InterviewLibraryScreen() {
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from('courses')
+      .select('id, name, description, course_type, video_link, web_link')
+      .eq('is_hidden', false)
+      .order('display_order', { ascending: true, nullsFirst: false })
+      .then(({ data }) => {
+        setCourses(data ?? []);
+        setLoading(false);
+      });
+  }, []);
+
   return (
     <View style={styles.container}>
       <FreepassHeader title="Interview Library" showBack showLogo={false} />
@@ -28,22 +47,33 @@ export default function InterviewLibraryScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>Courses & Videos</Text>
-        {MOCK_COURSES.map((course) => (
-          <Pressable
-            key={course.id}
-            style={styles.courseCard}
-            onPress={() => router.push(`/course/${course.id}` as never)}
-            android_ripple={{ color: FreepassColors.lightGray }}>
-            <View style={styles.courseImage}>
-              <IconSymbol name="play.rectangle.fill" size={32} color={FreepassColors.textSecondary} />
-            </View>
-            <View style={styles.courseContent}>
-              <Text style={styles.courseName}>{course.name}</Text>
-              <Text style={styles.courseDesc}>{course.description}</Text>
-            </View>
-            <IconSymbol name="chevron.right" size={22} color={FreepassColors.textSecondary} />
-          </Pressable>
-        ))}
+        {loading ? (
+          <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 20 }} />
+        ) : courses.length === 0 ? (
+          <Text style={styles.emptyText}>No courses available yet.</Text>
+        ) : (
+          courses.map((course) => (
+            <Pressable
+              key={course.id}
+              style={styles.courseCard}
+              onPress={() => {
+                const link = course.video_link || course.web_link;
+                if (link) Linking.openURL(link);
+                else router.push(`/course/${course.id}` as never);
+              }}
+              android_ripple={{ color: FreepassColors.lightGray }}>
+              <View style={styles.courseImage}>
+                <IconSymbol name={course.video_link ? 'play.rectangle.fill' : 'book.fill'} size={32} color={FreepassColors.textSecondary} />
+              </View>
+              <View style={styles.courseContent}>
+                <Text style={styles.courseName}>{course.name}</Text>
+                {course.description && <Text style={styles.courseDesc} numberOfLines={2}>{course.description}</Text>}
+                {course.course_type && <Text style={styles.courseType}>{course.course_type}</Text>}
+              </View>
+              <IconSymbol name="chevron.right" size={22} color={FreepassColors.textSecondary} />
+            </Pressable>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -105,5 +135,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: FreepassColors.textSecondary,
     lineHeight: 20,
+  },
+  courseType: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: FreepassColors.accent,
+    marginTop: 4,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: FreepassColors.textSecondary,
+    textAlign: 'center',
+    marginTop: 20,
   },
 });
