@@ -1,12 +1,14 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+
+const BANZAI_URL = 'https://fountainfund.banzai.org/wellness';
 
 interface Course {
   id: string;
@@ -57,6 +59,14 @@ export default function LearningAcademyScreen() {
           <Text style={styles.ctaText}>WHAT IS THE FOUNTAIN FUND?</Text>
         </Pressable>
 
+        <Pressable
+          style={[styles.ctaBtn, styles.ctaBtnAccent]}
+          onPress={() => Linking.openURL(BANZAI_URL)}
+          android_ripple={{ color: FreepassColors.primaryDark }}>
+          <IconSymbol name="book.fill" size={20} color={FreepassColors.white} />
+          <Text style={styles.ctaText}>FINANCIAL EDUCATION (BANZAI)</Text>
+        </Pressable>
+
         <Text style={styles.body}>
           FreePass includes The Fountain Fund&apos;s vetted resources and courses to help you achieve independence and
           financial stability.
@@ -91,7 +101,13 @@ export default function LearningAcademyScreen() {
               style={styles.courseCard}
               onPress={() => {
                 const link = c.web_link || c.video_link;
-                if (link) router.push(link as never);
+                if (link) {
+                  if (link.startsWith('http')) {
+                    Linking.openURL(link);
+                  } else {
+                    router.push(link as never);
+                  }
+                }
               }}
               android_ripple={{ color: FreepassColors.lightGray }}>
               <View style={styles.courseImage}>
@@ -165,6 +181,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignSelf: 'flex-start',
     marginBottom: 20,
+  },
+  ctaBtnAccent: {
+    backgroundColor: FreepassColors.accent,
   },
   ctaText: {
     fontSize: 15,

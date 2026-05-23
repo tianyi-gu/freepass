@@ -1,17 +1,42 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { useUser } from '@/contexts/user-context';
+import { supabase } from '@/lib/supabase';
 
 export default function GiveFeedbackModal() {
+  const { resourceName } = useLocalSearchParams<{ resourceName: string }>();
   const [feedback, setFeedback] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const { user } = useUser();
+
+  const title = resourceName ? `Give Feedback on ${resourceName}` : 'Give Feedback';
+
+  const handleSubmit = async () => {
+    if (!feedback.trim()) return;
+    setSubmitting(true);
+    const { error } = await supabase.from('questions').insert({
+      question: feedback.trim(),
+      category: 'Feedback',
+      asked_by: user?.displayName ?? 'Anonymous',
+    });
+    setSubmitting(false);
+    if (error) {
+      Alert.alert('Error', 'Could not submit your feedback. Please try again.');
+      return;
+    }
+    Alert.alert('Thank You', 'Your feedback has been submitted.', [
+      { text: 'OK', onPress: () => router.back() },
+    ]);
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Give Feedback on Company Name</Text>
+        <Text style={styles.title}>{title}</Text>
         <Pressable onPress={() => router.back()} style={styles.closeBtn}>
           <IconSymbol name="xmark" size={18} color={FreepassColors.white} />
         </Pressable>
@@ -28,15 +53,11 @@ export default function GiveFeedbackModal() {
           numberOfLines={4}
         />
         <Pressable
-          style={[styles.submitBtn, !feedback.trim() && { opacity: 0.5 }]}
-          onPress={() => {
-            if (!feedback.trim()) return;
-            // TODO: Submit to backend
-            router.back();
-          }}
-          disabled={!feedback.trim()}
+          style={[styles.submitBtn, (!feedback.trim() || submitting) && { opacity: 0.5 }]}
+          onPress={handleSubmit}
+          disabled={!feedback.trim() || submitting}
           android_ripple={{ color: FreepassColors.primaryDark }}>
-          <Text style={styles.submitBtnText}>Submit Feedback</Text>
+          <Text style={styles.submitBtnText}>{submitting ? 'Submitting...' : 'Submit Feedback'}</Text>
         </Pressable>
       </View>
     </View>

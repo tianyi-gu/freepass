@@ -2,6 +2,7 @@ import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import MapView, { Marker, Region } from 'react-native-maps';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
@@ -29,11 +30,19 @@ function openDirections(resource: Resource) {
   Linking.openURL(url);
 }
 
+const PHILADELPHIA_REGION: Region = {
+  latitude: 39.9526,
+  longitude: -75.1652,
+  latitudeDelta: 0.12,
+  longitudeDelta: 0.12,
+};
+
 export default function MapViewScreen() {
   const { resources, loading } = useResources();
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'granted' | 'denied'>('idle');
   const [searchQuery, setSearchQuery] = useState('');
+  const [mapRegion, setMapRegion] = useState<Region>(PHILADELPHIA_REGION);
 
   useEffect(() => {
     requestLocation();
@@ -49,11 +58,19 @@ export default function MapViewScreen() {
     try {
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       setUserLocation({ lat: loc.coords.latitude, lon: loc.coords.longitude });
+      setMapRegion({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        latitudeDelta: 0.08,
+        longitudeDelta: 0.08,
+      });
       setLocationStatus('granted');
     } catch {
       setLocationStatus('denied');
     }
   }
+
+  const mappableResources = resources.filter((r) => r.latitude != null && r.longitude != null);
 
   const sortedResources = useMemo(() => {
     const filtered = searchQuery.trim()
@@ -115,6 +132,27 @@ export default function MapViewScreen() {
             <Text style={[styles.locationBannerText, styles.locationBannerTextSuccess]}>
               Showing resources closest to you first.
             </Text>
+          </View>
+        )}
+
+        {/* Map */}
+        {mappableResources.length > 0 && (
+          <View style={styles.mapContainer}>
+            <MapView
+              style={styles.map}
+              region={mapRegion}
+              showsUserLocation={locationStatus === 'granted'}
+              showsMyLocationButton>
+              {mappableResources.map((r) => (
+                <Marker
+                  key={r.id}
+                  coordinate={{ latitude: r.latitude!, longitude: r.longitude! }}
+                  title={r.name}
+                  description={r.address ?? undefined}
+                  onCalloutPress={() => router.push(`/listing/${r.id}` as never)}
+                />
+              ))}
+            </MapView>
           </View>
         )}
 
@@ -240,6 +278,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: FreepassColors.primary,
     textDecorationLine: 'underline',
+  },
+  mapContainer: {
+    height: 300,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: FreepassColors.lightGray,
+    marginBottom: 20,
+  },
+  map: {
+    width: '100%',
+    height: '100%',
   },
   searchContainer: {
     flexDirection: 'row',

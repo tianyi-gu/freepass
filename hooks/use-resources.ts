@@ -75,16 +75,17 @@ export function useResources(categoryId?: string) {
 export function useResource(id: string) {
   const [resource, setResource] = useState<Resource | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
-      let { data, error } = await supabase
+      let { data, error: err } = await supabase
         .from('resources')
         .select('*, category:resource_categories(name, icon)')
         .eq('id', id)
         .single();
 
-      if (error) {
+      if (err) {
         // Fallback without the category join
         const result = await supabase
           .from('resources')
@@ -92,6 +93,7 @@ export function useResource(id: string) {
           .eq('id', id)
           .single();
         data = result.data;
+        if (result.error) setError(result.error.message);
       }
 
       setResource(data);
@@ -100,23 +102,25 @@ export function useResource(id: string) {
     load();
   }, [id]);
 
-  return { resource, loading };
+  return { resource, loading, error };
 }
 
 export function useResourceCategories() {
   const [categories, setCategories] = useState<ResourceCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
       .from('resource_categories')
       .select('*')
       .order('sort_order')
-      .then(({ data }) => {
+      .then(({ data, error: err }) => {
+        if (err) setError(err.message);
         setCategories(data ?? []);
         setLoading(false);
       });
   }, []);
 
-  return { categories, loading };
+  return { categories, loading, error };
 }

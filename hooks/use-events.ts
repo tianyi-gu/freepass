@@ -16,6 +16,7 @@ export interface AppEvent {
 export function useEvents() {
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
@@ -23,18 +24,20 @@ export function useEvents() {
       .select('*')
       .gte('event_date', new Date().toISOString())
       .order('event_date')
-      .then(({ data }) => {
+      .then(({ data, error: err }) => {
+        if (err) setError(err.message);
         setEvents(data ?? []);
         setLoading(false);
       });
   }, []);
 
-  return { events, loading };
+  return { events, loading, error };
 }
 
 export function useEvent(id: string) {
   const [event, setEvent] = useState<AppEvent | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
@@ -42,11 +45,12 @@ export function useEvent(id: string) {
       .select('*')
       .eq('id', id)
       .single()
-      .then(({ data }) => {
+      .then(({ data, error: err }) => {
+        if (err) setError(err.message);
         setEvent(data);
         setLoading(false);
       });
   }, [id]);
 
-  return { event, loading };
+  return { event, loading, error };
 }

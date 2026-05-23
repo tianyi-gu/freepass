@@ -88,7 +88,7 @@ export default function QuestionViewScreen() {
 
       <Pressable
         style={styles.addAnswerBtn}
-        onPress={() => router.push('/modal/answer-question' as never)}
+        onPress={() => router.push(`/modal/answer-question?questionId=${id}` as never)}
         android_ripple={{ color: FreepassColors.primaryDark }}>
         <IconSymbol name="plus" size={20} color={FreepassColors.white} />
         <Text style={styles.addAnswerBtnText}>ADD AN ANSWER</Text>

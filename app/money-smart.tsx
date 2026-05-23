@@ -1,8 +1,10 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassColors } from '@/constants/theme';
+
+const BANZAI_URL = 'https://fountainfund.banzai.org/wellness';
 
 const MONEY_SMART_COURSES = [
   { title: 'Your Income and Expenses', desc: 'Track and understand your money coming in and money going out.' },
@@ -70,6 +72,19 @@ export default function MoneySmartScreen() {
             <Text style={styles.courseDesc}>{c.desc}</Text>
           </View>
         ))}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Financial Education:</Text>
+          <Text style={styles.body}>
+            Access additional financial wellness resources provided by The Fountain Fund through Banzai.
+          </Text>
+          <Pressable
+            style={styles.ctaBtn}
+            onPress={() => Linking.openURL(BANZAI_URL)}
+            android_ripple={{ color: FreepassColors.primaryDark }}>
+            <Text style={styles.ctaText}>FINANCIAL EDUCATION (BANZAI)</Text>
+          </Pressable>
+        </View>
 
         <Pressable style={styles.finalBtn} android_ripple={{ color: FreepassColors.primaryDark }}>
           <Text style={styles.ctaText}>INQUIRE ABOUT A LOAN</Text>

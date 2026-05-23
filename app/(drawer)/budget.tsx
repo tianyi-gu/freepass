@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   input: {
-    backgroundColor: FreepassColors.offWhite,
+    backgroundColor: FreepassColors.white,
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
     borderColor: FreepassColors.lightGray,
   },
   inputLarge: {
-    backgroundColor: FreepassColors.offWhite,
+    backgroundColor: FreepassColors.white,
     borderRadius: 10,
     paddingVertical: 18,
     paddingHorizontal: 16,

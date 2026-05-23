@@ -1,28 +1,57 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 
 export default function EditMessageModal() {
-  const [text, setText] = useState('');
+  const { messageId, currentText } = useLocalSearchParams<{ messageId: string; currentText: string }>();
+  const [text, setText] = useState(currentText ?? '');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleUpdate = () => {
+  useEffect(() => {
+    if (currentText) setText(currentText);
+  }, [currentText]);
+
+  const handleUpdate = async () => {
     if (!text.trim()) {
       Alert.alert('Empty message', 'Please enter a message.');
       return;
     }
-    // TODO: Update via backend
+    if (!messageId) {
+      Alert.alert('Error', 'Could not identify the message.');
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.from('questions').update({ question: text.trim() }).eq('id', messageId);
+    setSubmitting(false);
+    if (error) {
+      Alert.alert('Error', 'Could not update the message. Please try again.');
+      return;
+    }
     Alert.alert('Updated', 'Your message has been updated.', [
       { text: 'OK', onPress: () => router.back() },
     ]);
   };
 
   const handleDelete = () => {
+    if (!messageId) return;
     Alert.alert('Delete Message', 'Are you sure you want to delete this message?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => router.back() },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase.from('questions').delete().eq('id', messageId);
+          if (error) {
+            Alert.alert('Error', 'Could not delete the message.');
+            return;
+          }
+          router.back();
+        },
+      },
     ]);
   };
 
@@ -43,8 +72,12 @@ export default function EditMessageModal() {
           onChangeText={setText}
           multiline
         />
-        <Pressable style={styles.updateBtn} onPress={handleUpdate} android_ripple={{ color: FreepassColors.primaryDark }}>
-          <Text style={styles.btnText}>UPDATE</Text>
+        <Pressable
+          style={[styles.updateBtn, submitting && { opacity: 0.5 }]}
+          onPress={handleUpdate}
+          disabled={submitting}
+          android_ripple={{ color: FreepassColors.primaryDark }}>
+          <Text style={styles.btnText}>{submitting ? 'UPDATING...' : 'UPDATE'}</Text>
         </Pressable>
         <Pressable style={styles.cancelBtn} onPress={() => router.back()}>
           <Text style={styles.btnText}>CANCEL</Text>

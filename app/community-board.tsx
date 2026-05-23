@@ -126,7 +126,7 @@ export default function CommunityBoardScreen() {
               </View>
               <View style={styles.kindnessBanner}>
                 <Text style={styles.kindnessText}>
-                  💬 Please keep this space kind and supportive. We're all on a journey.
+                  Please keep this space kind and supportive. We're all on a journey.
                 </Text>
               </View>
               <Text style={styles.sectionTitle}>Recent Posts</Text>

@@ -8,7 +8,16 @@
       "Bash(npx expo:*)",
       "Bash(npx tsc:*)",
       "Bash(git push:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(ssh-add:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge *)",
+      "Bash(git pull *)",
+      "Bash(git stash *)",
+      "Bash(npx expo-doctor *)",
+      "Bash(npm uninstall *)",
+      "Bash(npm i *)",
+      "Bash(eas build:configure *)"
     ]
   }
 }

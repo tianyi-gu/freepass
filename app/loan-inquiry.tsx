@@ -1,4 +1,5 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassColors } from '@/constants/theme';
@@ -61,9 +62,12 @@ export default function LoanInquiryScreen() {
         <Text style={styles.bullet}>• Min loan amount $30,000.</Text>
         <Text style={styles.bullet}>• Max loan length 48 months.</Text>
 
-        <View style={styles.ctaBtn}>
+        <Pressable
+          style={styles.ctaBtn}
+          onPress={() => router.push('/modal/ask-question' as never)}
+          android_ripple={{ color: FreepassColors.primaryDark }}>
           <Text style={styles.ctaText}>Request an Ask of Questions about The Fountain Fund</Text>
-        </View>
+        </Pressable>
       </ScrollView>
     </View>
   );

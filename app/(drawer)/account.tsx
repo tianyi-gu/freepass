@@ -89,7 +89,10 @@ export default function AccountScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Profile</Text>
-          <Pressable style={styles.menuRow} android_ripple={{ color: FreepassColors.lightGray }}>
+          <Pressable
+            style={styles.menuRow}
+            onPress={() => router.push('/onboarding' as never)}
+            android_ripple={{ color: FreepassColors.lightGray }}>
             <IconSymbol name="person.fill" size={22} color={FreepassColors.primary} />
             <Text style={styles.menuLabel}>Edit Profile</Text>
             <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />

@@ -1,19 +1,38 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { useUser } from '@/contexts/user-context';
+import { supabase } from '@/lib/supabase';
 
 export default function AnswerQuestionModal() {
+  const { questionId } = useLocalSearchParams<{ questionId: string }>();
   const [answer, setAnswer] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const { user } = useUser();
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!answer.trim()) {
       Alert.alert('Missing info', 'Please enter your answer.');
       return;
     }
-    // TODO: Submit to backend
+    if (!questionId) {
+      Alert.alert('Error', 'Could not identify the question. Please go back and try again.');
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.from('answers').insert({
+      question_id: questionId,
+      answer: answer.trim(),
+      answered_by: user?.displayName ?? 'Anonymous',
+    });
+    setSubmitting(false);
+    if (error) {
+      Alert.alert('Error', 'Could not post your answer. Please try again.');
+      return;
+    }
     Alert.alert('Answer Submitted', 'Your answer has been posted.', [
       { text: 'OK', onPress: () => router.back() },
     ]);

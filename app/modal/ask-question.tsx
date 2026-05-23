@@ -4,17 +4,31 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { useUser } from '@/contexts/user-context';
+import { supabase } from '@/lib/supabase';
 
 export default function AskQuestionModal() {
   const [question, setQuestion] = useState('');
   const [category, setCategory] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const { user } = useUser();
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!question.trim()) {
       Alert.alert('Missing info', 'Please enter your question.');
       return;
     }
-    // TODO: Submit to backend
+    setSubmitting(true);
+    const { error } = await supabase.from('questions').insert({
+      question: question.trim(),
+      category: category.trim() || null,
+      asked_by: user?.displayName ?? 'Anonymous',
+    });
+    setSubmitting(false);
+    if (error) {
+      Alert.alert('Error', 'Could not post your question. Please try again.');
+      return;
+    }
     Alert.alert('Question Submitted', 'Your question has been posted.', [
       { text: 'OK', onPress: () => router.back() },
     ]);

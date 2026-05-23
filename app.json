@@ -59,7 +59,8 @@
           "microphonePermission": "FreePass needs access to your microphone so you can talk to Casey using voice.",
           "speechRecognitionPermission": "FreePass needs access to speech recognition so Casey can understand what you say."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

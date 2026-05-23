@@ -4,6 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 
 export default function AddResourceScreen() {
   const [form, setForm] = useState({
@@ -29,7 +30,9 @@ export default function AddResourceScreen() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSubmit = useCallback(() => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = useCallback(async () => {
     if (!form.companyName.trim()) {
       Alert.alert('Missing info', 'Please enter a company name.');
       return;
@@ -38,7 +41,29 @@ export default function AddResourceScreen() {
       Alert.alert('Missing info', 'Please enter at least a phone number or email.');
       return;
     }
-    // TODO: Submit to backend
+    setSubmitting(true);
+    const tags = form.tags.split(',').map((t) => t.trim()).filter(Boolean);
+    if (form.serviceType1.trim()) tags.push(form.serviceType1.trim());
+    if (form.serviceType2.trim()) tags.push(form.serviceType2.trim());
+    if (form.serviceType3.trim()) tags.push(form.serviceType3.trim());
+
+    const { error } = await supabase.from('resources').insert({
+      name: form.companyName.trim(),
+      address: form.location.trim() || null,
+      description: form.description.trim() || form.about.trim() || null,
+      phone: form.phone.trim() || null,
+      email: form.email.trim() || null,
+      website: form.website.trim() || null,
+      zip_code: form.zipCode.trim() || null,
+      hours: form.hours.trim() || null,
+      tags,
+      is_published: false,
+    });
+    setSubmitting(false);
+    if (error) {
+      Alert.alert('Error', 'Could not submit the resource. Please try again.');
+      return;
+    }
     Alert.alert('Resource Submitted', 'Thank you! Your resource has been submitted for review.', [
       { text: 'OK', onPress: () => router.back() },
     ]);

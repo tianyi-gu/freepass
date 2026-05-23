@@ -1,28 +1,57 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 
 export default function EditAnswerModal() {
-  const [text, setText] = useState('');
+  const { answerId, currentText } = useLocalSearchParams<{ answerId: string; currentText: string }>();
+  const [text, setText] = useState(currentText ?? '');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleUpdate = () => {
+  useEffect(() => {
+    if (currentText) setText(currentText);
+  }, [currentText]);
+
+  const handleUpdate = async () => {
     if (!text.trim()) {
       Alert.alert('Empty answer', 'Please enter your answer.');
       return;
     }
-    // TODO: Update via backend
+    if (!answerId) {
+      Alert.alert('Error', 'Could not identify the answer.');
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.from('answers').update({ answer: text.trim() }).eq('id', answerId);
+    setSubmitting(false);
+    if (error) {
+      Alert.alert('Error', 'Could not update the answer. Please try again.');
+      return;
+    }
     Alert.alert('Updated', 'Your answer has been updated.', [
       { text: 'OK', onPress: () => router.back() },
     ]);
   };
 
   const handleDelete = () => {
+    if (!answerId) return;
     Alert.alert('Delete Answer', 'Are you sure you want to delete this answer?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => router.back() },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase.from('answers').delete().eq('id', answerId);
+          if (error) {
+            Alert.alert('Error', 'Could not delete the answer.');
+            return;
+          }
+          router.back();
+        },
+      },
     ]);
   };
 
@@ -43,8 +72,12 @@ export default function EditAnswerModal() {
           onChangeText={setText}
           multiline
         />
-        <Pressable style={styles.updateBtn} onPress={handleUpdate} android_ripple={{ color: FreepassColors.primaryDark }}>
-          <Text style={styles.btnText}>UPDATE</Text>
+        <Pressable
+          style={[styles.updateBtn, submitting && { opacity: 0.5 }]}
+          onPress={handleUpdate}
+          disabled={submitting}
+          android_ripple={{ color: FreepassColors.primaryDark }}>
+          <Text style={styles.btnText}>{submitting ? 'UPDATING...' : 'UPDATE'}</Text>
         </Pressable>
         <Pressable style={styles.cancelBtn} onPress={() => router.back()}>
           <Text style={styles.btnText}>CANCEL</Text>

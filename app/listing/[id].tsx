@@ -37,7 +37,7 @@ export default function ListingScreen() {
         </Pressable>
         <Pressable
           style={styles.headerBtnCenter}
-          onPress={() => router.push('/modal/give-feedback' as never)}>
+          onPress={() => router.push(`/modal/give-feedback?resourceName=${encodeURIComponent(resource?.name ?? '')}` as never)}>
           <IconSymbol name="star.fill" size={16} color={FreepassColors.white} />
           <Text style={styles.headerBtnText}>VIEW FEEDBACK</Text>
         </Pressable>
@@ -151,7 +151,7 @@ export default function ListingScreen() {
             </Pressable>
             <Pressable
               style={styles.sectionBtn}
-              onPress={() => router.push('/modal/give-feedback' as never)}>
+              onPress={() => router.push(`/modal/give-feedback?resourceName=${encodeURIComponent(resource?.name ?? '')}` as never)}>
               <Text style={styles.sectionBtnText}>FEEDBACK</Text>
             </Pressable>
           </View>

@@ -48,12 +48,13 @@ export default function AddEventScreen() {
         location: form.location.trim() || null,
         address: form.address.trim() || null,
         event_date: eventDate.toISOString(),
-        end_date: endDate?.toISOString() ?? null,
+        end_date: endDate && !isNaN(endDate.getTime()) ? endDate.toISOString() : null,
+        is_published: false,
       });
 
       if (error) throw error;
 
-      Alert.alert('Event Created', 'Your event has been added to the calendar.', [
+      Alert.alert('Event Created', 'Your event has been submitted for review.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (err) {
