@@ -2,8 +2,7 @@ import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
-import { Audio } from 'expo-av';
-import { File as ExpoFile, Paths } from 'expo-file-system';
+import * as Speech from 'expo-speech';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -24,7 +23,8 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GEMINI_API_BASE =
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 const SYSTEM_PROMPT = `You are Casey, a warm and supportive reentry resource assistant for FreePass, a Philadelphia app helping formerly incarcerated individuals find support in Philadelphia.
 
@@ -101,37 +101,48 @@ function buildContext(resources: Resource[]): string {
     .join('\n');
 }
 
-function buildGroqMessages(
+type GeminiPart = { text: string };
+type GeminiContent = { role: string; parts: GeminiPart[] };
+type GeminiPayload = {
+  system_instruction: { parts: GeminiPart[] };
+  contents: GeminiContent[];
+};
+
+function buildGeminiPayload(
   history: Message[],
   currentUserText: string,
   resourceContext: string
-): { role: string; content: string }[] {
-  const msgs: { role: string; content: string }[] = [];
-
-  msgs.push({
-    role: 'system',
-    content: `${SYSTEM_PROMPT}\n\nHere are the available Philadelphia reentry resources you may recommend from:\n\n${resourceContext}`,
-  });
+): GeminiPayload {
+  const contents: GeminiContent[] = [];
 
   for (const msg of history) {
     if (msg.id === 'opening') continue;
-    msgs.push({
-      role: msg.role === 'user' ? 'user' : 'assistant',
-      content: msg.text,
+    contents.push({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.text }],
     });
   }
 
-  msgs.push({ role: 'user', content: currentUserText });
+  contents.push({ role: 'user', parts: [{ text: currentUserText }] });
 
-  return msgs;
+  return {
+    system_instruction: {
+      parts: [
+        {
+          text: `${SYSTEM_PROMPT}\n\nHere are the available Philadelphia reentry resources you may recommend from:\n\n${resourceContext}`,
+        },
+      ],
+    },
+    contents,
+  };
 }
 
 type VoiceGender = 'female' | 'male';
 
-const GROQ_TTS_URL = 'https://api.groq.com/openai/v1/audio/speech';
-const TTS_VOICES: Record<VoiceGender, string> = {
-  female: 'Arista-PlayAI',
-  male: 'Fritz-PlayAI',
+// iOS system voice identifiers for gender selection
+const IOS_VOICES: Record<VoiceGender, string> = {
+  female: 'com.apple.ttsbundle.Samantha-compact',
+  male: 'com.apple.ttsbundle.Aaron-compact',
 };
 
 export default function CaseyScreen() {
@@ -145,76 +156,31 @@ export default function CaseyScreen() {
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
 
-  const soundRef = useRef<Audio.Sound | null>(null);
-
-  const stopSpeaking = useCallback(async () => {
-    if (soundRef.current) {
-      try { await soundRef.current.stopAsync(); } catch {}
-      try { await soundRef.current.unloadAsync(); } catch {}
-      soundRef.current = null;
-    }
+  const stopSpeaking = useCallback(() => {
+    Speech.stop();
     setIsSpeaking(false);
     setSpeakingMsgId(null);
   }, []);
 
-  // Speak a message using Groq cloud TTS (PlayAI voices)
   const speakText = useCallback(
-    async (text: string, msgId: string) => {
-      await stopSpeaking();
+    (text: string, msgId: string) => {
+      Speech.stop();
       setSpeakingMsgId(msgId);
       setIsSpeaking(true);
 
-      try {
-        const res = await fetch(GROQ_TTS_URL, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.EXPO_PUBLIC_GROQ_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'playai-tts',
-            input: text,
-            voice: TTS_VOICES[voiceGender],
-            response_format: 'mp3',
-          }),
-        });
+      const options: Speech.SpeechOptions = {
+        language: 'en-US',
+        ...(Platform.OS === 'ios'
+          ? { voice: IOS_VOICES[voiceGender] }
+          : { pitch: voiceGender === 'female' ? 1.3 : 0.8 }),
+        onDone: () => { setIsSpeaking(false); setSpeakingMsgId(null); },
+        onStopped: () => { setIsSpeaking(false); setSpeakingMsgId(null); },
+        onError: () => { setIsSpeaking(false); setSpeakingMsgId(null); },
+      };
 
-        if (!res.ok) throw new Error(`TTS HTTP ${res.status}`);
-
-        const blob = await res.blob();
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-
-        const ttsFile = new ExpoFile(Paths.cache, `casey_tts_${Date.now()}.mp3`);
-        ttsFile.write(base64, { encoding: 'base64' });
-
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: ttsFile.uri },
-          { shouldPlay: true }
-        );
-        soundRef.current = sound;
-
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            setIsSpeaking(false);
-            setSpeakingMsgId(null);
-            sound.unloadAsync();
-            soundRef.current = null;
-            try { ttsFile.delete(); } catch {}
-          }
-        });
-      } catch (err) {
-        console.error('[Casey TTS]', err);
-        setIsSpeaking(false);
-        setSpeakingMsgId(null);
-      }
+      Speech.speak(text, options);
     },
-    [voiceGender, stopSpeaking]
+    [voiceGender]
   );
 
   // Speech recognition event handlers
@@ -257,12 +223,7 @@ export default function CaseyScreen() {
 
   // Stop audio when leaving the screen
   useEffect(() => {
-    return () => {
-      if (soundRef.current) {
-        soundRef.current.stopAsync().catch(() => {});
-        soundRef.current.unloadAsync().catch(() => {});
-      }
-    };
+    return () => { Speech.stop(); };
   }, []);
 
   useEffect(() => {
@@ -292,29 +253,28 @@ export default function CaseyScreen() {
         .join(' ');
       const matched = filterResources(resources, allUserText);
       const context = buildContext(matched);
-      const groqMessages = buildGroqMessages(messages, text, context);
+      const payload = buildGeminiPayload(messages, text, context);
 
-      const res = await fetch(GROQ_URL, {
+      const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+      if (__DEV__) {
+        console.log('[Casey] Gemini API key exists:', !!apiKey);
+      }
+
+      const res = await fetch(`${GEMINI_API_BASE}?key=${apiKey}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.EXPO_PUBLIC_GROQ_KEY}`,
-        },
-        body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
-          messages: groqMessages,
-          max_tokens: 1000,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
 
       if (!res.ok) {
+        console.error('[Casey] Gemini API error:', JSON.stringify(json, null, 2));
         throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
       }
 
       const reply =
-        json?.choices?.[0]?.message?.content ??
+        json?.candidates?.[0]?.content?.parts?.[0]?.text ??
         "I'm sorry, I couldn't find a good match right now. Try rephrasing your question.";
 
       const replyId = (Date.now() + 1).toString();
@@ -359,9 +319,9 @@ export default function CaseyScreen() {
                 isCurrentlySpeaking ? stopSpeaking() : speakText(item.text, item.id)
               }>
               <IconSymbol
-                name={isCurrentlySpeaking ? 'speaker.slash.fill' : 'speaker.wave.2.fill'}
+                name="speaker.wave.2.fill"
                 size={16}
-                color={isCurrentlySpeaking ? FreepassColors.destructive : FreepassColors.textSecondary}
+                color={isCurrentlySpeaking ? FreepassColors.accent : FreepassColors.textSecondary}
               />
             </Pressable>
           )}

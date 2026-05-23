@@ -49,31 +49,36 @@ export default function QuickListScreen() {
           <Text style={styles.sectionHeading}>Below are relevant services in your area.</Text>
         </View>
 
-        <Pressable
-          style={styles.actionBtn}
-          onPress={() => router.push('/map-view' as never)}
-          android_ripple={{ color: FreepassColors.accent }}>
-          <Text style={styles.actionBtnText}>Find Resources Near Me Now</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.actionBtn, styles.actionBtnDark]}
-          onPress={() => router.push('/category-search' as never)}
-          android_ripple={{ color: FreepassColors.primaryDark }}>
-          <Text style={styles.actionBtnText}>Search by Category</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.actionBtn, styles.actionBtnDark]}
-          onPress={() => router.push('/resource-types' as never)}
-          android_ripple={{ color: FreepassColors.primaryDark }}>
-          <Text style={styles.actionBtnText}>Sort By Type of Resource</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.actionBtn, styles.actionBtnLight]}
-          onPress={() => router.push('/add-resource' as never)}
-          android_ripple={{ color: FreepassColors.lightGray }}>
-          <IconSymbol name="plus" size={18} color={FreepassColors.primary} />
-          <Text style={styles.actionBtnTextDark}>SUBMIT NEW RESOURCE</Text>
-        </Pressable>
+        <View style={styles.actionGrid}>
+          <Pressable
+            style={[styles.actionBtn, styles.actionBtnAccent]}
+            onPress={() => router.push('/map-view' as never)}
+            android_ripple={{ color: FreepassColors.primaryDark }}>
+            <IconSymbol name="location.fill" size={16} color={FreepassColors.white} />
+            <Text style={styles.actionBtnText}>Near Me</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.actionBtn, styles.actionBtnDark]}
+            onPress={() => router.push('/category-search' as never)}
+            android_ripple={{ color: FreepassColors.primaryDark }}>
+            <IconSymbol name="square.grid.2x2.fill" size={16} color={FreepassColors.white} />
+            <Text style={styles.actionBtnText}>By Category</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.actionBtn, styles.actionBtnDark]}
+            onPress={() => router.push('/resource-types' as never)}
+            android_ripple={{ color: FreepassColors.primaryDark }}>
+            <IconSymbol name="list.bullet" size={16} color={FreepassColors.white} />
+            <Text style={styles.actionBtnText}>By Type</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.actionBtn, styles.actionBtnLight]}
+            onPress={() => router.push('/add-resource' as never)}
+            android_ripple={{ color: FreepassColors.lightGray }}>
+            <IconSymbol name="plus" size={16} color={FreepassColors.primary} />
+            <Text style={styles.actionBtnTextDark}>Submit</Text>
+          </Pressable>
+        </View>
 
         <View style={styles.filterRow}>
           <Pressable
@@ -94,19 +99,39 @@ export default function QuickListScreen() {
 
         {loading ? (
           <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 20 }} />
+        ) : resources.length === 0 ? (
+          <View style={styles.emptyState}>
+            <IconSymbol name="magnifyingglass" size={40} color={FreepassColors.lightGray} />
+            <Text style={styles.emptyText}>No resources found.</Text>
+            <Text style={styles.emptySubtext}>Try a different search term.</Text>
+          </View>
         ) : resources.map((r) => (
           <Pressable
             key={r.id}
             style={styles.resourceCard}
             onPress={() => router.push(`/listing/${r.id}` as never)}
             android_ripple={{ color: FreepassColors.lightGray }}>
-            <View style={styles.cardImage}>
-              <IconSymbol name="map.fill" size={32} color={FreepassColors.lightGray} />
+            <View style={styles.cardIconWrap}>
+              <IconSymbol name="building.2.fill" size={22} color={FreepassColors.primary} />
             </View>
             <View style={styles.cardContent}>
               <Text style={styles.cardName}>{r.name}</Text>
-              {r.phone && <Text style={styles.cardDetail}>{r.phone}</Text>}
-              {r.website && <Text style={styles.cardDetail}>{r.website}</Text>}
+              {r.address && <Text style={styles.cardDetail}>{r.address}</Text>}
+              {r.phone && (
+                <View style={styles.phoneChip}>
+                  <IconSymbol name="phone.fill" size={10} color={FreepassColors.accent} />
+                  <Text style={styles.phoneChipText}>{r.phone}</Text>
+                </View>
+              )}
+              {r.tags && r.tags.length > 0 && (
+                <View style={styles.tagRow}>
+                  {r.tags.slice(0, 2).map((t, i) => (
+                    <View key={i} style={styles.tag}>
+                      <Text style={styles.tagText}>{t}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
             <Pressable style={styles.favoriteBtn} hitSlop={8} onPress={() => toggleSave(r.id)}>
               <IconSymbol
@@ -161,28 +186,40 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: FreepassColors.text,
   },
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
   actionBtn: {
-    backgroundColor: FreepassColors.accent,
-    paddingVertical: 14,
-    borderRadius: 10,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    gap: 6,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    width: '47.5%',
+    justifyContent: 'center',
+  },
+  actionBtnAccent: {
+    backgroundColor: FreepassColors.accent,
   },
   actionBtnDark: {
     backgroundColor: FreepassColors.primary,
   },
   actionBtnLight: {
-    backgroundColor: FreepassColors.accentLight,
-    flexDirection: 'row',
-    gap: 8,
+    backgroundColor: FreepassColors.offWhite,
+    borderWidth: 1.5,
+    borderColor: FreepassColors.lightGray,
   },
   actionBtnText: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
     color: FreepassColors.white,
   },
   actionBtnTextDark: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
     color: FreepassColors.primary,
   },
@@ -226,33 +263,82 @@ const styles = StyleSheet.create({
   },
   resourceCard: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     backgroundColor: FreepassColors.white,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: FreepassColors.lightGray,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  cardImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 8,
-    backgroundColor: FreepassColors.lightGray,
+  cardIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: FreepassColors.cardBg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: 12,
+    flexShrink: 0,
   },
   cardContent: { flex: 1 },
   cardName: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: FreepassColors.text,
-    marginBottom: 4,
+    marginBottom: 3,
+    lineHeight: 21,
   },
   cardDetail: {
-    fontSize: 13,
+    fontSize: 12,
     color: FreepassColors.textSecondary,
     marginBottom: 2,
   },
-  favoriteBtn: { padding: 4 },
+  phoneChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  phoneChipText: {
+    fontSize: 12,
+    color: FreepassColors.accent,
+    fontWeight: '600',
+  },
+  tagRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 6,
+    flexWrap: 'wrap',
+  },
+  tag: {
+    backgroundColor: FreepassColors.cardBg,
+    borderRadius: 100,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  tagText: {
+    fontSize: 11,
+    color: FreepassColors.textSecondary,
+    fontWeight: '500',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: FreepassColors.textSecondary,
+    marginTop: 12,
+  },
+  emptySubtext: {
+    fontSize: 13,
+    color: FreepassColors.textSecondary,
+    marginTop: 4,
+  },
+  favoriteBtn: { padding: 4, marginLeft: 4 },
 });

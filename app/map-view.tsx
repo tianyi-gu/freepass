@@ -1,12 +1,92 @@
+import * as Location from 'expo-location';
 import { router } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
-import { useResources } from '@/hooks/use-resources';
+import { type Resource, useResources } from '@/hooks/use-resources';
+
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3959;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function openDirections(resource: Resource) {
+  const query = resource.address
+    ? `${resource.address}, ${resource.city}, ${resource.state}`
+    : `${resource.name}, ${resource.city}, ${resource.state}`;
+  const encoded = encodeURIComponent(query);
+  const url =
+    Platform.OS === 'ios'
+      ? `maps://app?daddr=${encoded}`
+      : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+  Linking.openURL(url);
+}
 
 export default function MapViewScreen() {
   const { resources, loading } = useResources();
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'granted' | 'denied'>('idle');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    requestLocation();
+  }, []);
+
+  async function requestLocation() {
+    setLocationStatus('loading');
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      setLocationStatus('denied');
+      return;
+    }
+    try {
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setUserLocation({ lat: loc.coords.latitude, lon: loc.coords.longitude });
+      setLocationStatus('granted');
+    } catch {
+      setLocationStatus('denied');
+    }
+  }
+
+  const sortedResources = useMemo(() => {
+    const filtered = searchQuery.trim()
+      ? resources.filter((r) => {
+          const q = searchQuery.toLowerCase();
+          return (
+            r.name.toLowerCase().includes(q) ||
+            (r.address ?? '').toLowerCase().includes(q) ||
+            (r.tags ?? []).some((t) => t.toLowerCase().includes(q))
+          );
+        })
+      : resources;
+
+    if (!userLocation) return filtered;
+
+    return [...filtered].sort((a, b) => {
+      const distA =
+        a.latitude != null && a.longitude != null
+          ? haversineDistance(userLocation.lat, userLocation.lon, a.latitude, a.longitude)
+          : Infinity;
+      const distB =
+        b.latitude != null && b.longitude != null
+          ? haversineDistance(userLocation.lat, userLocation.lon, b.latitude, b.longitude)
+          : Infinity;
+      return distA - distB;
+    });
+  }, [resources, userLocation, searchQuery]);
+
+  function distanceLabel(resource: Resource): string | null {
+    if (!userLocation || resource.latitude == null || resource.longitude == null) return null;
+    const d = haversineDistance(userLocation.lat, userLocation.lon, resource.latitude, resource.longitude);
+    return d < 1 ? `${(d * 5280).toFixed(0)} ft away` : `${d.toFixed(1)} mi away`;
+  }
 
   return (
     <View style={styles.container}>
@@ -17,45 +97,86 @@ export default function MapViewScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>Resources Near You</Text>
       </View>
+
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.privacyCard}>
-          <Text style={styles.privacyText}>
-            Allow access to your device&apos;s location so we can find resources near you. We don&apos;t store your data
-            or allow others to access it.
-          </Text>
-        </View>
+        {/* Location status */}
+        {locationStatus === 'denied' && (
+          <View style={styles.locationBanner}>
+            <IconSymbol name="location.slash.fill" size={18} color={FreepassColors.destructive} />
+            <Text style={styles.locationBannerText}>
+              Location access denied. Resources are listed alphabetically.{' '}
+              <Text style={styles.locationRetry} onPress={requestLocation}>Try again</Text>
+            </Text>
+          </View>
+        )}
+        {locationStatus === 'granted' && (
+          <View style={[styles.locationBanner, styles.locationBannerSuccess]}>
+            <IconSymbol name="location.fill" size={18} color={FreepassColors.accent} />
+            <Text style={[styles.locationBannerText, styles.locationBannerTextSuccess]}>
+              Showing resources closest to you first.
+            </Text>
+          </View>
+        )}
+
+        {/* Search */}
         <View style={styles.searchContainer}>
           <IconSymbol name="magnifyingglass" size={20} color={FreepassColors.textSecondary} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search by address..."
+            placeholder="Search by name, address, or tag..."
             placeholderTextColor={FreepassColors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
         </View>
-        <Text style={styles.sectionTitle}>More Resources Nearby</Text>
-        <View style={styles.mapPlaceholder}>
-          <IconSymbol name="map.fill" size={64} color={FreepassColors.lightGray} />
-          <Text style={styles.mapPlaceholderText}>Philadelphia, Pennsylvania</Text>
-          <Text style={styles.mapPlaceholderSub}>Map integration coming soon</Text>
-        </View>
-        {loading ? (
-          <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 20 }} />
-        ) : resources.map((r) => (
-          <Pressable
-            key={r.id}
-            style={styles.resourceCard}
-            onPress={() => router.push(`/listing/${r.id}` as never)}
-            android_ripple={{ color: FreepassColors.lightGray }}>
-            <View style={styles.cardImage}>
-              <IconSymbol name="map.fill" size={28} color={FreepassColors.lightGray} />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardName}>{r.name}</Text>
-              {r.phone && <Text style={styles.cardDetail}>{r.phone}</Text>}
-              {r.address && <Text style={styles.cardDetail}>{r.address}</Text>}
-            </View>
-          </Pressable>
-        ))}
+
+        <Text style={styles.sectionTitle}>
+          {locationStatus === 'granted' ? 'Nearest Resources' : 'All Resources'}
+          {!loading && ` (${sortedResources.length})`}
+        </Text>
+
+        {loading || locationStatus === 'loading' ? (
+          <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 40 }} />
+        ) : sortedResources.length === 0 ? (
+          <View style={styles.emptyState}>
+            <IconSymbol name="magnifyingglass" size={40} color={FreepassColors.lightGray} />
+            <Text style={styles.emptyText}>No resources found.</Text>
+          </View>
+        ) : (
+          sortedResources.map((r) => {
+            const dist = distanceLabel(r);
+            return (
+              <Pressable
+                key={r.id}
+                style={styles.resourceCard}
+                onPress={() => router.push(`/listing/${r.id}` as never)}
+                android_ripple={{ color: FreepassColors.lightGray }}>
+                <View style={styles.cardImage}>
+                  <IconSymbol name="map.fill" size={28} color={FreepassColors.primary} />
+                </View>
+                <View style={styles.cardContent}>
+                  <Text style={styles.cardName}>{r.name}</Text>
+                  {r.address && (
+                    <Text style={styles.cardDetail}>{r.address}</Text>
+                  )}
+                  {dist && (
+                    <View style={styles.distanceRow}>
+                      <IconSymbol name="location.fill" size={12} color={FreepassColors.accent} />
+                      <Text style={styles.distanceText}>{dist}</Text>
+                    </View>
+                  )}
+                  {r.phone && <Text style={styles.cardDetail}>{r.phone}</Text>}
+                </View>
+                <Pressable
+                  style={styles.directionsBtn}
+                  hitSlop={8}
+                  onPress={() => openDirections(r)}>
+                  <IconSymbol name="arrow.triangle.turn.up.right.circle.fill" size={32} color={FreepassColors.accent} />
+                </Pressable>
+              </Pressable>
+            );
+          })
+        )}
       </ScrollView>
     </View>
   );
@@ -66,11 +187,11 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: FreepassColors.primary,
     paddingHorizontal: 16,
     paddingTop: 48,
     paddingBottom: 14,
+    gap: 12,
   },
   backBtn: {
     flexDirection: 'row',
@@ -87,26 +208,43 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: FreepassColors.white,
-    textAlign: 'center',
-    marginLeft: 12,
   },
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 48 },
-  privacyCard: {
-    backgroundColor: FreepassColors.cardBg,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+
+  locationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FFF5F5',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#FFCCCC',
   },
-  privacyText: {
-    fontSize: 15,
+  locationBannerSuccess: {
+    backgroundColor: '#F0FFF4',
+    borderColor: '#C6F6D5',
+  },
+  locationBannerText: {
+    flex: 1,
+    fontSize: 14,
     color: FreepassColors.text,
-    lineHeight: 22,
+    lineHeight: 20,
+  },
+  locationBannerTextSuccess: {
+    color: FreepassColors.accent,
+  },
+  locationRetry: {
+    fontWeight: '700',
+    color: FreepassColors.primary,
+    textDecorationLine: 'underline',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: FreepassColors.white,
+    backgroundColor: FreepassColors.offWhite,
     borderWidth: 1,
     borderColor: FreepassColors.lightGray,
     borderRadius: 10,
@@ -121,47 +259,40 @@ const styles = StyleSheet.create({
     color: FreepassColors.text,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: FreepassColors.text,
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  mapPlaceholder: {
-    height: 280,
-    backgroundColor: FreepassColors.offWhite,
-    borderRadius: 12,
+  emptyState: {
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: FreepassColors.lightGray,
-    marginBottom: 20,
+    paddingVertical: 48,
   },
-  mapPlaceholderText: {
+  emptyText: {
     marginTop: 12,
     fontSize: 16,
     color: FreepassColors.textSecondary,
-  },
-  mapPlaceholderSub: {
-    marginTop: 4,
-    fontSize: 13,
-    color: FreepassColors.textSecondary,
-    fontStyle: 'italic',
   },
   resourceCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: FreepassColors.white,
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: FreepassColors.lightGray,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
   cardImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
-    backgroundColor: FreepassColors.lightGray,
+    width: 52,
+    height: 52,
+    borderRadius: 10,
+    backgroundColor: FreepassColors.cardBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -171,10 +302,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: FreepassColors.text,
+    marginBottom: 2,
   },
   cardDetail: {
     fontSize: 13,
     color: FreepassColors.textSecondary,
     marginTop: 2,
+  },
+  distanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  distanceText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: FreepassColors.accent,
+  },
+  directionsBtn: {
+    paddingLeft: 8,
   },
 });

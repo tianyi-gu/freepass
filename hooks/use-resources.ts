@@ -18,6 +18,7 @@ export interface Resource {
   latitude: number | null;
   longitude: number | null;
   tags: string[];
+  last_verified: string | null;
   category?: { name: string; icon: string };
 }
 
@@ -47,12 +48,21 @@ export function useResources(categoryId?: string) {
       query = query.eq('category_id', categoryId);
     }
 
-    const { data, error: err } = await query;
+    let { data, error: err } = await query;
+
+    if (err) {
+      // Fallback: fetch resources without the category join
+      let fallback = supabase.from('resources').select('*').order('name');
+      if (categoryId) fallback = fallback.eq('category_id', categoryId);
+      const result = await fallback;
+      data = result.data;
+      err = result.error;
+    }
 
     if (err) {
       setError(err.message);
     } else {
-      setResources(data ?? []);
+      setResources((data as Resource[]) ?? []);
     }
     setLoading(false);
   }, [categoryId]);
@@ -67,15 +77,27 @@ export function useResource(id: string) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from('resources')
-      .select('*, category:resource_categories(name, icon)')
-      .eq('id', id)
-      .single()
-      .then(({ data }) => {
-        setResource(data);
-        setLoading(false);
-      });
+    async function load() {
+      let { data, error } = await supabase
+        .from('resources')
+        .select('*, category:resource_categories(name, icon)')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        // Fallback without the category join
+        const result = await supabase
+          .from('resources')
+          .select('*')
+          .eq('id', id)
+          .single();
+        data = result.data;
+      }
+
+      setResource(data);
+      setLoading(false);
+    }
+    load();
   }, [id]);
 
   return { resource, loading };

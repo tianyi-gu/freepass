@@ -211,8 +211,7 @@ export const ONBOARDING_STEPS: SurveyStep[] = [
         options: [
           'In the app',
           'Email',
-          'Text message',
-          'Don\'t contact me',
+          "Don't contact me",
         ],
         allowSkip: true,
       },

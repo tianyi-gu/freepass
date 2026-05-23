@@ -27,11 +27,13 @@ export function FreepassTabBar({ activeTab }: { activeTab: TabId }) {
             style={styles.tab}
             onPress={() => router.replace(tab.route as never)}
             android_ripple={{ color: FreepassColors.primaryDark }}>
-            <IconSymbol
-              name={tab.icon as any}
-              size={24}
-              color={isActive ? FreepassColors.accentLight : FreepassColors.white}
-            />
+            <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
+              <IconSymbol
+                name={tab.icon as any}
+                size={22}
+                color={isActive ? FreepassColors.white : 'rgba(255,255,255,0.5)'}
+              />
+            </View>
             <Text style={[styles.label, isActive && styles.labelActive]}>{tab.label}</Text>
           </Pressable>
         );
@@ -44,27 +46,36 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     backgroundColor: FreepassColors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    paddingBottom: 12,
+    paddingTop: 10,
+    paddingHorizontal: 6,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: 'rgba(255,255,255,0.08)',
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
+    paddingVertical: 2,
+    gap: 4,
+  },
+  iconWrap: {
+    width: 44,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconWrapActive: {
+    backgroundColor: FreepassColors.accent,
   },
   label: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '500',
-    color: FreepassColors.white,
-    marginTop: 4,
-    opacity: 0.9,
+    color: 'rgba(255,255,255,0.5)',
   },
   labelActive: {
     color: FreepassColors.accentLight,
+    fontWeight: '700',
     opacity: 1,
   },
 });

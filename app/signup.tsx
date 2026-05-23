@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from 'react-native';
+import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassLogo } from '@/components/freepass-header';
@@ -8,7 +8,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { useUser } from '@/contexts/user-context';
 
-type Mode = 'welcome' | 'signup' | 'login';
+type Mode = 'welcome' | 'signup' | 'login' | 'confirmed';
 
 export default function SignupScreen() {
   const { signUp, logIn, continueAsGuest } = useUser();
@@ -27,7 +27,7 @@ export default function SignupScreen() {
     setLoading(true);
     try {
       await signUp(email.trim(), password, name.trim(), zipCode.trim() || undefined);
-      router.replace('/onboarding' as never);
+      setMode('confirmed');
     } catch (err) {
       Alert.alert('Sign Up Failed', (err as Error).message || 'Something went wrong. Please try again.');
     } finally {
@@ -56,8 +56,41 @@ export default function SignupScreen() {
     router.replace('/(drawer)');
   }, [continueAsGuest]);
 
+  if (mode === 'confirmed') {
+    return (
+      <View style={styles.container}>
+        <FreepassHeader showLogo showBack={false} showMenu={false} />
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, styles.confirmedContent]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={Keyboard.dismiss}>
+          <IconSymbol name="checkmark.circle.fill" size={72} color={FreepassColors.accentLight} />
+          <Text style={styles.confirmedTitle}>Account Created!</Text>
+          <Text style={styles.confirmedBody}>
+            Welcome to FreePass. We've sent a confirmation email to {email} — you can verify it at any time.
+          </Text>
+          <Text style={styles.confirmedNote}>
+            Next, answer a few quick questions so we can personalize your experience.
+          </Text>
+          <Pressable
+            style={styles.primaryBtn}
+            onPress={() => router.replace('/onboarding' as never)}
+            android_ripple={{ color: FreepassColors.accent }}>
+            <Text style={styles.primaryBtnText}>TAKE THE SURVEY</Text>
+          </Pressable>
+          <Pressable
+            style={styles.skipLink}
+            onPress={() => router.replace('/(drawer)' as never)}>
+            <Text style={styles.skipLinkText}>Skip for now</Text>
+          </Pressable>
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <View style={styles.container}>
       <FreepassHeader showLogo showBack={mode !== 'welcome'} showMenu={false} />
       <KeyboardAvoidingView
@@ -67,7 +100,8 @@ export default function SignupScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={Keyboard.dismiss}>
         <View style={styles.branding}>
           <Text style={styles.subtitle}>The Fountain Fund Philadelphia</Text>
           <FreepassLogo size={48} />
@@ -247,7 +281,6 @@ export default function SignupScreen() {
       </ScrollView>
       </KeyboardAvoidingView>
     </View>
-    </TouchableWithoutFeedback>
   );
 }
 
@@ -255,6 +288,48 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: FreepassColors.primary },
   scroll: { flex: 1 },
   scrollContent: { padding: 24, paddingBottom: 48 },
+  confirmedContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexGrow: 1,
+    paddingTop: 40,
+  },
+  confirmedTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: FreepassColors.white,
+    marginTop: 24,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  confirmedBody: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: FreepassColors.white,
+    textAlign: 'center',
+    opacity: 0.95,
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  confirmedNote: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: FreepassColors.accentLight,
+    textAlign: 'center',
+    fontWeight: '500',
+    marginBottom: 32,
+    paddingHorizontal: 8,
+  },
+  skipLink: {
+    alignItems: 'center',
+    marginTop: 12,
+    paddingVertical: 8,
+  },
+  skipLinkText: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500',
+  },
   branding: {
     alignItems: 'center',
     marginBottom: 24,
@@ -293,6 +368,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     marginBottom: 12,
+    width: '100%',
   },
   primaryBtnText: {
     fontSize: 16,

@@ -11,6 +11,7 @@ export default function OnboardingScreen() {
   const { user, saveSurveyAnswers, completeOnboarding } = useUser();
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
+  const [done, setDone] = useState(false);
 
   const step = ONBOARDING_STEPS[stepIndex];
   const isLastStep = stepIndex === ONBOARDING_STEPS.length - 1;
@@ -35,17 +36,37 @@ export default function OnboardingScreen() {
     await saveSurveyAnswers(answers);
 
     if (isLastStep) {
-      await completeOnboarding();
-      router.replace('/(drawer)');
+      setDone(true);
     } else {
       setStepIndex((i) => i + 1);
     }
-  }, [answers, isLastStep, saveSurveyAnswers, completeOnboarding]);
+  }, [answers, isLastStep, saveSurveyAnswers]);
 
   const handleSkipAll = useCallback(async () => {
     await completeOnboarding();
     router.replace('/(drawer)');
   }, [completeOnboarding]);
+
+  if (done) {
+    return (
+      <View style={[styles.container, styles.doneContainer]}>
+        <IconSymbol name="checkmark.circle.fill" size={80} color={FreepassColors.accent} />
+        <Text style={styles.doneTitle}>You're all set!</Text>
+        <Text style={styles.doneBody}>
+          Your responses have been saved. We'll use them to show you the most relevant resources and support for your reentry journey.
+        </Text>
+        <Pressable
+          style={styles.doneBtn}
+          onPress={async () => {
+            await completeOnboarding();
+            router.replace('/(drawer)');
+          }}
+          android_ripple={{ color: FreepassColors.primaryDark }}>
+          <Text style={styles.doneBtnText}>Explore FreePass</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   const renderQuestion = (q: SurveyQuestion) => {
     if (q.type === 'text') {
@@ -178,6 +199,39 @@ export default function OnboardingScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: FreepassColors.white },
+  doneContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  doneTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: FreepassColors.text,
+    marginTop: 24,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  doneBody: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: FreepassColors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  doneBtn: {
+    backgroundColor: FreepassColors.accent,
+    paddingVertical: 18,
+    paddingHorizontal: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    width: '100%',
+  },
+  doneBtnText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: FreepassColors.white,
+  },
   header: {
     backgroundColor: FreepassColors.primary,
     paddingHorizontal: 24,

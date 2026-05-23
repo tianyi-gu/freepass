@@ -9,6 +9,63 @@ import { FreepassColors } from '@/constants/theme';
 import { useUser } from '@/contexts/user-context';
 import { useDocuments } from '@/hooks/use-documents';
 
+function QuickActionBtn({
+  icon,
+  label,
+  onPress,
+  accent,
+}: {
+  icon: string;
+  label: string;
+  onPress: () => void;
+  accent?: boolean;
+}) {
+  return (
+    <Pressable
+      style={[styles.quickBtn, accent && styles.quickBtnAccent]}
+      onPress={onPress}
+      android_ripple={{ color: FreepassColors.lightGray }}>
+      <View style={[styles.quickBtnIcon, accent && styles.quickBtnIconAccent]}>
+        <IconSymbol name={icon as any} size={22} color={accent ? FreepassColors.white : FreepassColors.primary} />
+      </View>
+      <Text style={[styles.quickBtnLabel, accent && styles.quickBtnLabelAccent]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function FeatureCard({
+  label,
+  title,
+  body,
+  btnText,
+  btnIcon,
+  onPress,
+  dark,
+}: {
+  label: string;
+  title: string;
+  body: string;
+  btnText: string;
+  btnIcon: string;
+  onPress: () => void;
+  dark?: boolean;
+}) {
+  return (
+    <View style={[styles.featureCard, dark && styles.featureCardDark]}>
+      <Text style={[styles.featureLabel, dark && styles.featureLabelDark]}>{label}</Text>
+      <Text style={[styles.featureTitle, dark && styles.featureTitleDark]}>{title}</Text>
+      <Text style={[styles.featureBody, dark && styles.featureBodyDark]}>{body}</Text>
+      <Pressable
+        style={[styles.featureBtn, dark && styles.featureBtnDark]}
+        onPress={onPress}
+        android_ripple={{ color: dark ? FreepassColors.accent : FreepassColors.primaryDark }}>
+        <IconSymbol name={btnIcon as any} size={18} color={FreepassColors.white} />
+        <Text style={styles.featureBtnText}>{btnText}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function HomeScreen() {
   const { user } = useUser();
   const documentsUserId = user && !user.isGuest ? user.id : null;
@@ -19,7 +76,8 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <FreepassHeader showLogo showMenu showBack={false} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Hero / Intro Section */}
+
+        {/* Hero */}
         <View>
           <Image
             source={require('@/assets/images/hero-crowd.png')}
@@ -33,125 +91,125 @@ export default function HomeScreen() {
                 <Text style={styles.heroPhiladelphia}>Philadelphia</Text>
               </View>
               <View style={styles.heroLogoBox}>
-                <FreepassLogo size={64} />
+                <FreepassLogo size={56} />
               </View>
             </View>
             <Text style={styles.heroFreePass}>FreePass</Text>
-            <Text style={styles.heroSubline}>New user screen. Login / Signup</Text>
-            <Text style={styles.heroDescription}>
-              Welcome to your comprehensive resource portal –designed to empower the successful reentry journey in
-              Philadelphia and expanding areas.
+            <Text style={styles.heroSubline}>
+              {user ? `Welcome back, ${user.displayName || 'there'}!` : 'Your free resource guide for reentry in Philadelphia'}
             </Text>
-            <Pressable
-              style={styles.heroSignUpButton}
-              onPress={() => router.push('/signup' as never)}
-              android_ripple={{ color: FreepassColors.primaryDark }}>
-              <IconSymbol name="plus" size={18} color={FreepassColors.white} />
-              <Text style={styles.ctaText}>SIGN UP</Text>
-            </Pressable>
+            {!user && (
+              <Pressable
+                style={styles.heroSignUpButton}
+                onPress={() => router.push('/signup' as never)}>
+                <IconSymbol name="plus" size={16} color={FreepassColors.white} />
+                <Text style={styles.heroSignUpText}>CREATE FREE ACCOUNT</Text>
+              </Pressable>
+            )}
           </View>
         </View>
 
-        {showDocumentsPrompt && (
-          <View style={styles.docPromptCard}>
-            <View style={styles.docPromptHeader}>
-              <View style={styles.docPromptIconWrap}>
-                <IconSymbol name="doc.text.fill" size={22} color={FreepassColors.white} />
+        {/* Body */}
+        <View style={styles.body}>
+
+          {/* Greeting card for logged-in users */}
+          {user && !user.isGuest && (
+            <View style={styles.greetingCard}>
+              <View style={styles.greetingAccent} />
+              <View style={styles.greetingContent}>
+                <Text style={styles.greetingName}>Hello, {user.displayName || 'there'}!</Text>
+                <Text style={styles.greetingSubtext}>Ready to find your next resource?</Text>
               </View>
-              <View style={styles.docPromptTitleWrap}>
+              <IconSymbol name="hand.wave.fill" size={28} color={FreepassColors.accentLight} />
+            </View>
+          )}
+
+          {/* Document prompt */}
+          {showDocumentsPrompt && (
+            <View style={styles.docPromptCard}>
+              <View style={styles.docPromptIconWrap}>
+                <IconSymbol name="doc.text.fill" size={20} color={FreepassColors.white} />
+              </View>
+              <View style={styles.docPromptText}>
                 <Text style={styles.docPromptTitle}>Keep your documents safe</Text>
                 <Text style={styles.docPromptBody}>
                   Snap a photo of your ID, certifications, or paperwork. Only you can see them.
                 </Text>
               </View>
+              <Pressable
+                style={styles.docPromptBtn}
+                onPress={() => router.push('/documents' as never)}>
+                <IconSymbol name="plus" size={14} color={FreepassColors.accent} />
+                <Text style={styles.docPromptBtnText}>Add</Text>
+              </Pressable>
             </View>
-            <Pressable
-              style={styles.docPromptButton}
-              onPress={() => router.push('/documents' as never)}
-              android_ripple={{ color: FreepassColors.primaryDark }}>
-              <IconSymbol name="plus" size={16} color={FreepassColors.white} />
-              <Text style={styles.docPromptButtonText}>ADD A DOCUMENT</Text>
-            </Pressable>
+          )}
+
+          {/* Quick access grid */}
+          <Text style={styles.sectionLabel}>QUICK ACCESS</Text>
+          <View style={styles.quickGrid}>
+            <QuickActionBtn icon="magnifyingglass" label="Resources" onPress={() => router.push('/quick-list' as never)} />
+            <QuickActionBtn icon="location.fill" label="Near Me" onPress={() => router.push('/map-view' as never)} accent />
+            <QuickActionBtn icon="sparkles" label="Ask Casey" onPress={() => router.replace('/(drawer)/casey' as never)} />
+            <QuickActionBtn icon="calendar" label="Events" onPress={() => router.replace('/(drawer)/event-calendar' as never)} />
           </View>
-        )}
 
-        <View style={styles.sectionOrange}>
-          <Text style={styles.sectionTitleDark}>Access Local Resources</Text>
-          <Text style={styles.sectionTitleLight}>in a Quick List</Text>
-          <Text style={styles.sectionBody}>
-            We provide a centralized hub, connecting you to essential services: housing, employment, legal aid, and more
-            – to help navigate your reentry with confidence.
-          </Text>
-          <Pressable
-            style={styles.ctaButton}
+          {/* Feature cards */}
+          <Text style={styles.sectionLabel}>EXPLORE</Text>
+
+          <FeatureCard
+            label="RESOURCES"
+            title="Search Our Database"
+            body="Housing, employment, legal aid, mental health, and more — all in one place to help you navigate reentry with confidence."
+            btnText="SEARCH DATABASE"
+            btnIcon="magnifyingglass"
             onPress={() => router.push('/quick-list' as never)}
-            android_ripple={{ color: FreepassColors.primaryDark }}>
-            <IconSymbol name="magnifyingglass" size={20} color={FreepassColors.white} />
-            <Text style={styles.ctaText}>SEARCH DATABASE</Text>
-          </Pressable>
-        </View>
+          />
 
-        <View style={[styles.sectionOrange, styles.sectionOrangeLight]}>
-          <Text style={styles.sectionTitleDark}>Your Connection to</Text>
-          <Text style={styles.sectionTitleLight}>Financial Literacy Access</Text>
-          <Text style={styles.sectionBody}>
-            Through FreePass, you have the ability to find support through the Fountain Fund&apos;s courses on financial
-            stability and academic opportunities.
-          </Text>
-          <Pressable
-            style={styles.ctaButton}
+          <FeatureCard
+            label="FINANCIAL LITERACY"
+            title="Learning Academy"
+            body="Access Fountain Fund courses on financial stability, credit building, and academic opportunities — designed for your journey."
+            btnText="ACCESS LEARNING ACADEMY"
+            btnIcon="play.rectangle.fill"
             onPress={() => router.replace('/(drawer)/learning-academy' as never)}
-            android_ripple={{ color: FreepassColors.primaryDark }}>
-            <IconSymbol name="chevron.right" size={20} color={FreepassColors.white} />
-            <Text style={styles.ctaText}>ACCESS LEARNING ACADEMY</Text>
-          </Pressable>
-        </View>
+            dark
+          />
 
-        <View style={[styles.sectionOrange, styles.sectionOrangeLight]}>
-          <Text style={styles.sectionTitleLight}>Give Feedback</Text>
-          <Text style={styles.sectionBody}>
-            Want to hear what the community has found so far? Our platform makes it easy to plan and organize your steps
-            plus coordinate with your group. Whether it&apos;s finding work, a good doctor, or community events, FreePass
-            lets you chat with people on the same path.
-          </Text>
-          <Pressable
-            style={styles.ctaButton}
+          <FeatureCard
+            label="COMMUNITY"
+            title="Message Board"
+            body="Connect with others on the same path. Share resources, wins, and support each other through the reentry journey."
+            btnText="VISIT COMMUNITY BOARD"
+            btnIcon="bubble.left.and.bubble.right.fill"
             onPress={() => router.replace('/(drawer)/message-board' as never)}
-            android_ripple={{ color: FreepassColors.primaryDark }}>
-            <IconSymbol name="chevron.right" size={20} color={FreepassColors.white} />
-            <Text style={styles.ctaText}>MESSAGE BOARD</Text>
-          </Pressable>
-        </View>
+          />
 
-        <View style={styles.sectionBrown}>
-          <Text style={styles.sectionSubtitle}>What have I learned?</Text>
-          <Text style={styles.sectionTitleOrange}>Interview Library</Text>
-          <Text style={styles.sectionBodyLight}>
-            You can view videos of local organizations who explain their facility and what to expect when you visit.
-            This includes employers and other resources. We also provide and share interviews with individuals recently
-            returning from prison and those involved in the reentry process.
-          </Text>
-          <Pressable
-            style={styles.ctaButtonLight}
+          <FeatureCard
+            label="MEDIA"
+            title="Interview Library"
+            body="Watch videos of local organizations and hear from people who've been through reentry — so you know what to expect."
+            btnText="VIEW COURSES & VIDEOS"
+            btnIcon="play.rectangle.fill"
             onPress={() => router.push('/interview-library' as never)}
-            android_ripple={{ color: FreepassColors.primaryDark }}>
-            <IconSymbol name="play.rectangle.fill" size={20} color={FreepassColors.white} />
-            <Text style={styles.ctaText}>VIEW COURSES AND VIDEOS</Text>
-          </Pressable>
-        </View>
+            dark
+          />
 
-        <View style={styles.sectionBrown}>
-          <Text style={styles.sectionTitleLight}>Join FreePass for Free!</Text>
-          <Text style={styles.sectionBodyLight}>
-            Ready to get started? Sign up and start building your own community today. It&apos;s easy, fun, and a great
-            way to connect with others who share your passions. Find out what FreePass is all about!
-          </Text>
-          <Pressable
-            style={styles.signUpButton}
-            onPress={() => router.push('/signup' as never)}
-            android_ripple={{ color: FreepassColors.accent }}>
-            <Text style={styles.ctaText}>CLICK HERE TO SIGN UP!</Text>
-          </Pressable>
+          {!user && (
+            <View style={styles.joinCard}>
+              <Text style={styles.joinTitle}>Join FreePass for Free</Text>
+              <Text style={styles.joinBody}>
+                Create an account to save resources, get personalized recommendations, and connect with your community.
+              </Text>
+              <Pressable
+                style={styles.joinBtn}
+                onPress={() => router.push('/signup' as never)}>
+                <IconSymbol name="plus" size={16} color={FreepassColors.white} />
+                <Text style={styles.joinBtnText}>SIGN UP FREE</Text>
+              </Pressable>
+            </View>
+          )}
+
         </View>
       </ScrollView>
       <FreepassTabBar activeTab="home" />
@@ -159,213 +217,255 @@ export default function HomeScreen() {
   );
 }
 
+const CARD_SHADOW = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.07,
+  shadowRadius: 8,
+  elevation: 3,
+};
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: FreepassColors.white },
+  container: { flex: 1, backgroundColor: FreepassColors.offWhite },
   scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 60 },
-  heroImage: {
-    width: '100%',
-    height: 260,
-  },
-  heroImagePlaceholder: {
-    width: '100%',
-    height: 260,
-    backgroundColor: '#2A4A6C',
-  },
+  scrollContent: { paddingBottom: 32 },
+
+  // Hero
+  heroImage: { width: '100%', height: 220 },
   heroContent: {
-    backgroundColor: '#1A3A5C',
+    backgroundColor: FreepassColors.primary,
     padding: 24,
-    paddingTop: 28,
-    paddingBottom: 32,
+    paddingBottom: 28,
   },
   heroTitleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  heroTitleText: {
-    flex: 1,
-  },
+  heroTitleText: { flex: 1 },
   heroLogoBox: {
-    width: 72,
-    height: 72,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 12,
+    width: 64,
+    height: 64,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 16,
   },
   heroFountainFund: {
-    fontSize: 20,
+    fontSize: 13,
     fontWeight: '600',
     color: FreepassColors.accentLight,
+    letterSpacing: 0.5,
     marginBottom: 2,
   },
-  heroPhiladelphia: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: FreepassColors.white,
-  },
+  heroPhiladelphia: { fontSize: 22, fontWeight: '700', color: 'rgba(255,255,255,0.8)' },
   heroFreePass: {
-    fontSize: 48,
+    fontSize: 44,
     fontWeight: '800',
     color: FreepassColors.white,
-    marginBottom: 8,
     letterSpacing: -1,
+    marginBottom: 4,
   },
   heroSubline: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
     color: FreepassColors.accentLight,
+    fontWeight: '500',
     marginBottom: 16,
-  },
-  heroDescription: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: FreepassColors.white,
-    opacity: 0.95,
-    marginBottom: 24,
   },
   heroSignUpButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    backgroundColor: FreepassColors.accentLight,
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    borderRadius: 30,
-    alignSelf: 'center',
-  },
-  sectionOrange: {
+    gap: 8,
     backgroundColor: FreepassColors.accent,
-    padding: 24,
-    paddingTop: 28,
-  },
-  sectionOrangeLight: {
-    backgroundColor: FreepassColors.accentLight,
-  },
-  sectionBrown: {
-    backgroundColor: FreepassColors.primary,
-    padding: 24,
-    paddingTop: 28,
-  },
-  sectionTitleDark: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: FreepassColors.primary,
-    marginBottom: 4,
-  },
-  sectionTitleLight: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: FreepassColors.white,
-    marginBottom: 12,
-  },
-  sectionTitleOrange: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: FreepassColors.accentLight,
-    marginBottom: 12,
-  },
-  sectionSubtitle: {
-    fontSize: 15,
-    color: FreepassColors.accentLight,
-    marginBottom: 4,
-  },
-  sectionBody: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: FreepassColors.white,
-    opacity: 0.95,
-    marginBottom: 20,
-  },
-  sectionBodyLight: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: FreepassColors.offWhite,
-    marginBottom: 20,
-  },
-  ctaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: FreepassColors.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    paddingVertical: 13,
+    paddingHorizontal: 28,
+    borderRadius: 100,
     alignSelf: 'flex-start',
   },
-  ctaButtonLight: {
+  heroSignUpText: { fontSize: 14, fontWeight: '700', color: FreepassColors.white },
+
+  // Body
+  body: { padding: 16, gap: 8 },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: FreepassColors.textSecondary,
+    letterSpacing: 1.2,
+    marginTop: 8,
+    marginBottom: 10,
+    marginLeft: 2,
+  },
+
+  // Greeting card
+  greetingCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    backgroundColor: FreepassColors.white,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...CARD_SHADOW,
+  },
+  greetingAccent: {
+    width: 5,
+    alignSelf: 'stretch',
     backgroundColor: FreepassColors.accent,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    alignSelf: 'flex-start',
   },
-  signUpButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: FreepassColors.accentLight,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    alignSelf: 'flex-start',
-  },
-  ctaText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: FreepassColors.white,
-  },
+  greetingContent: { flex: 1, padding: 14 },
+  greetingName: { fontSize: 18, fontWeight: '800', color: FreepassColors.text },
+  greetingSubtext: { fontSize: 13, color: FreepassColors.textSecondary, marginTop: 2 },
+
+  // Document prompt
   docPromptCard: {
-    backgroundColor: FreepassColors.accent,
-    margin: 16,
-    padding: 18,
-    borderRadius: 12,
-  },
-  docPromptHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
-    marginBottom: 14,
+    backgroundColor: FreepassColors.primary,
+    borderRadius: 14,
+    padding: 14,
+    ...CARD_SHADOW,
   },
   docPromptIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  docPromptTitleWrap: { flex: 1 },
-  docPromptTitle: {
-    fontSize: 16,
+  docPromptText: { flex: 1 },
+  docPromptTitle: { fontSize: 14, fontWeight: '700', color: FreepassColors.white },
+  docPromptBody: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 2, lineHeight: 17 },
+  docPromptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: FreepassColors.white,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  docPromptBtnText: { fontSize: 13, fontWeight: '700', color: FreepassColors.accent },
+
+  // Quick access grid
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 8,
+  },
+  quickBtn: {
+    width: '47.5%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: FreepassColors.white,
+    borderRadius: 14,
+    padding: 14,
+    ...CARD_SHADOW,
+  },
+  quickBtnAccent: {
+    backgroundColor: FreepassColors.primary,
+  },
+  quickBtnIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: FreepassColors.offWhite,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickBtnIconAccent: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  quickBtnLabel: {
+    fontSize: 14,
     fontWeight: '700',
+    color: FreepassColors.text,
+    flex: 1,
+  },
+  quickBtnLabelAccent: {
     color: FreepassColors.white,
+  },
+
+  // Feature cards
+  featureCard: {
+    backgroundColor: FreepassColors.white,
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 4,
+    ...CARD_SHADOW,
   },
-  docPromptBody: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: 'rgba(255,255,255,0.9)',
+  featureCardDark: {
+    backgroundColor: FreepassColors.primary,
   },
-  docPromptButton: {
+  featureLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: FreepassColors.accent,
+    letterSpacing: 1.2,
+    marginBottom: 6,
+  },
+  featureLabelDark: {
+    color: FreepassColors.accentLight,
+  },
+  featureTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: FreepassColors.text,
+    marginBottom: 8,
+    lineHeight: 28,
+  },
+  featureTitleDark: {
+    color: FreepassColors.white,
+  },
+  featureBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: FreepassColors.textSecondary,
+    marginBottom: 16,
+  },
+  featureBodyDark: {
+    color: 'rgba(255,255,255,0.75)',
+  },
+  featureBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: FreepassColors.primary,
-    paddingVertical: 12,
-    borderRadius: 8,
+    gap: 8,
+    backgroundColor: FreepassColors.accent,
+    paddingVertical: 13,
+    borderRadius: 10,
   },
-  docPromptButtonText: {
-    fontSize: 13,
+  featureBtnDark: {
+    backgroundColor: FreepassColors.accentLight,
+  },
+  featureBtnText: {
+    fontSize: 14,
     fontWeight: '700',
     color: FreepassColors.white,
   },
+
+  // Join card
+  joinCard: {
+    backgroundColor: FreepassColors.accent,
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 4,
+    ...CARD_SHADOW,
+  },
+  joinTitle: { fontSize: 20, fontWeight: '800', color: FreepassColors.white, marginBottom: 8 },
+  joinBody: { fontSize: 14, lineHeight: 21, color: 'rgba(255,255,255,0.85)', marginBottom: 16 },
+  joinBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: FreepassColors.white,
+    paddingVertical: 13,
+    borderRadius: 10,
+  },
+  joinBtnText: { fontSize: 14, fontWeight: '700', color: FreepassColors.accent },
 });

@@ -3,34 +3,64 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { FreepassColors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 
 export default function AddEventScreen() {
   const [form, setForm] = useState({
     name: '',
     instructor: '',
-    phone: '',
     description: '',
+    location: '',
+    address: '',
     startTime: '',
     endTime: '',
   });
+  const [loading, setLoading] = useState(false);
 
   const updateField = (key: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     if (!form.name.trim()) {
       Alert.alert('Missing info', 'Please enter an event name.');
       return;
     }
     if (!form.startTime.trim()) {
-      Alert.alert('Missing info', 'Please enter a start time.');
+      Alert.alert('Missing info', 'Please enter a start date and time.');
       return;
     }
-    // TODO: Submit to backend
-    Alert.alert('Event Created', 'Your event has been submitted for review.', [
-      { text: 'OK', onPress: () => router.back() },
-    ]);
+
+    const eventDate = new Date(form.startTime.trim());
+    if (isNaN(eventDate.getTime())) {
+      Alert.alert('Invalid Date', 'Please enter the start time in a recognizable format, e.g. "May 15, 2026 4:00 PM".');
+      return;
+    }
+
+    const endDate = form.endTime.trim() ? new Date(form.endTime.trim()) : null;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('events').insert({
+        title: form.name.trim(),
+        description: form.description.trim() || null,
+        instructor: form.instructor.trim() || null,
+        location: form.location.trim() || null,
+        address: form.address.trim() || null,
+        event_date: eventDate.toISOString(),
+        end_date: endDate?.toISOString() ?? null,
+      });
+
+      if (error) throw error;
+
+      Alert.alert('Event Created', 'Your event has been added to the calendar.', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    } catch (err) {
+      Alert.alert('Error', (err as Error).message || 'Failed to create event. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, [form]);
 
   return (
@@ -42,7 +72,7 @@ export default function AddEventScreen() {
         <Text style={styles.title}>Add New Event to Calendar</Text>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <InputField
           label="Event Name *"
           placeholder="Enter event name..."
@@ -56,11 +86,16 @@ export default function AddEventScreen() {
           onChangeText={(v) => updateField('instructor', v)}
         />
         <InputField
-          label="Contact Phone"
-          placeholder="Enter phone number..."
-          value={form.phone}
-          onChangeText={(v) => updateField('phone', v)}
-          keyboardType="phone-pad"
+          label="Location Name"
+          placeholder="e.g. Fountain Fund Office"
+          value={form.location}
+          onChangeText={(v) => updateField('location', v)}
+        />
+        <InputField
+          label="Address"
+          placeholder="e.g. 1234 Broad St, Philadelphia, PA"
+          value={form.address}
+          onChangeText={(v) => updateField('address', v)}
         />
         <InputField
           label="Description"
@@ -70,23 +105,26 @@ export default function AddEventScreen() {
           multiline
         />
         <InputField
-          label="Start Time *"
-          placeholder="e.g. May 15, 2026 at 4:00 PM"
+          label="Start Date & Time *"
+          placeholder='e.g. "May 15, 2026 4:00 PM"'
           value={form.startTime}
           onChangeText={(v) => updateField('startTime', v)}
         />
         <InputField
-          label="End Time"
-          placeholder="e.g. May 15, 2026 at 6:00 PM"
+          label="End Date & Time"
+          placeholder='e.g. "May 15, 2026 6:00 PM"'
           value={form.endTime}
           onChangeText={(v) => updateField('endTime', v)}
         />
 
         <Pressable
-          style={styles.submitBtn}
+          style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
           onPress={handleSubmit}
+          disabled={loading}
           android_ripple={{ color: FreepassColors.primaryDark }}>
-          <Text style={styles.submitBtnText}>CREATE EVENT</Text>
+          <Text style={styles.submitBtnText}>
+            {loading ? 'CREATING EVENT...' : 'CREATE EVENT'}
+          </Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -171,6 +209,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 10,
     alignItems: 'center',
+  },
+  submitBtnDisabled: {
+    opacity: 0.6,
   },
   submitBtnText: {
     fontSize: 16,

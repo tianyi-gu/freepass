@@ -10,7 +10,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 
@@ -294,7 +293,6 @@ export default function BudgetScreen() {
 
       {/* Add Expense Modal */}
       <Modal visible={showAddExpense} animationType="slide" transparent>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <KeyboardAvoidingView
             style={styles.modalOverlay}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -302,6 +300,7 @@ export default function BudgetScreen() {
               style={styles.modalSheet}
               contentContainerStyle={styles.modalSheetContent}
               keyboardShouldPersistTaps="handled"
+              onScrollBeginDrag={Keyboard.dismiss}
               bounces={false}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Add Expense</Text>
@@ -372,12 +371,10 @@ export default function BudgetScreen() {
               </Pressable>
             </ScrollView>
           </KeyboardAvoidingView>
-        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Set Budget Modal */}
       <Modal visible={showSetBudget} animationType="slide" transparent>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <KeyboardAvoidingView
             style={styles.modalOverlay}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -385,6 +382,7 @@ export default function BudgetScreen() {
               style={styles.modalSheet}
               contentContainerStyle={styles.modalSheetContent}
               keyboardShouldPersistTaps="handled"
+              onScrollBeginDrag={Keyboard.dismiss}
               bounces={false}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Set Monthly Budget</Text>
@@ -414,7 +412,6 @@ export default function BudgetScreen() {
               </Pressable>
             </ScrollView>
           </KeyboardAvoidingView>
-        </TouchableWithoutFeedback>
       </Modal>
 
       <FreepassTabBar activeTab="budget" />
@@ -611,6 +608,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
     color: FreepassColors.text,
+    borderWidth: 1.5,
+    borderColor: FreepassColors.lightGray,
   },
   inputLarge: {
     backgroundColor: FreepassColors.offWhite,
@@ -621,6 +620,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: FreepassColors.text,
     textAlign: 'center',
+    borderWidth: 1.5,
+    borderColor: FreepassColors.lightGray,
   },
   budgetHint: {
     fontSize: 14,
