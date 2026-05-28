@@ -5,6 +5,7 @@ import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassColors } from '@/constants/theme';
 
 const BANZAI_URL = 'https://fountainfund.banzai.org/wellness';
+const FDIC_CATALOG_URL = 'https://catalog.fdic.gov/';
 
 const MONEY_SMART_COURSES = [
   { title: 'Your Income and Expenses', desc: 'Track and understand your money coming in and money going out.' },
@@ -44,7 +45,10 @@ export default function MoneySmartScreen() {
             To obtain a certificate, a user account must be created on the FDIC website. This can be started by going
             here:
           </Text>
-          <Pressable style={styles.ctaBtn} android_ripple={{ color: FreepassColors.primaryDark }}>
+          <Pressable
+            style={styles.ctaBtn}
+            onPress={() => Linking.openURL(FDIC_CATALOG_URL)}
+            android_ripple={{ color: FreepassColors.primaryDark }}>
             <Text style={styles.ctaText}>CREATE ACCOUNT</Text>
           </Pressable>
         </View>
@@ -66,7 +70,7 @@ export default function MoneySmartScreen() {
         <Text style={styles.courseListTitle}>Courses:</Text>
         {MONEY_SMART_COURSES.map((c, i) => (
           <View key={i} style={styles.courseRow}>
-            <Pressable style={styles.courseBtn}>
+            <Pressable style={styles.courseBtn} onPress={() => Linking.openURL(FDIC_CATALOG_URL)}>
               <Text style={styles.courseBtnText}>{c.title}</Text>
             </Pressable>
             <Text style={styles.courseDesc}>{c.desc}</Text>
@@ -86,7 +90,10 @@ export default function MoneySmartScreen() {
           </Pressable>
         </View>
 
-        <Pressable style={styles.finalBtn} android_ripple={{ color: FreepassColors.primaryDark }}>
+        <Pressable
+          style={styles.finalBtn}
+          onPress={() => router.push('/loan-inquiry' as never)}
+          android_ripple={{ color: FreepassColors.primaryDark }}>
           <Text style={styles.ctaText}>INQUIRE ABOUT A LOAN</Text>
         </Pressable>
       </ScrollView>

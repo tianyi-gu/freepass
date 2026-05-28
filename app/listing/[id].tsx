@@ -41,9 +41,7 @@ export default function ListingScreen() {
           <IconSymbol name="star.fill" size={16} color={FreepassColors.white} />
           <Text style={styles.headerBtnText}>VIEW FEEDBACK</Text>
         </Pressable>
-        <Pressable style={styles.headerIcon}>
-          <IconSymbol name="square.and.pencil" size={22} color={FreepassColors.white} />
-        </Pressable>
+        <View style={{ width: 30 }} />
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>

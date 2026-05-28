@@ -18,8 +18,11 @@ export default function GiveFeedbackModal() {
   const handleSubmit = async () => {
     if (!feedback.trim()) return;
     setSubmitting(true);
+    const feedbackText = resourceName
+      ? `[Feedback for ${resourceName}] ${feedback.trim()}`
+      : feedback.trim();
     const { error } = await supabase.from('questions').insert({
-      question: feedback.trim(),
+      question: feedbackText,
       category: 'Feedback',
       asked_by: user?.displayName ?? 'Anonymous',
     });

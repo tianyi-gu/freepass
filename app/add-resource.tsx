@@ -54,6 +54,8 @@ export default function AddResourceScreen() {
       phone: form.phone.trim() || null,
       email: form.email.trim() || null,
       website: form.website.trim() || null,
+      city: 'Philadelphia',
+      state: 'PA',
       zip_code: form.zipCode.trim() || null,
       hours: form.hours.trim() || null,
       tags,
@@ -78,7 +80,7 @@ export default function AddResourceScreen() {
         <Text style={styles.title}>Add a Resource to FreePass</Text>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <FormField
           label="Company Name *"
           placeholder="Enter Company Name..."

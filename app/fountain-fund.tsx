@@ -41,7 +41,10 @@ export default function FountainFundScreen() {
         </Text>
 
         <View style={styles.testimonialSection}>
-          <View style={styles.testimonialImage} />
+          <View style={styles.testimonialImage}>
+            <IconSymbol name="person.fill" size={48} color="rgba(255,255,255,0.5)" />
+            <Text style={styles.testimonialImageText}>Melli's Story</Text>
+          </View>
           <Text style={styles.caption}>Everyone has a story about their relationship with money.</Text>
           <Text style={styles.body}>
             Listen to how Melli turned her financial stress into success by utilizing The Fountain Fund&apos;s services
@@ -126,6 +129,14 @@ const styles = StyleSheet.create({
     backgroundColor: FreepassColors.primary,
     borderRadius: 12,
     marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  testimonialImageText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 8,
   },
   caption: {
     fontSize: 18,

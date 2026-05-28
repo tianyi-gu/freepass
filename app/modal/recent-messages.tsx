@@ -11,7 +11,7 @@ export default function RecentMessagesModal() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Recent Messages for</Text>
+        <Text style={styles.title}>Resource Channels</Text>
         <Pressable onPress={() => router.back()} style={styles.closeBtn}>
           <IconSymbol name="xmark" size={18} color={FreepassColors.white} />
         </Pressable>

@@ -230,8 +230,9 @@ export default function CaseyScreen() {
     supabase
       .from('resources')
       .select('name, address, city, description, phone, website, hours, tags')
+      .eq('is_published', true)
       .then(({ data, error }) => {
-        if (error) { console.error('[Casey] Supabase fetch error:', error); return; }
+        if (error) { if (__DEV__) console.error('[Casey] Supabase fetch error:', error); return; }
         if (data) setResources(data as Resource[]);
       });
   }, []);
@@ -269,7 +270,7 @@ export default function CaseyScreen() {
       const json = await res.json();
 
       if (!res.ok) {
-        console.error('[Casey] Gemini API error:', JSON.stringify(json, null, 2));
+        if (__DEV__) console.error('[Casey] Gemini API error:', JSON.stringify(json, null, 2));
         throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
       }
 
@@ -286,7 +287,7 @@ export default function CaseyScreen() {
       // Auto-read Casey's response
       speakText(reply, replyId);
     } catch (err) {
-      console.error('[Casey] Error:', err);
+      if (__DEV__) console.error('[Casey] Error:', err);
       setMessages((prev) => [
         ...prev,
         {

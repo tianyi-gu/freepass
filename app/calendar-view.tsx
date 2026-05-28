@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { useEvents } from '@/hooks/use-events';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = [
@@ -23,6 +24,15 @@ export default function CalendarViewScreen() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
+
+  const { events, loading } = useEvents();
+
+  const monthEvents = events.filter((e) => {
+    const d = new Date(e.event_date);
+    return d.getFullYear() === year && d.getMonth() === month;
+  });
+
+  const eventDays = new Set(monthEvents.map((e) => new Date(e.event_date).getDate()));
 
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
@@ -82,9 +92,12 @@ export default function CalendarViewScreen() {
           {cells.map((d, i) => (
             <View key={i} style={[styles.dateCell, d !== null && isCurrentMonth && d === today.getDate() && styles.dateToday]}>
               {d !== null && (
-                <Text style={[styles.dateText, isCurrentMonth && d === today.getDate() && styles.dateTodayText]}>
-                  {d}
-                </Text>
+                <>
+                  <Text style={[styles.dateText, isCurrentMonth && d === today.getDate() && styles.dateTodayText]}>
+                    {d}
+                  </Text>
+                  {eventDays.has(d) && <View style={styles.eventDot} />}
+                </>
               )}
             </View>
           ))}
@@ -93,10 +106,28 @@ export default function CalendarViewScreen() {
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={styles.eventsTitle}>All Upcoming Events</Text>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No events this month</Text>
-          <Text style={styles.emptySub}>Events will appear here once added.</Text>
-        </View>
+        {loading ? (
+          <ActivityIndicator size="large" color={FreepassColors.primary} style={{ marginVertical: 24 }} />
+        ) : monthEvents.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>No events this month</Text>
+            <Text style={styles.emptySub}>Events will appear here once added.</Text>
+          </View>
+        ) : (
+          monthEvents.map((e) => (
+            <Pressable
+              key={e.id}
+              style={styles.eventCard}
+              onPress={() => router.push(`/event/${e.id}` as never)}>
+              <Text style={styles.eventCardTitle}>{e.title}</Text>
+              <Text style={styles.eventCardDate}>
+                {new Date(e.event_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+              </Text>
+              {e.location ? <Text style={styles.eventCardMeta}>{e.location}</Text> : null}
+              {e.instructor ? <Text style={styles.eventCardMeta}>Instructor: {e.instructor}</Text> : null}
+            </Pressable>
+          ))
+        )}
         <Pressable
           style={styles.addEventBtn}
           onPress={() => router.push('/add-event' as never)}
@@ -216,5 +247,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: FreepassColors.textSecondary,
     textAlign: 'center',
+  },
+  eventDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: FreepassColors.white,
+    marginTop: 2,
+  },
+  eventCard: {
+    backgroundColor: FreepassColors.white,
+    borderWidth: 1,
+    borderColor: FreepassColors.accent,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 12,
+  },
+  eventCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: FreepassColors.primary,
+    marginBottom: 4,
+  },
+  eventCardDate: {
+    fontSize: 13,
+    color: FreepassColors.textSecondary,
+    marginBottom: 2,
+  },
+  eventCardMeta: {
+    fontSize: 13,
+    color: FreepassColors.textSecondary,
   },
 });

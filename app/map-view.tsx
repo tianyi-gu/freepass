@@ -115,7 +115,7 @@ export default function MapViewScreen() {
         <Text style={styles.headerTitle}>Resources Near You</Text>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Location status */}
         {locationStatus === 'denied' && (
           <View style={styles.locationBanner}>

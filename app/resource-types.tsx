@@ -6,11 +6,13 @@ import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { useResources, useResourceCategories } from '@/hooks/use-resources';
+import { useSavedResources } from '@/hooks/use-saved-resources';
 
 export default function ResourceTypesScreen() {
   const { categories } = useResourceCategories();
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const { resources, loading } = useResources(selectedCategory);
+  const { isSaved, toggleSave } = useSavedResources();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const selectedName = categories.find(c => c.id === selectedCategory)?.name ?? 'Select a Category...';
@@ -63,8 +65,8 @@ export default function ResourceTypesScreen() {
               {r.phone && <Text style={styles.cardDetail}>{r.phone}</Text>}
               {r.website && <Text style={styles.cardDetail}>{r.website}</Text>}
             </View>
-            <Pressable style={styles.favoriteBtn} hitSlop={8}>
-              <IconSymbol name="heart" size={22} color={FreepassColors.lightGray} />
+            <Pressable style={styles.favoriteBtn} hitSlop={8} onPress={() => toggleSave(r.id)}>
+              <IconSymbol name={isSaved(r.id) ? 'heart.fill' : 'heart'} size={22} color={isSaved(r.id) ? FreepassColors.destructive : FreepassColors.lightGray} />
             </Pressable>
           </Pressable>
         ))}

@@ -1,11 +1,48 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
+
+type CommunityPost = {
+  id: string;
+  display_name: string;
+  content: string;
+  created_at: string;
+};
+
+function formatTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
 
 export default function MessageBoardScreen() {
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from('community_posts')
+      .select('id, display_name, content, created_at')
+      .order('created_at', { ascending: false })
+      .limit(10)
+      .then(({ data }) => {
+        if (data) setPosts(data);
+        setLoading(false);
+      });
+  }, []);
+
   return (
     <View style={styles.container}>
       <FreepassHeader showLogo showMenu showBack={false} />
@@ -30,11 +67,31 @@ export default function MessageBoardScreen() {
         </Pressable>
 
         <Text style={styles.sectionTitle}>Recent Topics</Text>
-        <View style={styles.emptyState}>
-          <IconSymbol name="bubble.left.and.bubble.right.fill" size={40} color={FreepassColors.lightGray} />
-          <Text style={styles.emptyTitle}>No topics yet</Text>
-          <Text style={styles.emptySubtext}>Community discussions will appear here.</Text>
-        </View>
+        {loading ? (
+          <ActivityIndicator size="large" color={FreepassColors.primary} style={{ marginTop: 32 }} />
+        ) : posts.length === 0 ? (
+          <View style={styles.emptyState}>
+            <IconSymbol name="bubble.left.and.bubble.right.fill" size={40} color={FreepassColors.lightGray} />
+            <Text style={styles.emptyTitle}>No topics yet</Text>
+            <Text style={styles.emptySubtext}>Community discussions will appear here.</Text>
+          </View>
+        ) : (
+          posts.map((post) => (
+            <Pressable
+              key={post.id}
+              style={styles.postCard}
+              onPress={() => router.push('/community-board' as never)}
+              android_ripple={{ color: FreepassColors.primaryDark }}>
+              <View style={styles.postHeader}>
+                <Text style={styles.postAuthor}>{post.display_name}</Text>
+                <Text style={styles.postTime}>{formatTime(post.created_at)}</Text>
+              </View>
+              <Text style={styles.postContent} numberOfLines={3}>
+                {post.content.length > 100 ? post.content.slice(0, 100) + '…' : post.content}
+              </Text>
+            </Pressable>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -98,5 +155,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: FreepassColors.textSecondary,
     marginTop: 4,
+  },
+  postCard: {
+    backgroundColor: FreepassColors.white,
+    borderWidth: 1,
+    borderColor: FreepassColors.lightGray,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 12,
+  },
+  postHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  postAuthor: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: FreepassColors.text,
+    flexShrink: 1,
+  },
+  postTime: {
+    fontSize: 12,
+    color: FreepassColors.textSecondary,
+    marginLeft: 8,
+  },
+  postContent: {
+    fontSize: 14,
+    color: FreepassColors.textSecondary,
+    lineHeight: 20,
   },
 });

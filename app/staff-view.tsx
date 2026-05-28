@@ -16,6 +16,7 @@ interface Question {
 
 export default function StaffViewScreen() {
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [drafts, setDrafts] = useState<{id: string; name: string; phone: string | null; email: string | null; created_at: string}[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,6 +33,15 @@ export default function StaffViewScreen() {
         }));
         setQuestions(mapped.filter((q: Question) => q.answer_count === 0));
         setLoading(false);
+      });
+
+    supabase
+      .from('resources')
+      .select('id, name, phone, email, created_at')
+      .eq('is_published', false)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setDrafts(data ?? []);
       });
   }, []);
 
@@ -77,7 +87,27 @@ export default function StaffViewScreen() {
         )}
 
         <Text style={styles.sectionTitle}>Draft (New) Resources to Review</Text>
-        <Text style={styles.emptyText}>No draft resources pending review.</Text>
+        {drafts.length === 0 ? (
+          <Text style={styles.emptyText}>No draft resources pending review.</Text>
+        ) : (
+          drafts.map((draft) => (
+            <Pressable
+              key={draft.id}
+              style={styles.draftCard}
+              onPress={() => router.push(`/listing/${draft.id}` as never)}
+              android_ripple={{ color: FreepassColors.primaryDark }}>
+              <View style={styles.draftIcon}>
+                <IconSymbol name="building.2.fill" size={24} color={FreepassColors.textSecondary} />
+              </View>
+              <View style={styles.draftContent}>
+                <Text style={styles.draftName}>{draft.name}</Text>
+                {draft.phone ? <Text style={styles.draftMeta}>{draft.phone}</Text> : null}
+                {draft.email ? <Text style={styles.draftMeta}>{draft.email}</Text> : null}
+              </View>
+              <IconSymbol name="chevron.right" size={18} color={FreepassColors.accentLight} />
+            </Pressable>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -176,5 +206,33 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: FreepassColors.accentLight,
     marginBottom: 16,
+  },
+  draftCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: FreepassColors.accent,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 10,
+  },
+  draftIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  draftContent: { flex: 1 },
+  draftName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: FreepassColors.white,
+  },
+  draftMeta: {
+    fontSize: 13,
+    color: FreepassColors.accentLight,
+    marginTop: 2,
   },
 });

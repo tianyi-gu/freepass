@@ -49,7 +49,7 @@ export default function ChatThreadScreen() {
           </Pressable>
         </View>
       </View>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {messages.length === 0 ? (
           <View style={styles.placeholder}>
             <Text style={styles.placeholderText}>No messages yet</Text>

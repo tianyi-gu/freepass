@@ -26,7 +26,7 @@ export default function QuickListScreen() {
   return (
     <View style={styles.container}>
       <FreepassHeader showLogo showBack />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.branding}>
           <Text style={styles.brandTitle}>FreePass Quick List</Text>
           <Text style={styles.brandSubtitle}>

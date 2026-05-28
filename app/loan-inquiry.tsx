@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
 export default function LoanInquiryScreen() {
@@ -21,7 +22,9 @@ export default function LoanInquiryScreen() {
         </View>
 
         <View style={styles.videoPlaceholder}>
-          <Text style={styles.videoText}>Video</Text>
+          <IconSymbol name="play.rectangle.fill" size={48} color={FreepassColors.accentLight} />
+          <Text style={styles.videoText}>Loan Inquiry Video</Text>
+          <Text style={styles.videoSubtext}>Contact The Fountain Fund to view this content</Text>
         </View>
 
         <Text style={styles.sectionTitle}>Loan Process</Text>
@@ -112,7 +115,15 @@ const styles = StyleSheet.create({
   },
   videoText: {
     fontSize: 16,
+    fontWeight: '600',
     color: FreepassColors.accentLight,
+    marginTop: 12,
+  },
+  videoSubtext: {
+    fontSize: 13,
+    color: FreepassColors.accentLight,
+    marginTop: 4,
+    opacity: 0.7,
   },
   sectionTitle: {
     fontSize: 18,

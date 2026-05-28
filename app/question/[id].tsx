@@ -54,10 +54,17 @@ export default function QuestionViewScreen() {
           <Text style={styles.backText}>Back</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Question View</Text>
-        <View style={styles.upvoteBtn}>
+        <Pressable
+          style={styles.upvoteBtn}
+          onPress={async () => {
+            if (!question) return;
+            const newCount = (question.upvotes ?? 0) + 1;
+            await supabase.from('questions').update({ upvotes: newCount }).eq('id', question.id);
+            setQuestion({ ...question, upvotes: newCount });
+          }}>
           <IconSymbol name="hand.thumbsup.fill" size={18} color={FreepassColors.white} />
           <Text style={styles.upvoteText}>{question?.upvotes ?? 0}</Text>
-        </View>
+        </Pressable>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -76,7 +83,13 @@ export default function QuestionViewScreen() {
               <Text style={styles.answerText}>{a.answer}</Text>
               <View style={styles.answerMain}>
                 <Text style={styles.answerName}>{a.answered_by ?? 'Anonymous'}</Text>
-                <Pressable style={styles.answerUpvote}>
+                <Pressable
+                  style={styles.answerUpvote}
+                  onPress={async () => {
+                    const newCount = (a.upvotes ?? 0) + 1;
+                    await supabase.from('answers').update({ upvotes: newCount }).eq('id', a.id);
+                    setAnswers((prev) => prev.map((ans) => ans.id === a.id ? { ...ans, upvotes: newCount } : ans));
+                  }}>
                   <IconSymbol name="hand.thumbsup.fill" size={16} color={FreepassColors.textSecondary} />
                   <Text style={styles.answerUpvoteText}>{a.upvotes}</Text>
                 </Pressable>
