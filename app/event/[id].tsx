@@ -1,11 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { useEvent } from '@/hooks/use-events';
 
 export default function EventDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { event, loading, error } = useEvent(id);
 
@@ -50,7 +52,7 @@ export default function EventDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.imageBanner}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable onPress={() => router.back()} style={[styles.backBtn, { top: insets.top + 8 }]}>
           <IconSymbol name="chevron.left" size={20} color={FreepassColors.white} />
         </Pressable>
         <View style={styles.bannerPattern}>
@@ -113,7 +115,7 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     position: 'absolute',
-    top: 48,
+    top: 12,
     left: 16,
     zIndex: 1,
     width: 40,

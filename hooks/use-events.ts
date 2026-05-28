@@ -22,7 +22,6 @@ export function useEvents() {
     supabase
       .from('events')
       .select('*')
-      .gte('event_date', new Date().toISOString())
       .order('event_date')
       .then(({ data, error: err }) => {
         if (err) setError(err.message);

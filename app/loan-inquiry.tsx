@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+
+const LOAN_INQUIRY_URL = 'https://sites.google.com/fountainfund.org/loan-inquiry/home';
 
 export default function LoanInquiryScreen() {
   return (
@@ -21,11 +23,13 @@ export default function LoanInquiryScreen() {
           </Text>
         </View>
 
-        <View style={styles.videoPlaceholder}>
+        <Pressable
+          style={styles.videoPlaceholder}
+          onPress={() => Linking.openURL(LOAN_INQUIRY_URL)}>
           <IconSymbol name="play.rectangle.fill" size={48} color={FreepassColors.accentLight} />
-          <Text style={styles.videoText}>Loan Inquiry Video</Text>
-          <Text style={styles.videoSubtext}>This video is not configured in FreePass yet. Contact The Fountain Fund for the current loan inquiry materials.</Text>
-        </View>
+          <Text style={styles.videoText}>Loan Inquiry Guide</Text>
+          <Text style={styles.videoSubtext}>Tap to open the full loan inquiry process</Text>
+        </Pressable>
 
         <Text style={styles.sectionTitle}>Loan Process</Text>
         <Text style={styles.body}>

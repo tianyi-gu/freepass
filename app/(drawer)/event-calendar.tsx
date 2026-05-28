@@ -18,10 +18,7 @@ interface EventItem {
   instructor: string | null;
 }
 
-type Tab = 'upcoming' | 'past';
-
 export default function EventCalendarScreen() {
-  const [activeTab, setActiveTab] = useState<Tab>('upcoming');
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +27,7 @@ export default function EventCalendarScreen() {
     supabase
       .from('events')
       .select('*')
-      .order('event_date', { ascending: false })
+      .order('event_date', { ascending: true })
       .then(({ data, error: err }) => {
         if (err) setError(err.message);
         setAllEvents(data ?? []);
@@ -39,12 +36,16 @@ export default function EventCalendarScreen() {
   }, []);
 
   const now = new Date().toISOString();
-  const filteredEvents = useMemo(
-    () => allEvents.filter((e) =>
-      activeTab === 'upcoming' ? e.event_date >= now : e.event_date < now
-    ),
-    [allEvents, activeTab, now]
-  );
+  const { upcoming, past } = useMemo(() => {
+    const up: EventItem[] = [];
+    const pa: EventItem[] = [];
+    for (const e of allEvents) {
+      if (e.event_date >= now) up.push(e);
+      else pa.push(e);
+    }
+    pa.reverse();
+    return { upcoming: up, past: pa };
+  }, [allEvents, now]);
 
   return (
     <View style={styles.container}>
@@ -61,18 +62,6 @@ export default function EventCalendarScreen() {
             <Text style={styles.headerBtnText}>CALENDAR VIEW</Text>
           </Pressable>
         </View>
-      </View>
-      <View style={styles.tabs}>
-        <Pressable
-          style={[styles.tab, activeTab === 'upcoming' && styles.tabActive]}
-          onPress={() => setActiveTab('upcoming')}>
-          <Text style={activeTab === 'upcoming' ? styles.tabActiveText : styles.tabText}>Upcoming</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tab, activeTab === 'past' && styles.tabActive]}
-          onPress={() => setActiveTab('past')}>
-          <Text style={activeTab === 'past' ? styles.tabActiveText : styles.tabText}>Past</Text>
-        </Pressable>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -92,35 +81,61 @@ export default function EventCalendarScreen() {
             <Text style={styles.errorText}>Could not load events.</Text>
             <Text style={styles.emptySub}>{error}</Text>
           </View>
-        ) : filteredEvents.length === 0 ? (
+        ) : allEvents.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>
-              {activeTab === 'upcoming' ? 'No upcoming events' : 'No past events'}
-            </Text>
-            <Text style={styles.emptySub}>
-              {activeTab === 'upcoming' ? 'Check back soon or add your own!' : 'Past events will appear here.'}
-            </Text>
+            <Text style={styles.emptyText}>No events yet</Text>
+            <Text style={styles.emptySub}>Check back soon or add your own!</Text>
           </View>
         ) : (
-          filteredEvents.map((event) => (
-            <View key={event.id} style={styles.eventCard}>
-              <View style={styles.eventImage}>
-                <Text style={styles.eventImageText}>fp</Text>
+          <>
+            {upcoming.length > 0 && (
+              <Text style={styles.sectionLabel}>Upcoming</Text>
+            )}
+            {upcoming.map((event) => (
+              <View key={event.id} style={styles.eventCard}>
+                <View style={styles.eventImage}>
+                  <Text style={styles.eventImageText}>fp</Text>
+                </View>
+                <View style={styles.eventContent}>
+                  <Text style={styles.eventTime}>{new Date(event.event_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</Text>
+                  <Text style={styles.eventName}>{event.title}</Text>
+                  {event.description && <Text style={styles.eventDesc} numberOfLines={3}>{event.description}</Text>}
+                  {event.instructor && <Text style={styles.eventInstructor}>Hosted by {event.instructor}</Text>}
+                  <Pressable
+                    style={styles.detailsBtn}
+                    onPress={() => router.push(`/event/${event.id}` as never)}
+                    android_ripple={{ color: FreepassColors.primaryDark }}>
+                    <Text style={styles.detailsBtnText}>SEE DETAILS</Text>
+                  </Pressable>
+                </View>
               </View>
-              <View style={styles.eventContent}>
-                <Text style={styles.eventTime}>{new Date(event.event_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</Text>
-                <Text style={styles.eventName}>{event.title}</Text>
-                {event.description && <Text style={styles.eventDesc} numberOfLines={3}>{event.description}</Text>}
-                {event.instructor && <Text style={styles.eventInstructor}>Hosted by {event.instructor}</Text>}
-                <Pressable
-                  style={styles.detailsBtn}
-                  onPress={() => router.push(`/event/${event.id}` as never)}
-                  android_ripple={{ color: FreepassColors.primaryDark }}>
-                  <Text style={styles.detailsBtnText}>SEE DETAILS</Text>
-                </Pressable>
+            ))}
+
+            {past.length > 0 && (
+              <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Past Events</Text>
+            )}
+            {past.map((event) => (
+              <View key={event.id} style={[styles.eventCard, { opacity: 0.5 }]}>
+                <View style={styles.eventImage}>
+                  <Text style={styles.eventImageText}>fp</Text>
+                </View>
+                <View style={styles.eventContent}>
+                  <View style={styles.pastBadgeRow}>
+                    <Text style={styles.eventTime}>{new Date(event.event_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</Text>
+                  </View>
+                  <Text style={styles.eventName}>{event.title}</Text>
+                  {event.description && <Text style={styles.eventDesc} numberOfLines={3}>{event.description}</Text>}
+                  {event.instructor && <Text style={styles.eventInstructor}>Hosted by {event.instructor}</Text>}
+                  <Pressable
+                    style={styles.detailsBtn}
+                    onPress={() => router.push(`/event/${event.id}` as never)}
+                    android_ripple={{ color: FreepassColors.primaryDark }}>
+                    <Text style={styles.detailsBtnText}>SEE DETAILS</Text>
+                  </Pressable>
+                </View>
               </View>
-            </View>
-          ))
+            ))}
+          </>
         )}
       </ScrollView>
       <FreepassTabBar activeTab="events" />
@@ -156,30 +171,6 @@ const styles = StyleSheet.create({
   },
   headerBtnText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: FreepassColors.white,
-  },
-  tabs: {
-    flexDirection: 'row',
-    backgroundColor: FreepassColors.primary,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  tab: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  tabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: FreepassColors.accentLight,
-  },
-  tabText: {
-    fontSize: 15,
-    color: FreepassColors.accentLight,
-    opacity: 0.8,
-  },
-  tabActiveText: {
-    fontSize: 15,
     fontWeight: '600',
     color: FreepassColors.white,
   },
@@ -262,5 +253,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: FreepassColors.white,
+  },
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: FreepassColors.text,
+    marginBottom: 4,
+    marginTop: 8,
+  },
+  pastBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 });

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ONBOARDING_STEPS, SurveyQuestion } from '@/constants/onboarding-questions';
@@ -8,6 +9,7 @@ import { FreepassColors } from '@/constants/theme';
 import { useUser } from '@/contexts/user-context';
 
 export default function OnboardingScreen() {
+  const insets = useSafeAreaInsets();
   const { user, saveSurveyAnswers, completeOnboarding } = useUser();
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
@@ -140,7 +142,7 @@ export default function OnboardingScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={styles.headerTop}>
           <Text style={styles.headerTitle}>Let&apos;s personalize your experience</Text>
           <Pressable onPress={handleSkipAll} hitSlop={12}>
@@ -235,7 +237,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: FreepassColors.primary,
     paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingTop: 12,
     paddingBottom: 20,
   },
   headerTop: {

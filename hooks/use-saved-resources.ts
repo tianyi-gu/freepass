@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/contexts/user-context';
@@ -31,7 +32,10 @@ export function useSavedResources() {
   useEffect(() => { fetch(); }, [fetch]);
 
   const toggleSave = useCallback(async (resourceId: string) => {
-    if (!user || user.isGuest) return;
+    if (!user || user.isGuest) {
+      Alert.alert('Sign in required', 'Please create an account or log in to save resources.');
+      return;
+    }
 
     if (savedIds.has(resourceId)) {
       await supabase

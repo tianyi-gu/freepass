@@ -107,7 +107,7 @@ export default function CalendarViewScreen() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.eventsTitle}>All Upcoming Events</Text>
+        <Text style={styles.eventsTitle}>Events This Month</Text>
         {loading ? (
           <ActivityIndicator size="large" color={FreepassColors.primary} style={{ marginVertical: 24 }} />
         ) : error ? (
@@ -121,19 +121,22 @@ export default function CalendarViewScreen() {
             <Text style={styles.emptySub}>Events will appear here once added.</Text>
           </View>
         ) : (
-          monthEvents.map((e) => (
-            <Pressable
-              key={e.id}
-              style={styles.eventCard}
-              onPress={() => router.push(`/event/${e.id}` as never)}>
-              <Text style={styles.eventCardTitle}>{e.title}</Text>
-              <Text style={styles.eventCardDate}>
-                {new Date(e.event_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-              </Text>
-              {e.location ? <Text style={styles.eventCardMeta}>{e.location}</Text> : null}
-              {e.instructor ? <Text style={styles.eventCardMeta}>Instructor: {e.instructor}</Text> : null}
-            </Pressable>
-          ))
+          monthEvents.map((e) => {
+            const isPast = e.event_date < new Date().toISOString();
+            return (
+              <Pressable
+                key={e.id}
+                style={[styles.eventCard, isPast && { opacity: 0.5 }]}
+                onPress={() => router.push(`/event/${e.id}` as never)}>
+                <Text style={styles.eventCardTitle}>{e.title}</Text>
+                <Text style={styles.eventCardDate}>
+                  {new Date(e.event_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                </Text>
+                {e.location ? <Text style={styles.eventCardMeta}>{e.location}</Text> : null}
+                {e.instructor ? <Text style={styles.eventCardMeta}>Instructor: {e.instructor}</Text> : null}
+              </Pressable>
+            );
+          })
         )}
         <Pressable
           style={styles.addEventBtn}
