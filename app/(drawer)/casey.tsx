@@ -136,10 +136,10 @@ function buildGeminiPayload(
 
 type VoiceGender = 'female' | 'male';
 
-// iOS system voice identifiers for gender selection
-const IOS_VOICES: Record<VoiceGender, string> = {
-  female: 'com.apple.ttsbundle.Samantha-compact',
-  male: 'com.apple.ttsbundle.Aaron-compact',
+// Pitch values for gender-based voice selection (works on all platforms)
+const VOICE_PITCH: Record<VoiceGender, number> = {
+  female: 1.3,
+  male: 0.8,
 };
 
 export default function CaseyScreen() {
@@ -168,9 +168,7 @@ export default function CaseyScreen() {
 
       const options: Speech.SpeechOptions = {
         language: 'en-US',
-        ...(Platform.OS === 'ios'
-          ? { voice: IOS_VOICES[voiceGender] }
-          : { pitch: voiceGender === 'female' ? 1.3 : 0.8 }),
+        pitch: VOICE_PITCH[voiceGender],
         onDone: () => { setIsSpeaking(false); setSpeakingMsgId(null); },
         onStopped: () => { setIsSpeaking(false); setSpeakingMsgId(null); },
         onError: () => { setIsSpeaking(false); setSpeakingMsgId(null); },
