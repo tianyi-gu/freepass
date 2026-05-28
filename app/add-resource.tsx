@@ -1,12 +1,14 @@
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 export default function AddResourceScreen() {
+  const insets = useSafeAreaInsets();
   const [form, setForm] = useState({
     companyName: '',
     location: '',
@@ -73,7 +75,7 @@ export default function AddResourceScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} style={styles.closeBtn}>
           <IconSymbol name="xmark" size={20} color={FreepassColors.white} />
         </Pressable>
@@ -172,7 +174,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 48,
+    paddingTop: 12,
     paddingBottom: 16,
   },
   closeBtn: {

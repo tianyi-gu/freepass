@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -9,6 +10,7 @@ import { useResources, useResourceCategories } from '@/hooks/use-resources';
 import { useSavedResources } from '@/hooks/use-saved-resources';
 
 export default function ResourceTypesScreen() {
+  const insets = useSafeAreaInsets();
   const { categories } = useResourceCategories();
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const { resources, loading } = useResources(selectedCategory);
@@ -19,7 +21,7 @@ export default function ResourceTypesScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <IconSymbol name="chevron.left" size={18} color={FreepassColors.white} />
           <Text style={styles.backText}>Back</Text>
@@ -82,7 +84,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: FreepassColors.primary,
     paddingHorizontal: 16,
-    paddingTop: 48,
+    paddingTop: 12,
     paddingBottom: 12,
   },
   backBtn: {

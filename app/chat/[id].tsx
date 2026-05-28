@@ -1,12 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
 export default function ChatThreadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<{ id: string; text: string; fromMe: boolean; time: string }[]>([]);
 
@@ -21,7 +23,7 @@ export default function ChatThreadScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
         <View style={styles.headerTop}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <IconSymbol name="chevron.left" size={18} color={FreepassColors.white} />
@@ -48,6 +50,12 @@ export default function ChatThreadScreen() {
             <Text style={styles.headerBtnText}>ACCOUNT</Text>
           </Pressable>
         </View>
+      </View>
+      <View style={styles.noticeBanner}>
+        <IconSymbol name="exclamationmark.circle" size={16} color={FreepassColors.accent} />
+        <Text style={styles.noticeText}>
+          Messages are stored locally and will not persist when you leave this screen.
+        </Text>
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {messages.length === 0 ? (
@@ -128,8 +136,23 @@ const styles = StyleSheet.create({
   headerBar: {
     backgroundColor: FreepassColors.primary,
     paddingHorizontal: 16,
-    paddingTop: 48,
     paddingBottom: 12,
+  },
+  noticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: FreepassColors.cardBg,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: FreepassColors.lightGray,
+  },
+  noticeText: {
+    flex: 1,
+    fontSize: 13,
+    color: FreepassColors.textSecondary,
+    lineHeight: 18,
   },
   headerTop: {
     flexDirection: 'row',

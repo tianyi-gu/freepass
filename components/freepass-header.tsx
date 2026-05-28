@@ -59,10 +59,11 @@ export function FreepassHeaderWithTitle({
   rightElement,
   onBack,
 }: FreepassHeaderProps) {
+  const insets = useSafeAreaInsets();
   const handleBack = onBack ?? (() => router.back());
 
   return (
-    <View style={styles.headerBar}>
+    <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
       <View style={styles.left}>
         {showBack && (
           <Pressable onPress={handleBack} style={styles.backButtonAlt} hitSlop={8}>
@@ -84,10 +85,11 @@ export function FreepassHeaderSimple({
   rightElement,
   onBack,
 }: FreepassHeaderProps) {
+  const insets = useSafeAreaInsets();
   const handleBack = onBack ?? (() => router.back());
 
   return (
-    <View style={styles.headerBar}>
+    <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
       {showBack && (
         <Pressable onPress={handleBack} style={styles.backText} hitSlop={8}>
           <IconSymbol name="chevron.left" size={18} color={FreepassColors.white} />
@@ -125,7 +127,7 @@ const styles = StyleSheet.create({
     backgroundColor: FreepassColors.primary,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingTop: 48,
+    paddingTop: 12,
   },
   left: { flexDirection: 'row', alignItems: 'center', minWidth: 60 },
   right: { flexDirection: 'row', alignItems: 'center', minWidth: 60 },

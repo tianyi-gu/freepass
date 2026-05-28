@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
@@ -22,6 +23,7 @@ interface Question {
 
 export default function QuestionViewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const [question, setQuestion] = useState<Question | null>(null);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,23 +50,34 @@ export default function QuestionViewScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <IconSymbol name="chevron.left" size={18} color={FreepassColors.white} />
           <Text style={styles.backText}>Back</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Question View</Text>
-        <Pressable
-          style={styles.upvoteBtn}
-          onPress={async () => {
-            if (!question) return;
-            const newCount = (question.upvotes ?? 0) + 1;
-            await supabase.from('questions').update({ upvotes: newCount }).eq('id', question.id);
-            setQuestion({ ...question, upvotes: newCount });
-          }}>
-          <IconSymbol name="hand.thumbsup.fill" size={18} color={FreepassColors.white} />
-          <Text style={styles.upvoteText}>{question?.upvotes ?? 0}</Text>
-        </Pressable>
+        <View style={styles.headerRightActions}>
+          <Pressable
+            style={styles.editBtn}
+            onPress={() =>
+              router.push(
+                `/modal/edit-question?questionId=${id}&currentText=${encodeURIComponent(question?.question ?? '')}` as never
+              )
+            }>
+            <IconSymbol name="square.and.pencil" size={18} color={FreepassColors.white} />
+          </Pressable>
+          <Pressable
+            style={styles.upvoteBtn}
+            onPress={async () => {
+              if (!question) return;
+              const newCount = (question.upvotes ?? 0) + 1;
+              await supabase.from('questions').update({ upvotes: newCount }).eq('id', question.id);
+              setQuestion({ ...question, upvotes: newCount });
+            }}>
+            <IconSymbol name="hand.thumbsup.fill" size={18} color={FreepassColors.white} />
+            <Text style={styles.upvoteText}>{question?.upvotes ?? 0}</Text>
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -83,6 +96,15 @@ export default function QuestionViewScreen() {
               <Text style={styles.answerText}>{a.answer}</Text>
               <View style={styles.answerMain}>
                 <Text style={styles.answerName}>{a.answered_by ?? 'Anonymous'}</Text>
+                <Pressable
+                  style={styles.answerEditBtn}
+                  onPress={() =>
+                    router.push(
+                      `/modal/edit-answer?answerId=${a.id}&currentText=${encodeURIComponent(a.answer)}` as never
+                    )
+                  }>
+                  <IconSymbol name="square.and.pencil" size={16} color={FreepassColors.textSecondary} />
+                </Pressable>
                 <Pressable
                   style={styles.answerUpvote}
                   onPress={async () => {
@@ -118,8 +140,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: FreepassColors.primary,
     paddingHorizontal: 16,
-    paddingTop: 48,
     paddingBottom: 14,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editBtn: {
+    padding: 8,
+  },
+  answerEditBtn: {
+    padding: 4,
   },
   backBtn: {
     flexDirection: 'row',

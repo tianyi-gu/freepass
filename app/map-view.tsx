@@ -2,6 +2,7 @@ import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Region } from 'react-native-maps';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -38,6 +39,7 @@ const PHILADELPHIA_REGION: Region = {
 };
 
 export default function MapViewScreen() {
+  const insets = useSafeAreaInsets();
   const { resources, loading } = useResources();
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'granted' | 'denied'>('idle');
@@ -107,7 +109,7 @@ export default function MapViewScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <IconSymbol name="chevron.left" size={18} color={FreepassColors.white} />
           <Text style={styles.backText}>Back</Text>
@@ -227,7 +229,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: FreepassColors.primary,
     paddingHorizontal: 16,
-    paddingTop: 48,
+    paddingTop: 12,
     paddingBottom: 14,
     gap: 12,
   },

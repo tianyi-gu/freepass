@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
@@ -21,6 +22,7 @@ function getFirstDayOfMonth(year: number, month: number) {
 }
 
 export default function CalendarViewScreen() {
+  const insets = useSafeAreaInsets();
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -63,7 +65,7 @@ export default function CalendarViewScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()}>
           <IconSymbol name="chevron.left" size={20} color={FreepassColors.white} />
         </Pressable>
@@ -149,7 +151,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: FreepassColors.primary,
     paddingHorizontal: 20,
-    paddingTop: 48,
+    paddingTop: 12,
     paddingBottom: 16,
   },
   headerTitle: {

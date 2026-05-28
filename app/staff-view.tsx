@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -15,6 +16,7 @@ interface Question {
 }
 
 export default function StaffViewScreen() {
+  const insets = useSafeAreaInsets();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [drafts, setDrafts] = useState<{id: string; name: string; phone: string | null; email: string | null; created_at: string}[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +49,7 @@ export default function StaffViewScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <IconSymbol name="chevron.left" size={18} color={FreepassColors.white} />
           <Text style={styles.backText}>Back</Text>
@@ -119,7 +121,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 48,
+    paddingTop: 12,
     paddingBottom: 16,
   },
   backBtn: {

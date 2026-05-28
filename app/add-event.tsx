@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FreepassColors } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 export default function AddEventScreen() {
+  const insets = useSafeAreaInsets();
   const [form, setForm] = useState({
     name: '',
     instructor: '',
@@ -66,7 +68,7 @@ export default function AddEventScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>← Back</Text>
         </Pressable>
@@ -167,7 +169,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: FreepassColors.primary },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 48,
+    paddingTop: 12,
     paddingBottom: 24,
   },
   backBtn: {

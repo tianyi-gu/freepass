@@ -1,6 +1,7 @@
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FreepassLogo } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -22,12 +23,13 @@ const MENU_ITEMS = [
 
 export function FreepassDrawerContent(props: any) {
   const { user } = useUser();
+  const insets = useSafeAreaInsets();
   const state = props.state;
   const currentRoute = state.routes[state.index]?.name;
 
   return (
     <View style={styles.container}>
-      <DrawerContentScrollView {...props} contentContainerStyle={styles.scrollContent}>
+      <DrawerContentScrollView {...props} contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 8 }]}>
         <View style={styles.header}>
           <FreepassLogo size={32} />
           <Pressable onPress={() => props.navigation.closeDrawer()} style={styles.closeBtn}>
@@ -104,7 +106,7 @@ const styles = StyleSheet.create({
     backgroundColor: FreepassColors.primary,
   },
   scrollContent: {
-    paddingTop: 48,
+    paddingTop: 12,
     paddingBottom: 20,
   },
   header: {

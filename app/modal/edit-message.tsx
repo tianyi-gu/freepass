@@ -25,7 +25,7 @@ export default function EditMessageModal() {
       return;
     }
     setSubmitting(true);
-    const { error } = await supabase.from('questions').update({ question: text.trim() }).eq('id', messageId);
+    const { error } = await supabase.from('community_posts').update({ content: text.trim() }).eq('id', messageId);
     setSubmitting(false);
     if (error) {
       Alert.alert('Error', 'Could not update the message. Please try again.');
@@ -44,7 +44,7 @@ export default function EditMessageModal() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          const { error } = await supabase.from('questions').delete().eq('id', messageId);
+          const { error } = await supabase.from('community_posts').delete().eq('id', messageId);
           if (error) {
             Alert.alert('Error', 'Could not delete the message.');
             return;

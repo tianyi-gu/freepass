@@ -1,6 +1,7 @@
 import { DrawerActions } from '@react-navigation/native';
 import { router, useNavigation } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -9,11 +10,12 @@ import { useResources } from '@/hooks/use-resources';
 
 export default function ChatScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { resources, loading } = useResources();
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerBar}>
+      <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
         <View style={styles.headerTop}>
           <Pressable onPress={() => navigation.dispatch(DrawerActions.openDrawer())} style={styles.menuBtn}>
             <IconSymbol name="line.3.horizontal" size={22} color={FreepassColors.white} />
@@ -85,7 +87,7 @@ const styles = StyleSheet.create({
   headerBar: {
     backgroundColor: FreepassColors.primary,
     paddingHorizontal: 16,
-    paddingTop: 48,
+    paddingTop: 12,
     paddingBottom: 12,
   },
   headerTop: {

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { useUser } from '@/contexts/user-context';
 import { supabase } from '@/lib/supabase';
@@ -22,6 +23,7 @@ type Post = {
   display_name: string;
   content: string;
   created_at: string;
+  user_id: string | null;
 };
 
 function timeAgo(iso: string): string {
@@ -42,7 +44,7 @@ export default function CommunityBoardScreen() {
   useEffect(() => {
     supabase
       .from('community_posts')
-      .select('id, display_name, content, created_at')
+      .select('id, display_name, content, created_at, user_id')
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         if (data) setPosts(data as Post[]);
@@ -60,7 +62,7 @@ export default function CommunityBoardScreen() {
     const { data, error } = await supabase
       .from('community_posts')
       .insert({ content: text, display_name: displayName, user_id: userId })
-      .select('id, display_name, content, created_at')
+      .select('id, display_name, content, created_at, user_id')
       .single();
     if (!error && data) {
       setPosts((prev) => [data as Post, ...prev]);
@@ -69,22 +71,37 @@ export default function CommunityBoardScreen() {
     setPosting(false);
   }, [comment, posting, user]);
 
-  const renderPost = ({ item }: { item: Post }) => (
-    <View style={styles.postCard}>
-      <View style={styles.postHeader}>
-        <View style={styles.postAvatar}>
-          <Text style={styles.postAvatarText}>
-            {item.display_name[0]?.toUpperCase() ?? '?'}
-          </Text>
+  const renderPost = ({ item }: { item: Post }) => {
+    const isOwner = user && !user.isGuest && item.user_id === user.id;
+    return (
+      <View style={styles.postCard}>
+        <View style={styles.postHeader}>
+          <View style={styles.postAvatar}>
+            <Text style={styles.postAvatarText}>
+              {item.display_name[0]?.toUpperCase() ?? '?'}
+            </Text>
+          </View>
+          <View style={styles.postMeta}>
+            <Text style={styles.postName}>{item.display_name}</Text>
+            <Text style={styles.postTime}>{timeAgo(item.created_at)}</Text>
+          </View>
+          {isOwner && (
+            <Pressable
+              style={styles.postEditBtn}
+              hitSlop={8}
+              onPress={() =>
+                router.push(
+                  `/modal/edit-message?messageId=${item.id}&currentText=${encodeURIComponent(item.content)}` as never
+                )
+              }>
+              <IconSymbol name="square.and.pencil" size={18} color={FreepassColors.textSecondary} />
+            </Pressable>
+          )}
         </View>
-        <View style={styles.postMeta}>
-          <Text style={styles.postName}>{item.display_name}</Text>
-          <Text style={styles.postTime}>{timeAgo(item.created_at)}</Text>
-        </View>
+        <Text style={styles.postContent}>{item.content}</Text>
       </View>
-      <Text style={styles.postContent}>{item.content}</Text>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -227,6 +244,7 @@ const styles = StyleSheet.create({
   postMeta: { flex: 1 },
   postName: { fontSize: 14, fontWeight: '700', color: FreepassColors.text },
   postTime: { fontSize: 12, color: FreepassColors.textSecondary, marginTop: 1 },
+  postEditBtn: { padding: 4 },
   postContent: { fontSize: 15, color: FreepassColors.text, lineHeight: 22 },
   emptyState: { alignItems: 'center', paddingVertical: 32 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: FreepassColors.text, marginBottom: 4 },
