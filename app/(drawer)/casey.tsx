@@ -147,26 +147,12 @@ export default function CaseyScreen() {
   const [messages, setMessages] = useState<Message[]>([OPENING_MESSAGE]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false);
+  const isListening = false; // speech recognition disabled — requires native build
   const [voiceGender, setVoiceGender] = useState<VoiceGender>('female');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
-  const [speechAvailable, setSpeechAvailable] = useState(false);
-  const speechModuleRef = useRef<any>(null);
-
-  useEffect(() => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const mod = require('expo-speech-recognition');
-      if (mod?.ExpoSpeechRecognitionModule) {
-        speechModuleRef.current = mod.ExpoSpeechRecognitionModule;
-        setSpeechAvailable(true);
-      }
-    } catch {
-      // Native module not available (e.g. Expo Go) — mic button will be hidden
-    }
-  }, []);
+  const speechAvailable = false;
 
   const stopSpeaking = useCallback(() => {
     Speech.stop();
@@ -195,51 +181,9 @@ export default function CaseyScreen() {
     [voiceGender]
   );
 
-  // Speech recognition event handlers — only active when native module is available
-  useEffect(() => {
-    if (!speechAvailable) return;
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { addSpeechRecognitionListener } = require('expo-speech-recognition');
-      const subs = [
-        addSpeechRecognitionListener('result', (event: any) => {
-          const transcript = event.results[0]?.transcript ?? '';
-          setInput(transcript);
-          if (event.isFinal) setIsListening(false);
-        }),
-        addSpeechRecognitionListener('end', () => setIsListening(false)),
-        addSpeechRecognitionListener('error', (event: any) => {
-          setIsListening(false);
-          if (event.error !== 'no-speech') {
-            Alert.alert('Speech error', event.message || 'Could not recognize speech. Please try again.');
-          }
-        }),
-      ];
-      return () => subs.forEach((s: any) => s?.remove?.());
-    } catch {
-      // Module not available
-    }
-  }, [speechAvailable]);
-
-  const toggleListening = useCallback(async () => {
-    const mod = speechModuleRef.current;
-    if (!mod) return;
-    if (isListening) {
-      mod.stop();
-      return;
-    }
-    const { granted } = await mod.requestPermissionsAsync();
-    if (!granted) {
-      Alert.alert('Permission needed', 'Please allow microphone and speech recognition access in Settings.');
-      return;
-    }
-    setIsListening(true);
-    mod.start({
-      lang: 'en-US',
-      interimResults: true,
-      addsPunctuation: true,
-    });
-  }, [isListening]);
+  // Speech recognition disabled — expo-speech-recognition requires a native build.
+  // The mic button is hidden when speechAvailable is false.
+  // To re-enable: install expo-speech-recognition in a dev client build and set speechAvailable to true.
 
   // Stop audio when leaving the screen
   useEffect(() => {
@@ -398,24 +342,12 @@ export default function CaseyScreen() {
           </View>
         )}
         <View style={styles.inputRow}>
-          {speechAvailable && (
-            <Pressable
-              style={[styles.micBtn, isListening && styles.micBtnActive]}
-              onPress={toggleListening}
-              disabled={loading}>
-              <IconSymbol
-                name={isListening ? 'stop.fill' : 'mic.fill'}
-                size={20}
-                color={isListening ? FreepassColors.white : FreepassColors.primary}
-              />
-            </Pressable>
-          )}
           <TextInput
             style={styles.input}
             value={input}
             onChangeText={setInput}
-            placeholder={isListening ? 'Listening...' : 'Message Casey...'}
-            placeholderTextColor={isListening ? FreepassColors.accent : FreepassColors.textSecondary}
+            placeholder="Message Casey..."
+            placeholderTextColor={FreepassColors.textSecondary}
             multiline
             maxLength={500}
             returnKeyType="send"
