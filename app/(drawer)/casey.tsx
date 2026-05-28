@@ -47,12 +47,12 @@ Rules:
 
 type Resource = {
   name: string;
-  address: string;
-  city: string;
-  description: string;
-  phone: string;
-  website: string;
-  hours: string;
+  address: string | null;
+  city: string | null;
+  description: string | null;
+  phone: string | null;
+  website: string | null;
+  hours: string | null;
   tags: string[];
 };
 
@@ -79,6 +79,7 @@ function filterResources(resources: Resource[], query: string): Resource[] {
   const scored = resources
     .map((r) => {
       const haystack = [...(r.tags || []), r.name, r.description]
+        .filter(Boolean)
         .join(' ')
         .toLowerCase();
       const hits = keywords.filter((kw) => haystack.includes(kw)).length;
@@ -96,7 +97,7 @@ function buildContext(resources: Resource[]): string {
   return resources
     .map(
       (r) =>
-        `Org: ${r.name} | Location: ${r.address}, ${r.city} | Services: ${(r.tags || []).join(', ')} | Phone: ${r.phone} | ${r.description}`
+        `Org: ${r.name} | Location: ${[r.address, r.city].filter(Boolean).join(', ') || 'Location not listed'} | Services: ${(r.tags || []).join(', ') || 'Not tagged'} | Phone: ${r.phone || 'Phone not listed'} | ${r.description || 'No description listed'}`
     )
     .join('\n');
 }
@@ -257,6 +258,9 @@ export default function CaseyScreen() {
       const payload = buildGeminiPayload(messages, text, context);
 
       const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error('Missing EXPO_PUBLIC_GEMINI_API_KEY.');
+      }
       if (__DEV__) {
         console.log('[Casey] Gemini API key exists:', !!apiKey);
       }
@@ -288,12 +292,15 @@ export default function CaseyScreen() {
       speakText(reply, replyId);
     } catch (err) {
       if (__DEV__) console.error('[Casey] Error:', err);
+      const message = err instanceof Error && err.message.includes('EXPO_PUBLIC_GEMINI_API_KEY')
+        ? 'Casey is not configured yet. Please ask a staff member to add the AI service key, or use Resources to search directly.'
+        : "Sorry, I'm having trouble connecting right now. Please try Resources or try again in a moment.";
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: 'bot',
-          text: "Sorry, I'm having trouble connecting right now. Please try again.",
+          text: message,
         },
       ]);
     } finally {

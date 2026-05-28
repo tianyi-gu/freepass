@@ -3,21 +3,25 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { useResources, useResourceCategories } from '@/hooks/use-resources';
 import { useSavedResources } from '@/hooks/use-saved-resources';
+import { resourceMatchesCategory } from '@/lib/resource-utils';
 
 export default function ResourceTypesScreen() {
   const insets = useSafeAreaInsets();
   const { categories } = useResourceCategories();
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
-  const { resources, loading } = useResources(selectedCategory);
+  const { resources: allResources, loading } = useResources();
   const { isSaved, toggleSave } = useSavedResources();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  const selectedName = categories.find(c => c.id === selectedCategory)?.name ?? 'Select a Category...';
+  const selected = categories.find(c => c.id === selectedCategory);
+  const selectedName = selected?.name ?? 'Select a Category...';
+  const resources = selected
+    ? allResources.filter((resource) => resourceMatchesCategory(resource, selected))
+    : allResources;
 
   return (
     <View style={styles.container}>

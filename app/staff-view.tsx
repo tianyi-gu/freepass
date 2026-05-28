@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
@@ -96,7 +95,7 @@ export default function StaffViewScreen() {
             <Pressable
               key={draft.id}
               style={styles.draftCard}
-              onPress={() => router.push(`/listing/${draft.id}` as never)}
+              onPress={() => router.push(`/listing-draft/${draft.id}` as never)}
               android_ripple={{ color: FreepassColors.primaryDark }}>
               <View style={styles.draftIcon}>
                 <IconSymbol name="building.2.fill" size={24} color={FreepassColors.textSecondary} />

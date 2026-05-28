@@ -7,7 +7,7 @@ import { useEvent } from '@/hooks/use-events';
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { event, loading } = useEvent(id);
+  const { event, loading, error } = useEvent(id);
 
   if (loading) {
     return (
@@ -21,6 +21,15 @@ export default function EventDetailScreen() {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
         <Text style={{ fontSize: 16, color: FreepassColors.textSecondary }}>Event not found.</Text>
+        {error ? (
+          <Text style={{ fontSize: 13, color: FreepassColors.textSecondary, textAlign: 'center', marginTop: 8 }}>
+            {error}
+          </Text>
+        ) : (
+          <Text style={{ fontSize: 13, color: FreepassColors.textSecondary, textAlign: 'center', marginTop: 8 }}>
+            This link may point to an unpublished or deleted event.
+          </Text>
+        )}
         <Pressable onPress={() => router.back()} style={{ marginTop: 12 }}>
           <Text style={{ color: FreepassColors.primary, fontWeight: '600' }}>Go back</Text>
         </Pressable>

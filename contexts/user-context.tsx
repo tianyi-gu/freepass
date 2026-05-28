@@ -28,14 +28,28 @@ interface UserContextValue {
 
 const UserContext = createContext<UserContextValue | null>(null);
 
-function sessionToProfile(session: Session, profile?: { display_name?: string; onboarding_complete?: boolean }): UserProfile {
+function normalizeSurveyAnswers(
+  rows: { question_id: string; answer: string | string[] }[] | null,
+): Record<string, string | string[]> {
+  const answers: Record<string, string | string[]> = {};
+  for (const row of rows ?? []) {
+    answers[row.question_id] = row.answer;
+  }
+  return answers;
+}
+
+function sessionToProfile(
+  session: Session,
+  profile?: { display_name?: string; onboarding_complete?: boolean },
+  surveyAnswers: Record<string, string | string[]> = {},
+): UserProfile {
   return {
     id: session.user.id,
     email: session.user.email,
     displayName: profile?.display_name ?? session.user.user_metadata?.display_name ?? session.user.email?.split('@')[0],
     isGuest: false,
     onboardingComplete: profile?.onboarding_complete ?? false,
-    surveyAnswers: {},
+    surveyAnswers,
   };
 }
 
@@ -57,12 +71,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
       // Check Supabase session
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('display_name, onboarding_complete')
-          .eq('id', session.user.id)
-          .single();
-        setUser(sessionToProfile(session, profile ?? undefined));
+        const [{ data: profile }, { data: surveyAnswers }] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('display_name, onboarding_complete')
+            .eq('id', session.user.id)
+            .single(),
+          supabase
+            .from('survey_answers')
+            .select('question_id, answer')
+            .eq('user_id', session.user.id),
+        ]);
+        setUser(sessionToProfile(session, profile ?? undefined, normalizeSurveyAnswers(surveyAnswers)));
       }
       setIsLoading(false);
     }
@@ -71,12 +91,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('display_name, onboarding_complete')
-          .eq('id', session.user.id)
-          .single();
-        setUser(sessionToProfile(session, profile ?? undefined));
+        const [{ data: profile }, { data: surveyAnswers }] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('display_name, onboarding_complete')
+            .eq('id', session.user.id)
+            .single(),
+          supabase
+            .from('survey_answers')
+            .select('question_id, answer')
+            .eq('user_id', session.user.id),
+        ]);
+        setUser(sessionToProfile(session, profile ?? undefined, normalizeSurveyAnswers(surveyAnswers)));
         // Clear guest data if they sign in
         await AsyncStorage.removeItem(GUEST_STORAGE_KEY);
       } else {
@@ -141,13 +167,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const upserts = Object.entries(answers).map(([questionId, answer]) => ({
       user_id: user.id,
       question_id: questionId,
-      answer: JSON.stringify(answer),
+      answer,
     }));
 
     if (upserts.length > 0) {
       await supabase
         .from('survey_answers')
         .upsert(upserts, { onConflict: 'user_id,question_id' });
+    }
+
+    if (typeof answers.zip_code === 'string' && answers.zip_code.trim()) {
+      await supabase
+        .from('profiles')
+        .update({ zip_code: answers.zip_code.trim() })
+        .eq('id', user.id);
     }
 
     setUser((prev) => prev ? {

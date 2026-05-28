@@ -40,13 +40,15 @@ export default function CommunityBoardScreen() {
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
       .from('community_posts')
       .select('id, display_name, content, created_at, user_id')
       .order('created_at', { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error: err }) => {
+        if (err) setError(err.message);
         if (data) setPosts(data as Post[]);
         setLoading(false);
       });
@@ -67,6 +69,8 @@ export default function CommunityBoardScreen() {
     if (!error && data) {
       setPosts((prev) => [data as Post, ...prev]);
       setComment('');
+    } else if (error) {
+      setError(error.message);
     }
     setPosting(false);
   }, [comment, posting, user]);
@@ -143,10 +147,11 @@ export default function CommunityBoardScreen() {
               </View>
               <View style={styles.kindnessBanner}>
                 <Text style={styles.kindnessText}>
-                  Please keep this space kind and supportive. We're all on a journey.
+                  Please keep this space kind and supportive. We&apos;re all on a journey.
                 </Text>
               </View>
               <Text style={styles.sectionTitle}>Recent Posts</Text>
+              {error && <Text style={styles.errorText}>{error}</Text>}
               {loading && (
                 <ActivityIndicator
                   style={styles.loader}
@@ -249,4 +254,9 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingVertical: 32 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: FreepassColors.text, marginBottom: 4 },
   emptyText: { fontSize: 14, color: FreepassColors.textSecondary },
+  errorText: {
+    fontSize: 14,
+    color: FreepassColors.destructive,
+    marginBottom: 12,
+  },
 });

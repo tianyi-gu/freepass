@@ -60,6 +60,16 @@ function buildTagsArray(row) {
   return `ARRAY[${tags.map(t => esc(t)).join(', ')}]`;
 }
 
+function isProductionEvent(row) {
+  const text = [
+    row['Event Name'],
+    row['Description'],
+    row['Location'],
+    row['Instructor / Host'],
+  ].join(' ').toLowerCase();
+  return !/\b(example|test)\b/.test(text);
+}
+
 let sql = '';
 
 function emit(line) {
@@ -195,7 +205,7 @@ emit('');
 // ─── EVENTS ────────────────────────────────────────────────────
 console.log('Reading Events.csv...');
 const evtRows = readCSV('Events.csv');
-const validEvt = evtRows.filter(r => r['Event Name']?.trim() && r['Start Time']);
+const validEvt = evtRows.filter(r => r['Event Name']?.trim() && r['Start Time']).filter(isProductionEvent);
 emit(`-- Events (${validEvt.length} rows)`);
 validEvt.forEach(r => {
   emit(`INSERT INTO public.events (title, description, location, instructor, event_date, end_date, is_published) VALUES (${esc(r['Event Name'])}, ${esc(r['Description'])}, ${esc(r['Location'])}, ${esc(r['Instructor / Host'])}, ${esc(r['Start Time'])}, ${esc(r['End Time'])}, TRUE);`);

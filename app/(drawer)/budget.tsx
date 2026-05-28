@@ -60,6 +60,7 @@ export default function BudgetScreen() {
   const remaining = monthlyBudget - currentTotal;
 
   const now = new Date();
+  const currentDay = now.getDate();
   const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 
   const sortedCategories = useMemo(() => {
@@ -84,10 +85,10 @@ export default function BudgetScreen() {
       );
     }
     suggestions.push(
-      `You're $${overBy.toFixed(2)} over budget. Try to reduce daily spending by $${(overBy / Math.max(1, 30 - now.getDate())).toFixed(2)} for the rest of the month.`,
+      `You're $${overBy.toFixed(2)} over budget. Try to reduce daily spending by $${(overBy / Math.max(1, 30 - currentDay)).toFixed(2)} for the rest of the month.`,
     );
     return suggestions;
-  }, [isOverBudget, sortedCategories, topCategory, categoryTotals, currentTotal, monthlyBudget, now.getMonth(), now.getDate()]);
+  }, [isOverBudget, sortedCategories, topCategory, categoryTotals, currentTotal, monthlyBudget, currentDay]);
 
   const handleAddExpense = useCallback(() => {
     const amount = parseFloat(expenseAmount);
@@ -256,7 +257,7 @@ export default function BudgetScreen() {
             <View style={styles.emptyState}>
               <IconSymbol name="chart.bar.fill" size={40} color={FreepassColors.lightGray} />
               <Text style={styles.emptyText}>No expenses yet this month.</Text>
-              <Text style={styles.emptySubtext}>Tap "Add" to log your first expense.</Text>
+              <Text style={styles.emptySubtext}>Tap &quot;Add&quot; to log your first expense.</Text>
             </View>
           )}
           {currentExpenses.map((expense) => (
@@ -317,6 +318,8 @@ export default function BudgetScreen() {
                 value={expenseAmount}
                 onChangeText={setExpenseAmount}
                 placeholderTextColor={FreepassColors.textSecondary}
+                selectionColor={FreepassColors.accent}
+                cursorColor={FreepassColors.accent}
                 returnKeyType="done"
               />
 
@@ -327,6 +330,8 @@ export default function BudgetScreen() {
                 value={expenseDesc}
                 onChangeText={setExpenseDesc}
                 placeholderTextColor={FreepassColors.textSecondary}
+                selectionColor={FreepassColors.accent}
+                cursorColor={FreepassColors.accent}
                 returnKeyType="done"
               />
 
@@ -363,6 +368,8 @@ export default function BudgetScreen() {
                 value={expenseTag}
                 onChangeText={setExpenseTag}
                 placeholderTextColor={FreepassColors.textSecondary}
+                selectionColor={FreepassColors.accent}
+                cursorColor={FreepassColors.accent}
                 returnKeyType="done"
               />
 
@@ -399,11 +406,14 @@ export default function BudgetScreen() {
                 value={budgetInput}
                 onChangeText={setBudgetInput}
                 placeholderTextColor={FreepassColors.textSecondary}
+                selectionColor={FreepassColors.accent}
+                cursorColor={FreepassColors.accent}
+                selectTextOnFocus
                 returnKeyType="done"
               />
 
               <Text style={styles.budgetHint}>
-                Set a realistic monthly budget based on your income. You'll get alerts when you're
+                Set a realistic monthly budget based on your income. You&apos;ll get alerts when you&apos;re
                 close to or over your limit.
               </Text>
 
@@ -602,26 +612,30 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   input: {
-    backgroundColor: FreepassColors.white,
+    backgroundColor: FreepassColors.offWhite,
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 16,
     fontSize: 16,
+    lineHeight: 22,
     color: FreepassColors.text,
     borderWidth: 1.5,
-    borderColor: FreepassColors.lightGray,
+    borderColor: FreepassColors.textSecondary,
   },
   inputLarge: {
-    backgroundColor: FreepassColors.white,
+    backgroundColor: FreepassColors.offWhite,
     borderRadius: 10,
     paddingVertical: 18,
     paddingHorizontal: 16,
+    minHeight: 72,
     fontSize: 28,
+    lineHeight: 34,
     fontWeight: '700',
     color: FreepassColors.text,
     textAlign: 'center',
+    textAlignVertical: 'center',
     borderWidth: 1.5,
-    borderColor: FreepassColors.lightGray,
+    borderColor: FreepassColors.textSecondary,
   },
   budgetHint: {
     fontSize: 14,

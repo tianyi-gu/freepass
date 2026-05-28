@@ -4,10 +4,12 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FreepassColors } from '@/constants/theme';
+import { useUser } from '@/contexts/user-context';
 import { supabase } from '@/lib/supabase';
 
 export default function AddEventScreen() {
   const insets = useSafeAreaInsets();
+  const { user } = useUser();
   const [form, setForm] = useState({
     name: '',
     instructor: '',
@@ -30,6 +32,10 @@ export default function AddEventScreen() {
     }
     if (!form.startTime.trim()) {
       Alert.alert('Missing info', 'Please enter a start date and time.');
+      return;
+    }
+    if (!user || user.isGuest) {
+      Alert.alert('Sign in required', 'Please create an account or log in before submitting an event.');
       return;
     }
 
@@ -56,15 +62,15 @@ export default function AddEventScreen() {
 
       if (error) throw error;
 
-      Alert.alert('Event Created', 'Your event has been submitted for review.', [
+      Alert.alert('Event Submitted', 'Your event has been submitted for review and will appear after approval.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (err) {
-      Alert.alert('Error', (err as Error).message || 'Failed to create event. Please try again.');
+      Alert.alert('Could Not Submit Event', (err as Error).message || 'Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
-  }, [form]);
+  }, [form, user]);
 
   return (
     <View style={styles.container}>

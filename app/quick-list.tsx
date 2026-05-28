@@ -7,6 +7,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { useResources } from '@/hooks/use-resources';
 import { useSavedResources } from '@/hooks/use-saved-resources';
+import { resourceMatchesSearch } from '@/lib/resource-utils';
 
 export default function QuickListScreen() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
@@ -17,8 +18,7 @@ export default function QuickListScreen() {
   const resources = useMemo(() => allResources.filter((r) => {
     if (showFavoritesOnly && !isSaved(r.id)) return false;
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return r.name.toLowerCase().includes(q) || (r.phone ?? '').includes(q) || (r.tags ?? []).some(t => t.toLowerCase().includes(q));
+      return resourceMatchesSearch(r, searchQuery);
     }
     return true;
   }), [allResources, showFavoritesOnly, searchQuery, isSaved]);

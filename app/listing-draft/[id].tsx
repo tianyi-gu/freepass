@@ -9,7 +9,7 @@ import { useResource } from '@/hooks/use-resources';
 export default function ListingDraftScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
-  const { resource, loading } = useResource(id);
+  const { resource, loading, error } = useResource(id);
 
   if (loading) {
     return (
@@ -22,7 +22,16 @@ export default function ListingDraftScreen() {
   if (!resource) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
-        <Text style={{ fontSize: 16, color: FreepassColors.textSecondary }}>Resource not found.</Text>
+        <Text style={{ fontSize: 16, color: FreepassColors.textSecondary }}>Unable to load this draft resource.</Text>
+        {error ? (
+          <Text style={{ fontSize: 13, color: FreepassColors.textSecondary, textAlign: 'center', marginTop: 8 }}>
+            {error}
+          </Text>
+        ) : (
+          <Text style={{ fontSize: 13, color: FreepassColors.textSecondary, textAlign: 'center', marginTop: 8 }}>
+            Draft resources require a staff-accessible data policy before they can be previewed here.
+          </Text>
+        )}
         <Pressable onPress={() => router.back()} style={{ marginTop: 12 }}>
           <Text style={{ color: FreepassColors.primary, fontWeight: '600' }}>Go back</Text>
         </Pressable>

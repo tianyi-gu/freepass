@@ -18,7 +18,7 @@ interface Course {
 
 interface CourseTask {
   id: string;
-  title: string;
+  name: string;
   description: string | null;
   sort_order: number;
 }
@@ -109,7 +109,7 @@ export default function CourseViewScreen() {
             <Text style={styles.sectionTitle}>Course Tasks</Text>
             {tasks.map((task) => (
               <View key={task.id} style={styles.taskCard}>
-                <Text style={styles.taskTitle}>{task.title}</Text>
+                <Text style={styles.taskTitle}>{task.name}</Text>
                 {task.description && <Text style={styles.taskDesc}>{task.description}</Text>}
               </View>
             ))}

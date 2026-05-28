@@ -5,10 +5,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { useUser } from '@/contexts/user-context';
 import { supabase } from '@/lib/supabase';
 
 export default function AddResourceScreen() {
   const insets = useSafeAreaInsets();
+  const { user } = useUser();
   const [form, setForm] = useState({
     companyName: '',
     location: '',
@@ -43,6 +45,10 @@ export default function AddResourceScreen() {
       Alert.alert('Missing info', 'Please enter at least a phone number or email.');
       return;
     }
+    if (!user || user.isGuest) {
+      Alert.alert('Sign in required', 'Please create an account or log in before submitting a resource.');
+      return;
+    }
     setSubmitting(true);
     const tags = form.tags.split(',').map((t) => t.trim()).filter(Boolean);
     if (form.serviceType1.trim()) tags.push(form.serviceType1.trim());
@@ -65,13 +71,13 @@ export default function AddResourceScreen() {
     });
     setSubmitting(false);
     if (error) {
-      Alert.alert('Error', 'Could not submit the resource. Please try again.');
+      Alert.alert('Could Not Submit Resource', error.message || 'Please check your connection and try again.');
       return;
     }
-    Alert.alert('Resource Submitted', 'Thank you! Your resource has been submitted for review.', [
+    Alert.alert('Resource Submitted', 'Thank you. Your resource has been submitted for review and will appear after approval.', [
       { text: 'OK', onPress: () => router.back() },
     ]);
-  }, [form]);
+  }, [form, user]);
 
   return (
     <View style={styles.container}>
@@ -124,11 +130,13 @@ export default function AddResourceScreen() {
         </Pressable>
 
         <Pressable
-          style={[styles.submitBtn, !form.verified && styles.submitBtnDisabled]}
+          style={[styles.submitBtn, (!form.verified || submitting) && styles.submitBtnDisabled]}
           onPress={handleSubmit}
-          disabled={!form.verified}
+          disabled={!form.verified || submitting}
           android_ripple={{ color: FreepassColors.primaryDark }}>
-          <Text style={styles.submitBtnText}>CREATE FREE PASS RESOURCE</Text>
+          <Text style={styles.submitBtnText}>
+            {submitting ? 'SUBMITTING...' : 'CREATE FREE PASS RESOURCE'}
+          </Text>
         </Pressable>
       </ScrollView>
     </View>

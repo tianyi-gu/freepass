@@ -30,6 +30,7 @@ function formatTime(dateStr: string): string {
 export default function MessageBoardScreen() {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
@@ -37,7 +38,8 @@ export default function MessageBoardScreen() {
       .select('id, display_name, content, created_at')
       .order('created_at', { ascending: false })
       .limit(10)
-      .then(({ data }) => {
+      .then(({ data, error: err }) => {
+        if (err) setError(err.message);
         if (data) setPosts(data);
         setLoading(false);
       });
@@ -67,6 +69,7 @@ export default function MessageBoardScreen() {
         </Pressable>
 
         <Text style={styles.sectionTitle}>Recent Topics</Text>
+        {error && <Text style={styles.errorText}>{error}</Text>}
         {loading ? (
           <ActivityIndicator size="large" color={FreepassColors.primary} style={{ marginTop: 32 }} />
         ) : posts.length === 0 ? (
@@ -155,6 +158,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: FreepassColors.textSecondary,
     marginTop: 4,
+  },
+  errorText: {
+    fontSize: 14,
+    color: FreepassColors.destructive,
+    marginBottom: 12,
   },
   postCard: {
     backgroundColor: FreepassColors.white,

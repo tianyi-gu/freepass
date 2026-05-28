@@ -1,8 +1,7 @@
 import { router } from 'expo-router';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { FreepassHeader } from '@/components/freepass-header';
-import { FreepassLogo } from '@/components/freepass-header';
+import { FreepassHeader, FreepassLogo } from '@/components/freepass-header';
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';

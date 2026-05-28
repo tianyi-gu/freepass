@@ -78,12 +78,25 @@ export function useResource(id: string) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!id) {
+      setResource(null);
+      setError('Missing resource id.');
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
     async function load() {
+      setLoading(true);
+      setError(null);
+      setResource(null);
+
       let { data, error: err } = await supabase
         .from('resources')
         .select('*, category:resource_categories(name, icon)')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (err) {
         // Fallback without the category join
@@ -91,15 +104,21 @@ export function useResource(id: string) {
           .from('resources')
           .select('*')
           .eq('id', id)
-          .single();
+          .maybeSingle();
         data = result.data;
-        if (result.error) setError(result.error.message);
+        err = result.error;
       }
 
+      if (cancelled) return;
+      if (err) setError(err.message);
       setResource(data);
       setLoading(false);
     }
     load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   return { resource, loading, error };

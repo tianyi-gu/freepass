@@ -6,6 +6,7 @@ import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { useResources, useResourceCategories } from '@/hooks/use-resources';
+import { resourceMatchesCategory } from '@/lib/resource-utils';
 
 export default function CategorySearchScreen() {
   const { categories, loading: catsLoading } = useResourceCategories();
@@ -26,7 +27,7 @@ export default function CategorySearchScreen() {
           <Text style={styles.emptyText}>No categories available.</Text>
         ) : (
           categories.map((cat) => {
-            const catResources = resources.filter((r) => r.category_id === cat.id);
+            const catResources = resources.filter((r) => resourceMatchesCategory(r, cat));
             const isExpanded = expanded[cat.id] ?? false;
 
             return (

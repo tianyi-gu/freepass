@@ -1,12 +1,11 @@
 import { router } from 'expo-router';
-import { Linking } from 'react-native';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-
-const FOUNTAIN_FUND_URL = 'https://thefountainfund.org';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+
+const FOUNTAIN_FUND_URL = 'https://www.fountainfund.org/';
 
 export default function FountainFundScreen() {
   return (
@@ -43,7 +42,7 @@ export default function FountainFundScreen() {
         <View style={styles.testimonialSection}>
           <View style={styles.testimonialImage}>
             <IconSymbol name="person.fill" size={48} color="rgba(255,255,255,0.5)" />
-            <Text style={styles.testimonialImageText}>Melli's Story</Text>
+            <Text style={styles.testimonialImageText}>Melli&apos;s Story</Text>
           </View>
           <Text style={styles.caption}>Everyone has a story about their relationship with money.</Text>
           <Text style={styles.body}>

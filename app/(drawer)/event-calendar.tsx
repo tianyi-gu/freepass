@@ -24,13 +24,15 @@ export default function EventCalendarScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('upcoming');
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
       .from('events')
       .select('*')
       .order('event_date', { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error: err }) => {
+        if (err) setError(err.message);
         setAllEvents(data ?? []);
         setLoading(false);
       });
@@ -85,6 +87,11 @@ export default function EventCalendarScreen() {
 
         {loading ? (
           <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 20 }} />
+        ) : error ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.errorText}>Could not load events.</Text>
+            <Text style={styles.emptySub}>{error}</Text>
+          </View>
         ) : filteredEvents.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>
@@ -197,6 +204,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: FreepassColors.textSecondary,
     marginTop: 4,
+  },
+  errorText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: FreepassColors.destructive,
   },
   eventCard: {
     backgroundColor: FreepassColors.cardBg,

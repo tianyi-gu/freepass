@@ -9,7 +9,7 @@ import { useResource } from '@/hooks/use-resources';
 export default function ListingScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { resource, loading } = useResource(id);
+  const { resource, loading, error } = useResource(id);
 
   if (loading) {
     return (
@@ -22,7 +22,16 @@ export default function ListingScreen() {
   if (!resource) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
-        <Text style={{ fontSize: 16, color: FreepassColors.textSecondary }}>Resource not found.</Text>
+        <Text style={{ fontSize: 16, color: FreepassColors.textSecondary }}>Unable to load this resource.</Text>
+        {error ? (
+          <Text style={{ fontSize: 13, color: FreepassColors.textSecondary, textAlign: 'center', marginTop: 8 }}>
+            {error}
+          </Text>
+        ) : (
+          <Text style={{ fontSize: 13, color: FreepassColors.textSecondary, textAlign: 'center', marginTop: 8 }}>
+            This link may point to a draft, unpublished, or deleted resource.
+          </Text>
+        )}
         <Pressable onPress={() => router.back()} style={{ marginTop: 12 }}>
           <Text style={{ color: FreepassColors.primary, fontWeight: '600' }}>Go back</Text>
         </Pressable>
@@ -41,7 +50,7 @@ export default function ListingScreen() {
           style={styles.headerBtnCenter}
           onPress={() => router.push(`/modal/give-feedback?resourceName=${encodeURIComponent(resource?.name ?? '')}` as never)}>
           <IconSymbol name="star.fill" size={16} color={FreepassColors.white} />
-          <Text style={styles.headerBtnText}>VIEW FEEDBACK</Text>
+          <Text style={styles.headerBtnText}>GIVE FEEDBACK</Text>
         </Pressable>
         <View style={{ width: 30 }} />
       </View>

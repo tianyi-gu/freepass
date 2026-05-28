@@ -18,6 +18,10 @@ export default function AskQuestionModal() {
       Alert.alert('Missing info', 'Please enter your question.');
       return;
     }
+    if (!user || user.isGuest) {
+      Alert.alert('Sign in required', 'Please create an account or log in before asking a question.');
+      return;
+    }
     setSubmitting(true);
     const { error } = await supabase.from('questions').insert({
       question: question.trim(),
@@ -61,11 +65,11 @@ export default function AskQuestionModal() {
           onChangeText={setCategory}
         />
         <Pressable
-          style={[styles.submitBtn, !question.trim() && { opacity: 0.5 }]}
+          style={[styles.submitBtn, (!question.trim() || submitting) && { opacity: 0.5 }]}
           onPress={handleSubmit}
-          disabled={!question.trim()}
+          disabled={!question.trim() || submitting}
           android_ripple={{ color: FreepassColors.primaryDark }}>
-          <Text style={styles.submitBtnText}>ASK QUESTION</Text>
+          <Text style={styles.submitBtnText}>{submitting ? 'POSTING...' : 'ASK QUESTION'}</Text>
         </Pressable>
       </View>
     </View>

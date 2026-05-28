@@ -3,11 +3,12 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, Region } from 'react-native-maps';
+import type { Region } from 'react-native-maps';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { type Resource, useResources } from '@/hooks/use-resources';
+import { resourceMatchesSearch } from '@/lib/resource-utils';
 
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 3959;
@@ -37,6 +38,13 @@ const PHILADELPHIA_REGION: Region = {
   latitudeDelta: 0.12,
   longitudeDelta: 0.12,
 };
+
+const NativeMaps = Platform.OS === 'web'
+  ? null
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  : require('react-native-maps') as typeof import('react-native-maps');
+const NativeMapView = NativeMaps?.default;
+const NativeMarker = NativeMaps?.Marker;
 
 export default function MapViewScreen() {
   const insets = useSafeAreaInsets();
@@ -76,14 +84,7 @@ export default function MapViewScreen() {
 
   const sortedResources = useMemo(() => {
     const filtered = searchQuery.trim()
-      ? resources.filter((r) => {
-          const q = searchQuery.toLowerCase();
-          return (
-            r.name.toLowerCase().includes(q) ||
-            (r.address ?? '').toLowerCase().includes(q) ||
-            (r.tags ?? []).some((t) => t.toLowerCase().includes(q))
-          );
-        })
+      ? resources.filter((r) => resourceMatchesSearch(r, searchQuery))
       : resources;
 
     if (!userLocation) return filtered;
@@ -138,15 +139,15 @@ export default function MapViewScreen() {
         )}
 
         {/* Map */}
-        {mappableResources.length > 0 && (
+        {mappableResources.length > 0 && NativeMapView && NativeMarker ? (
           <View style={styles.mapContainer}>
-            <MapView
+            <NativeMapView
               style={styles.map}
               region={mapRegion}
               showsUserLocation={locationStatus === 'granted'}
               showsMyLocationButton>
               {mappableResources.map((r) => (
-                <Marker
+                <NativeMarker
                   key={r.id}
                   coordinate={{ latitude: r.latitude!, longitude: r.longitude! }}
                   title={r.name}
@@ -154,9 +155,16 @@ export default function MapViewScreen() {
                   onCalloutPress={() => router.push(`/listing/${r.id}` as never)}
                 />
               ))}
-            </MapView>
+            </NativeMapView>
           </View>
-        )}
+        ) : !loading ? (
+          <View style={styles.noMapBanner}>
+            <IconSymbol name="map.fill" size={18} color={FreepassColors.textSecondary} />
+            <Text style={styles.noMapText}>
+              Map pins are unavailable because these resources do not have coordinates. You can still search the list and open directions from each resource.
+            </Text>
+          </View>
+        ) : null}
 
         {/* Search */}
         <View style={styles.searchContainer}>
@@ -292,6 +300,23 @@ const styles = StyleSheet.create({
   map: {
     width: '100%',
     height: '100%',
+  },
+  noMapBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: FreepassColors.offWhite,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: FreepassColors.lightGray,
+    padding: 14,
+    marginBottom: 20,
+  },
+  noMapText: {
+    flex: 1,
+    fontSize: 14,
+    color: FreepassColors.textSecondary,
+    lineHeight: 20,
   },
   searchContainer: {
     flexDirection: 'row',

@@ -2,8 +2,7 @@ import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { FreepassHeader } from '@/components/freepass-header';
-import { FreepassLogo } from '@/components/freepass-header';
+import { FreepassHeader, FreepassLogo } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { useUser } from '@/contexts/user-context';
@@ -69,7 +68,7 @@ export default function SignupScreen() {
           <IconSymbol name="checkmark.circle.fill" size={72} color={FreepassColors.accentLight} />
           <Text style={styles.confirmedTitle}>Account Created!</Text>
           <Text style={styles.confirmedBody}>
-            Welcome to FreePass. We've sent a confirmation email to {email} — you can verify it at any time.
+            Welcome to FreePass. We&apos;ve sent a confirmation email to {email} — you can verify it at any time.
           </Text>
           <Text style={styles.confirmedNote}>
             Next, answer a few quick questions so we can personalize your experience.
@@ -273,7 +272,7 @@ export default function SignupScreen() {
               style={styles.switchBtn}
               onPress={() => { setMode('signup'); setPassword(''); }}>
               <Text style={styles.switchText}>
-                Don't have an account? <Text style={styles.switchLink}>Sign up</Text>
+                Don&apos;t have an account? <Text style={styles.switchLink}>Sign up</Text>
               </Text>
             </Pressable>
           </>

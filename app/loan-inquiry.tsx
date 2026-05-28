@@ -24,7 +24,7 @@ export default function LoanInquiryScreen() {
         <View style={styles.videoPlaceholder}>
           <IconSymbol name="play.rectangle.fill" size={48} color={FreepassColors.accentLight} />
           <Text style={styles.videoText}>Loan Inquiry Video</Text>
-          <Text style={styles.videoSubtext}>Contact The Fountain Fund to view this content</Text>
+          <Text style={styles.videoSubtext}>This video is not configured in FreePass yet. Contact The Fountain Fund for the current loan inquiry materials.</Text>
         </View>
 
         <Text style={styles.sectionTitle}>Loan Process</Text>

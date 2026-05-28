@@ -51,9 +51,9 @@ export default function OnboardingScreen() {
     return (
       <View style={[styles.container, styles.doneContainer]}>
         <IconSymbol name="checkmark.circle.fill" size={80} color={FreepassColors.accent} />
-        <Text style={styles.doneTitle}>You're all set!</Text>
+        <Text style={styles.doneTitle}>You&apos;re all set!</Text>
         <Text style={styles.doneBody}>
-          Your responses have been saved. We'll use them to show you the most relevant resources and support for your reentry journey.
+          Your responses have been saved. We&apos;ll use them to show you the most relevant resources and support for your reentry journey.
         </Text>
         <Pressable
           style={styles.doneBtn}
@@ -142,7 +142,7 @@ export default function OnboardingScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>Let's personalize your experience</Text>
+          <Text style={styles.headerTitle}>Let&apos;s personalize your experience</Text>
           <Pressable onPress={handleSkipAll} hitSlop={12}>
             <Text style={styles.skipAllText}>Skip all</Text>
           </Pressable>

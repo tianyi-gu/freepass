@@ -40,11 +40,21 @@ export function useEvent(id: string) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!id) {
+      setEvent(null);
+      setError('Missing event id.');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setEvent(null);
     supabase
       .from('events')
       .select('*')
       .eq('id', id)
-      .single()
+      .maybeSingle()
       .then(({ data, error: err }) => {
         if (err) setError(err.message);
         setEvent(data);

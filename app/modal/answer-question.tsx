@@ -22,6 +22,10 @@ export default function AnswerQuestionModal() {
       Alert.alert('Error', 'Could not identify the question. Please go back and try again.');
       return;
     }
+    if (!user || user.isGuest) {
+      Alert.alert('Sign in required', 'Please create an account or log in before answering a question.');
+      return;
+    }
     setSubmitting(true);
     const { error } = await supabase.from('answers').insert({
       question_id: questionId,
@@ -57,11 +61,11 @@ export default function AnswerQuestionModal() {
           multiline
         />
         <Pressable
-          style={[styles.submitBtn, !answer.trim() && { opacity: 0.5 }]}
+          style={[styles.submitBtn, (!answer.trim() || submitting) && { opacity: 0.5 }]}
           onPress={handleSubmit}
-          disabled={!answer.trim()}
+          disabled={!answer.trim() || submitting}
           android_ripple={{ color: FreepassColors.primaryDark }}>
-          <Text style={styles.submitBtnText}>ANSWER</Text>
+          <Text style={styles.submitBtnText}>{submitting ? 'POSTING...' : 'ANSWER'}</Text>
         </Pressable>
       </View>
     </View>

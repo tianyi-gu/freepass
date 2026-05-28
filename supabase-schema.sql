@@ -54,6 +54,7 @@ create table public.resources (
   longitude double precision,
   is_published boolean default true,
   tags text[] default '{}',  -- searchable tags
+  last_verified timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -144,6 +145,15 @@ create table public.answers (
   updated_at timestamptz default now()
 );
 
+-- 12. COMMUNITY POSTS — message board posts
+create table public.community_posts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  display_name text not null default 'Anonymous',
+  content text not null,
+  created_at timestamptz default now()
+);
+
 -- ============================================================
 -- INDEXES — speed up frequent queries
 -- ============================================================
@@ -172,6 +182,7 @@ alter table public.courses enable row level security;
 alter table public.course_tasks enable row level security;
 alter table public.questions enable row level security;
 alter table public.answers enable row level security;
+alter table public.community_posts enable row level security;
 
 -- Profiles: users can read/update their own profile
 create policy "Users can view own profile"
@@ -195,10 +206,14 @@ create policy "Anyone can view resource categories"
   on public.resource_categories for select using (true);
 create policy "Anyone can view published resources"
   on public.resources for select using (is_published = true);
+create policy "Authenticated users can submit draft resources"
+  on public.resources for insert to authenticated with check (is_published = false);
 
 -- Events: everyone can read published
 create policy "Anyone can view published events"
   on public.events for select using (is_published = true);
+create policy "Authenticated users can submit draft events"
+  on public.events for insert to authenticated with check (is_published = false);
 
 -- Saved resources: users manage their own
 create policy "Users can view own saved resources"
@@ -227,6 +242,14 @@ create policy "Anyone can view answers"
   on public.answers for select using (true);
 create policy "Authenticated users can answer"
   on public.answers for insert to authenticated with check (true);
+
+-- Community posts: everyone can read; anyone can post, including guest users
+create policy "Anyone can read posts"
+  on public.community_posts for select using (true);
+create policy "Anyone can post"
+  on public.community_posts for insert with check (true);
+create policy "Users can delete own posts"
+  on public.community_posts for delete using (auth.uid() = user_id);
 
 -- User documents: users manage their own private documents
 create policy "Users can view own documents"

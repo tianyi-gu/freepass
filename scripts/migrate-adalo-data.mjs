@@ -51,6 +51,16 @@ function buildTags(row) {
   return tags;
 }
 
+function isProductionEvent(row) {
+  const text = [
+    row['Event Name'],
+    row['Description'],
+    row['Location'],
+    row['Instructor / Host'],
+  ].join(' ').toLowerCase();
+  return !/\b(example|test)\b/.test(text);
+}
+
 // ─── RESOURCE CATEGORIES ────────────────────────────────────────
 async function migrateResourceCategories() {
   const rows = readCSV('Resource_Type.csv');
@@ -124,6 +134,7 @@ async function migrateEvents() {
 
   const records = rows
     .filter(r => r['Event Name']?.trim() && r['Start Time'])
+    .filter(isProductionEvent)
     .map(r => ({
       title: r['Event Name']?.trim(),
       description: r['Description']?.trim() || null,

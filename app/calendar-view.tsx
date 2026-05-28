@@ -27,7 +27,7 @@ export default function CalendarViewScreen() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
 
-  const { events, loading } = useEvents();
+  const { events, loading, error } = useEvents();
 
   const monthEvents = events.filter((e) => {
     const d = new Date(e.event_date);
@@ -110,6 +110,11 @@ export default function CalendarViewScreen() {
         <Text style={styles.eventsTitle}>All Upcoming Events</Text>
         {loading ? (
           <ActivityIndicator size="large" color={FreepassColors.primary} style={{ marginVertical: 24 }} />
+        ) : error ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.errorText}>Could not load events.</Text>
+            <Text style={styles.emptySub}>{error}</Text>
+          </View>
         ) : monthEvents.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No events this month</Text>
@@ -229,6 +234,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: FreepassColors.textSecondary,
     marginTop: 4,
+  },
+  errorText: {
+    fontSize: 16,
+    color: FreepassColors.destructive,
+    fontWeight: '600',
   },
   addEventBtn: {
     flexDirection: 'row',

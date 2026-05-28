@@ -17,6 +17,10 @@ export default function GiveFeedbackModal() {
 
   const handleSubmit = async () => {
     if (!feedback.trim()) return;
+    if (!user || user.isGuest) {
+      Alert.alert('Sign in required', 'Please create an account or log in before submitting feedback.');
+      return;
+    }
     setSubmitting(true);
     const feedbackText = resourceName
       ? `[Feedback for ${resourceName}] ${feedback.trim()}`
