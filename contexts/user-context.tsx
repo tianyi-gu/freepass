@@ -127,6 +127,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
     });
     if (error) throw error;
 
+    // When email confirmation is enabled, Supabase returns a fake success
+    // for duplicate emails (empty identities array) instead of an error.
+    if (data.user && data.user.identities?.length === 0) {
+      throw new Error('already registered');
+    }
+
     // Update profile with zip code if provided
     if (zipCode && data.user) {
       await supabase
@@ -135,13 +141,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
         .eq('id', data.user.id);
     }
 
-    // If email confirmation is required, the session will be null
-    // but the user was still created successfully
-    if (data.user && !data.session) {
-      // Auto sign in since this is a mobile app and we don't need email confirmation
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) throw signInError;
-    }
+    // If email confirmation is required, the session will be null.
+    // The user was still created successfully — the signup screen will
+    // show a confirmation message prompting them to check their email.
   }, []);
 
   const logIn = useCallback(async (email: string, password: string) => {

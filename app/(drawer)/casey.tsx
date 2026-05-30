@@ -1,3 +1,4 @@
+import { Audio } from 'expo-av';
 import * as Speech from 'expo-speech';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -18,6 +19,8 @@ import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+
+const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_KEY;
 
 const GEMINI_API_BASE =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
@@ -147,12 +150,11 @@ export default function CaseyScreen() {
   const [messages, setMessages] = useState<Message[]>([OPENING_MESSAGE]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const isListening = false; // speech recognition disabled — requires native build
+  const [isListening, setIsListening] = useState(false);
   const [voiceGender, setVoiceGender] = useState<VoiceGender>('female');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const listRef = useRef<FlatList>(null);
-  const speechAvailable = false;
 
   const stopSpeaking = useCallback(() => {
     Speech.stop();
@@ -179,13 +181,93 @@ export default function CaseyScreen() {
     [voiceGender]
   );
 
-  // Speech recognition disabled — expo-speech-recognition requires a native build.
-  // The mic button is hidden when speechAvailable is false.
-  // To re-enable: install expo-speech-recognition in a dev client build and set speechAvailable to true.
+  // Audio recording ref for speech-to-text
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
-  // Stop audio when leaving the screen
+  const toggleListening = useCallback(async () => {
+    // If currently recording, stop and transcribe
+    if (isListening && recordingRef.current) {
+      setIsListening(false);
+      setIsTranscribing(true);
+      try {
+        await recordingRef.current.stopAndUnloadAsync();
+        const uri = recordingRef.current.getURI();
+        recordingRef.current = null;
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+
+        if (!uri) throw new Error('No recording URI');
+        if (!GROQ_API_KEY) throw new Error('Speech-to-text is not configured.');
+
+        const formData = new FormData();
+        formData.append('file', {
+          uri,
+          type: 'audio/m4a',
+          name: 'recording.m4a',
+        } as any);
+        formData.append('model', 'whisper-large-v3');
+        formData.append('language', 'en');
+
+        const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
+          body: formData,
+        });
+
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
+
+        const transcript = json.text?.trim();
+        if (transcript) setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      } catch (err: any) {
+        if (__DEV__) console.error('[Casey] Transcription error:', err);
+        Alert.alert('Transcription error', err?.message || 'Could not transcribe audio.');
+      } finally {
+        setIsTranscribing(false);
+      }
+      return;
+    }
+
+    // Stop TTS if playing
+    if (isSpeaking) {
+      Speech.stop();
+      setIsSpeaking(false);
+      setSpeakingMsgId(null);
+    }
+
+    // Start recording
+    try {
+      const { granted } = await Audio.requestPermissionsAsync();
+      if (!granted) {
+        Alert.alert('Microphone access needed', 'Please allow microphone access in Settings to use voice input.');
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await recording.startAsync();
+      recordingRef.current = recording;
+      setIsListening(true);
+    } catch (err: any) {
+      if (__DEV__) console.error('[Casey] Recording error:', err);
+      Alert.alert('Microphone error', err?.message || 'Could not start recording.');
+    }
+  }, [isListening, isSpeaking]);
+
+  // Clean up on unmount
   useEffect(() => {
-    return () => { Speech.stop(); };
+    return () => {
+      Speech.stop();
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+        recordingRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -344,14 +426,28 @@ export default function CaseyScreen() {
             style={styles.input}
             value={input}
             onChangeText={setInput}
-            placeholder="Message Casey..."
-            placeholderTextColor={FreepassColors.textSecondary}
+            placeholder={isListening ? 'Listening... tap mic to stop' : isTranscribing ? 'Transcribing...' : 'Message Casey...'}
+            placeholderTextColor={isListening ? FreepassColors.accent : FreepassColors.textSecondary}
             multiline
             maxLength={500}
             returnKeyType="send"
             blurOnSubmit
             onSubmitEditing={sendMessage}
           />
+          <Pressable
+            style={[styles.micBtn, isListening && styles.micBtnActive]}
+            onPress={toggleListening}
+            disabled={isTranscribing}>
+            {isTranscribing ? (
+              <ActivityIndicator size="small" color={FreepassColors.textSecondary} />
+            ) : (
+              <IconSymbol
+                name="mic.fill"
+                size={20}
+                color={isListening ? FreepassColors.white : FreepassColors.textSecondary}
+              />
+            )}
+          </Pressable>
           <Pressable
             style={[styles.sendBtn, (!input.trim() || loading) && styles.sendBtnDisabled]}
             onPress={sendMessage}

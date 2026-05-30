@@ -28,7 +28,19 @@ export default function SignupScreen() {
       await signUp(email.trim(), password, name.trim(), zipCode.trim() || undefined);
       setMode('confirmed');
     } catch (err) {
-      Alert.alert('Sign Up Failed', (err as Error).message || 'Something went wrong. Please try again.');
+      const msg = (err as Error).message || '';
+      if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('already been registered')) {
+        Alert.alert(
+          'Account already exists',
+          'An account with this email already exists. Would you like to log in instead?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Log In', onPress: () => { setMode('login'); } },
+          ],
+        );
+      } else {
+        Alert.alert('Sign Up Failed', msg || 'Something went wrong. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

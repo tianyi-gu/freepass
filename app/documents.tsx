@@ -53,24 +53,32 @@ export default function DocumentsScreen() {
 
   const handlePickFromCamera = useCallback(async () => {
     setPickerModal(false);
-    const uri = await takePhoto();
-    if (!uri) {
-      Alert.alert('Camera unavailable', 'We could not access the camera. Check permissions in Settings.');
-      return;
+    // Wait for modal dismiss animation to complete before presenting camera UI
+    await new Promise((r) => setTimeout(r, 600));
+    try {
+      const uri = await takePhoto();
+      if (uri) {
+        setPendingUri(uri);
+        setUploadModal(true);
+      }
+    } catch (err: any) {
+      Alert.alert('Camera error', err?.message || 'Could not open camera.');
     }
-    setPendingUri(uri);
-    setUploadModal(true);
   }, []);
 
   const handlePickFromLibrary = useCallback(async () => {
     setPickerModal(false);
-    const uri = await pickFromLibrary();
-    if (!uri) {
-      Alert.alert('Photo library unavailable', 'We could not access your photos. Check permissions in Settings.');
-      return;
+    // Wait for modal dismiss animation to complete before presenting library UI
+    await new Promise((r) => setTimeout(r, 600));
+    try {
+      const uri = await pickFromLibrary();
+      if (uri) {
+        setPendingUri(uri);
+        setUploadModal(true);
+      }
+    } catch (err: any) {
+      Alert.alert('Photo library error', err?.message || 'Could not open photo library.');
     }
-    setPendingUri(uri);
-    setUploadModal(true);
   }, []);
 
   const handleUpload = useCallback(async () => {
