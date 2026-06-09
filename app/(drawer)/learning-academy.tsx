@@ -205,12 +205,13 @@ const styles = StyleSheet.create({
   darkBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 10,
     backgroundColor: FreepassColors.accent,
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 10,
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
   },
   sectionTitle: {
     fontSize: 20,

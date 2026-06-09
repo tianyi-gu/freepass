@@ -17,18 +17,17 @@ export default function LoanInquiryScreen() {
           <Text style={styles.title}>Learning Academy</Text>
           <Text style={styles.subtitle}>New Loan Inquiry Process</Text>
           <Text style={styles.body}>
-            A loan user&apos;s guide to access capital through various loans. This video features Tom, who serves on a
-            Loan Review Committee (LRC), describing the process within The Fountain Fund as the final step in
-            underwriting.
+            A guide to accessing capital through The Fountain Fund&apos;s loan programs. Tap below to review the full
+            New Loan Inquiry Process on The Fountain Fund&apos;s website.
           </Text>
         </View>
 
         <Pressable
           style={styles.videoPlaceholder}
           onPress={() => Linking.openURL(LOAN_INQUIRY_URL)}>
-          <IconSymbol name="play.rectangle.fill" size={48} color={FreepassColors.accentLight} />
-          <Text style={styles.videoText}>Loan Inquiry Guide</Text>
-          <Text style={styles.videoSubtext}>Tap to open the full loan inquiry process</Text>
+          <IconSymbol name="doc.text.fill" size={48} color={FreepassColors.accentLight} />
+          <Text style={styles.videoText}>New Loan Inquiry Process</Text>
+          <Text style={styles.videoSubtext}>Tap to review the loan inquiry process</Text>
         </Pressable>
 
         <Text style={styles.sectionTitle}>Loan Process</Text>

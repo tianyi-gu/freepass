@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
@@ -46,6 +46,26 @@ export default function EventCalendarScreen() {
     pa.reverse();
     return { upcoming: up, past: pa };
   }, [allEvents, now]);
+
+  const shareEvent = async (event: EventItem) => {
+    const when = new Date(event.event_date).toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    const lines = [event.title, when];
+    if (event.location) lines.push(event.location);
+    if (event.description) lines.push('', event.description);
+    lines.push('', 'Shared from FreePass');
+    try {
+      await Share.share({ title: event.title, message: lines.join('\n') });
+    } catch {
+      // user dismissed the share sheet — no action needed
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -101,12 +121,21 @@ export default function EventCalendarScreen() {
                   <Text style={styles.eventName}>{event.title}</Text>
                   {event.description && <Text style={styles.eventDesc} numberOfLines={3}>{event.description}</Text>}
                   {event.instructor && <Text style={styles.eventInstructor}>Hosted by {event.instructor}</Text>}
-                  <Pressable
-                    style={styles.detailsBtn}
-                    onPress={() => router.push(`/event/${event.id}` as never)}
-                    android_ripple={{ color: FreepassColors.primaryDark }}>
-                    <Text style={styles.detailsBtnText}>SEE DETAILS</Text>
-                  </Pressable>
+                  <View style={styles.actionRow}>
+                    <Pressable
+                      style={styles.detailsBtn}
+                      onPress={() => router.push(`/event/${event.id}` as never)}
+                      android_ripple={{ color: FreepassColors.primaryDark }}>
+                      <Text style={styles.detailsBtnText}>SEE DETAILS</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.shareBtn}
+                      onPress={() => shareEvent(event)}
+                      android_ripple={{ color: FreepassColors.lightGray }}>
+                      <IconSymbol name="square.and.arrow.up" size={16} color={FreepassColors.primary} />
+                      <Text style={styles.shareBtnText}>SHARE</Text>
+                    </Pressable>
+                  </View>
                 </View>
               </View>
             ))}
@@ -126,12 +155,21 @@ export default function EventCalendarScreen() {
                   <Text style={styles.eventName}>{event.title}</Text>
                   {event.description && <Text style={styles.eventDesc} numberOfLines={3}>{event.description}</Text>}
                   {event.instructor && <Text style={styles.eventInstructor}>Hosted by {event.instructor}</Text>}
-                  <Pressable
-                    style={styles.detailsBtn}
-                    onPress={() => router.push(`/event/${event.id}` as never)}
-                    android_ripple={{ color: FreepassColors.primaryDark }}>
-                    <Text style={styles.detailsBtnText}>SEE DETAILS</Text>
-                  </Pressable>
+                  <View style={styles.actionRow}>
+                    <Pressable
+                      style={styles.detailsBtn}
+                      onPress={() => router.push(`/event/${event.id}` as never)}
+                      android_ripple={{ color: FreepassColors.primaryDark }}>
+                      <Text style={styles.detailsBtnText}>SEE DETAILS</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.shareBtn}
+                      onPress={() => shareEvent(event)}
+                      android_ripple={{ color: FreepassColors.lightGray }}>
+                      <IconSymbol name="square.and.arrow.up" size={16} color={FreepassColors.primary} />
+                      <Text style={styles.shareBtnText}>SHARE</Text>
+                    </Pressable>
+                  </View>
                 </View>
               </View>
             ))}
@@ -242,8 +280,12 @@ const styles = StyleSheet.create({
     color: FreepassColors.accent,
     marginBottom: 12,
   },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   detailsBtn: {
-    alignSelf: 'flex-start',
     backgroundColor: FreepassColors.primary,
     paddingVertical: 10,
     paddingHorizontal: 20,
@@ -253,6 +295,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: FreepassColors.white,
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: FreepassColors.primary,
+  },
+  shareBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: FreepassColors.primary,
   },
   sectionLabel: {
     fontSize: 16,

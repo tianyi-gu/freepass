@@ -87,9 +87,10 @@ const styles = StyleSheet.create({
   },
   intro: {
     fontSize: 16,
+    fontWeight: '600',
     color: FreepassColors.primary,
     lineHeight: 24,
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 16,
   },
   body: {

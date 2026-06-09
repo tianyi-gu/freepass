@@ -57,12 +57,12 @@ export default function AddEventScreen() {
         address: form.address.trim() || null,
         event_date: eventDate.toISOString(),
         end_date: endDate && !isNaN(endDate.getTime()) ? endDate.toISOString() : null,
-        is_published: false,
+        is_published: true,
       });
 
       if (error) throw error;
 
-      Alert.alert('Event Submitted', 'Your event has been submitted for review and will appear after approval.', [
+      Alert.alert('Event Added', 'Your event is now live on the community calendar.', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (err) {

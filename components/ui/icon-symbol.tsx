@@ -65,6 +65,7 @@ const MAPPING = {
   'car.fill': 'directions-car',
   'bolt.fill': 'bolt',
   'ellipsis.circle.fill': 'more-horiz',
+  'square.and.arrow.up': 'ios-share',
 } as IconMapping;
 
 /**

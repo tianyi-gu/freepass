@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,6 +14,11 @@ export default function OnboardingScreen() {
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [done, setDone] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+
+  const scrollToTop = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, []);
 
   const step = ONBOARDING_STEPS[stepIndex];
   const isLastStep = stepIndex === ONBOARDING_STEPS.length - 1;
@@ -41,8 +46,9 @@ export default function OnboardingScreen() {
       setDone(true);
     } else {
       setStepIndex((i) => i + 1);
+      scrollToTop();
     }
-  }, [answers, isLastStep, saveSurveyAnswers]);
+  }, [answers, isLastStep, saveSurveyAnswers, scrollToTop]);
 
   const handleSkipAll = useCallback(async () => {
     await completeOnboarding();
@@ -169,6 +175,7 @@ export default function OnboardingScreen() {
 
       {/* Questions */}
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
@@ -180,7 +187,7 @@ export default function OnboardingScreen() {
         {stepIndex > 0 && (
           <Pressable
             style={styles.backBtn}
-            onPress={() => setStepIndex((i) => i - 1)}>
+            onPress={() => { setStepIndex((i) => i - 1); scrollToTop(); }}>
             <IconSymbol name="chevron.left" size={18} color={FreepassColors.primary} />
             <Text style={styles.backBtnText}>Back</Text>
           </Pressable>
