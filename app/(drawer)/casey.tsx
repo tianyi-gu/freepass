@@ -25,6 +25,11 @@ const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_KEY;
 const GEMINI_API_BASE =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
+// Groq is used as an automatic backup for the chat when Gemini is unavailable
+// (e.g. depleted billing / quota). Speech-to-text also uses the same Groq key.
+const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_CHAT_MODEL = 'llama-3.3-70b-versatile';
+
 const SYSTEM_PROMPT = `You are Casey, a warm and supportive reentry resource assistant for FreePass, a Philadelphia app helping formerly incarcerated individuals find support in Philadelphia.
 
 Your goal is to have a short, guided conversation before recommending resources. Follow this flow:
@@ -108,6 +113,10 @@ type GeminiPayload = {
   contents: GeminiContent[];
 };
 
+function buildSystemInstruction(resourceContext: string): string {
+  return `${SYSTEM_PROMPT}\n\nHere are the available Philadelphia reentry resources you may recommend from:\n\n${resourceContext}`;
+}
+
 function buildGeminiPayload(
   history: Message[],
   currentUserText: string,
@@ -127,14 +136,82 @@ function buildGeminiPayload(
 
   return {
     system_instruction: {
-      parts: [
-        {
-          text: `${SYSTEM_PROMPT}\n\nHere are the available Philadelphia reentry resources you may recommend from:\n\n${resourceContext}`,
-        },
-      ],
+      parts: [{ text: buildSystemInstruction(resourceContext) }],
     },
     contents,
   };
+}
+
+type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
+
+function buildGroqMessages(
+  history: Message[],
+  currentUserText: string,
+  resourceContext: string
+): ChatMessage[] {
+  const messages: ChatMessage[] = [
+    { role: 'system', content: buildSystemInstruction(resourceContext) },
+  ];
+
+  for (const msg of history) {
+    if (msg.id === 'opening') continue;
+    messages.push({
+      role: msg.role === 'user' ? 'user' : 'assistant',
+      content: msg.text,
+    });
+  }
+
+  messages.push({ role: 'user', content: currentUserText });
+  return messages;
+}
+
+// Primary: Gemini. Throws on any failure so the caller can fall back to Groq.
+async function fetchGeminiReply(
+  history: Message[],
+  text: string,
+  context: string
+): Promise<string> {
+  const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+  if (!apiKey) throw new Error('Missing EXPO_PUBLIC_GEMINI_API_KEY.');
+
+  const res = await fetch(`${GEMINI_API_BASE}?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(buildGeminiPayload(history, text, context)),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
+
+  const reply = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!reply) throw new Error('Empty Gemini response');
+  return reply;
+}
+
+// Backup: Groq. Used automatically when Gemini is unavailable.
+async function fetchGroqReply(
+  history: Message[],
+  text: string,
+  context: string
+): Promise<string> {
+  if (!GROQ_API_KEY) throw new Error('Missing EXPO_PUBLIC_GROQ_KEY.');
+
+  const res = await fetch(GROQ_CHAT_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: GROQ_CHAT_MODEL,
+      messages: buildGroqMessages(history, text, context),
+    }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
+
+  const reply = json?.choices?.[0]?.message?.content;
+  if (!reply) throw new Error('Empty Groq response');
+  return reply;
 }
 
 type VoiceGender = 'female' | 'male';
@@ -298,32 +375,17 @@ export default function CaseyScreen() {
         .join(' ');
       const matched = filterResources(resources, allUserText);
       const context = buildContext(matched);
-      const payload = buildGeminiPayload(messages, text, context);
 
-      const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error('Missing EXPO_PUBLIC_GEMINI_API_KEY.');
+      // Primary provider is Gemini; if it fails for any reason (e.g. quota /
+      // billing depleted), automatically fall back to Groq so the chat keeps
+      // working for users without interruption.
+      let reply: string;
+      try {
+        reply = await fetchGeminiReply(messages, text, context);
+      } catch (geminiErr) {
+        if (__DEV__) console.warn('[Casey] Gemini failed, falling back to Groq:', geminiErr);
+        reply = await fetchGroqReply(messages, text, context);
       }
-      if (__DEV__) {
-        console.log('[Casey] Gemini API key exists:', !!apiKey);
-      }
-
-      const res = await fetch(`${GEMINI_API_BASE}?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok) {
-        if (__DEV__) console.error('[Casey] Gemini API error:', JSON.stringify(json, null, 2));
-        throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
-      }
-
-      const reply =
-        json?.candidates?.[0]?.content?.parts?.[0]?.text ??
-        "I'm sorry, I couldn't find a good match right now. Try rephrasing your question.";
 
       const replyId = (Date.now() + 1).toString();
       setMessages((prev) => [
@@ -334,16 +396,13 @@ export default function CaseyScreen() {
       // Auto-read Casey's response
       speakText(reply, replyId);
     } catch (err) {
-      if (__DEV__) console.error('[Casey] Error:', err);
-      const message = err instanceof Error && err.message.includes('EXPO_PUBLIC_GEMINI_API_KEY')
-        ? 'Casey is not configured yet. Please ask a staff member to add the AI service key, or use Resources to search directly.'
-        : "Sorry, I'm having trouble connecting right now. Please try Resources or try again in a moment.";
+      if (__DEV__) console.error('[Casey] Both providers failed:', err);
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: 'bot',
-          text: message,
+          text: "Sorry, I'm having trouble connecting right now. Please try Resources or try again in a moment.",
         },
       ]);
     } finally {
