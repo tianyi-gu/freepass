@@ -18,6 +18,7 @@ import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { useUser } from '@/contexts/user-context';
 import { supabase } from '@/lib/supabase';
 
 const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_KEY;
@@ -47,7 +48,59 @@ Rules:
 - Never recommend organizations not in the provided list
 - Keep every message to 3-4 sentences max
 - Be warm, human, and encouraging — never clinical or bureaucratic
-- If the user's need doesn't match any resource well, be honest and suggest they call 211`;
+- If the user's need doesn't match any resource well, be honest and suggest they call 211
+- If the user's profile below is provided, use it to personalize from the start — don't re-ask things you already know (their name, location, needs, housing/work situation). Lead with what's most relevant to them, but still confirm briefly before recommending.`;
+
+// Maps onboarding survey question IDs to short, readable labels for Casey's context.
+const SURVEY_LABELS: Record<string, string> = {
+  preferred_name: 'Preferred name',
+  zip_code: 'Area / ZIP',
+  time_home: 'Time since coming home',
+  immediate_needs: 'Looking for help with',
+  employment_status: 'Work situation',
+  work_interests: 'Work interests',
+  housing_status: 'Housing situation',
+  financial_help: 'Wants financial help with',
+  education_level: 'Education',
+  learning_interest: 'Interested in learning',
+  support_system: 'Has a support system',
+  has_caseworker: 'Working with a case worker',
+};
+
+// Builds a concise profile block from the user's onboarding survey answers so
+// Casey can personalize. Returns '' when there's nothing useful to include.
+function buildUserContext(
+  displayName: string | undefined,
+  answers: Record<string, string | string[]> | undefined,
+): string {
+  const lines: string[] = [];
+  if (displayName) lines.push(`Name: ${displayName}`);
+
+  for (const [id, label] of Object.entries(SURVEY_LABELS)) {
+    const value = answers?.[id];
+    if (!value) continue;
+    const text = Array.isArray(value) ? value.join(', ') : value;
+    if (text && text.trim()) lines.push(`${label}: ${text.trim()}`);
+  }
+
+  if (lines.length === 0) return '';
+  return `Here is what the user shared about themselves during sign-up. Use it to personalize, but don't read it back to them verbatim:\n${lines.join('\n')}`;
+}
+
+// Survey fields whose values make good extra retrieval keywords, so the first
+// recommendation is relevant even before the user types specifics.
+const RETRIEVAL_KEYWORD_FIELDS = ['immediate_needs', 'work_interests', 'housing_status', 'financial_help'];
+
+function surveyRetrievalKeywords(answers: Record<string, string | string[]> | undefined): string {
+  if (!answers) return '';
+  const parts: string[] = [];
+  for (const field of RETRIEVAL_KEYWORD_FIELDS) {
+    const value = answers[field];
+    if (Array.isArray(value)) parts.push(...value);
+    else if (value) parts.push(value);
+  }
+  return parts.join(' ');
+}
 
 type Resource = {
   name: string;
@@ -113,14 +166,16 @@ type GeminiPayload = {
   contents: GeminiContent[];
 };
 
-function buildSystemInstruction(resourceContext: string): string {
-  return `${SYSTEM_PROMPT}\n\nHere are the available Philadelphia reentry resources you may recommend from:\n\n${resourceContext}`;
+function buildSystemInstruction(resourceContext: string, userContext: string): string {
+  const profileBlock = userContext ? `\n\n${userContext}` : '';
+  return `${SYSTEM_PROMPT}${profileBlock}\n\nHere are the available Philadelphia reentry resources you may recommend from:\n\n${resourceContext}`;
 }
 
 function buildGeminiPayload(
   history: Message[],
   currentUserText: string,
-  resourceContext: string
+  resourceContext: string,
+  userContext: string
 ): GeminiPayload {
   const contents: GeminiContent[] = [];
 
@@ -136,7 +191,7 @@ function buildGeminiPayload(
 
   return {
     system_instruction: {
-      parts: [{ text: buildSystemInstruction(resourceContext) }],
+      parts: [{ text: buildSystemInstruction(resourceContext, userContext) }],
     },
     contents,
   };
@@ -147,10 +202,11 @@ type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 function buildGroqMessages(
   history: Message[],
   currentUserText: string,
-  resourceContext: string
+  resourceContext: string,
+  userContext: string
 ): ChatMessage[] {
   const messages: ChatMessage[] = [
-    { role: 'system', content: buildSystemInstruction(resourceContext) },
+    { role: 'system', content: buildSystemInstruction(resourceContext, userContext) },
   ];
 
   for (const msg of history) {
@@ -169,7 +225,8 @@ function buildGroqMessages(
 async function fetchGeminiReply(
   history: Message[],
   text: string,
-  context: string
+  context: string,
+  userContext: string
 ): Promise<string> {
   const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) throw new Error('Missing EXPO_PUBLIC_GEMINI_API_KEY.');
@@ -177,7 +234,7 @@ async function fetchGeminiReply(
   const res = await fetch(`${GEMINI_API_BASE}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(buildGeminiPayload(history, text, context)),
+    body: JSON.stringify(buildGeminiPayload(history, text, context, userContext)),
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
@@ -191,7 +248,8 @@ async function fetchGeminiReply(
 async function fetchGroqReply(
   history: Message[],
   text: string,
-  context: string
+  context: string,
+  userContext: string
 ): Promise<string> {
   if (!GROQ_API_KEY) throw new Error('Missing EXPO_PUBLIC_GROQ_KEY.');
 
@@ -203,7 +261,7 @@ async function fetchGroqReply(
     },
     body: JSON.stringify({
       model: GROQ_CHAT_MODEL,
-      messages: buildGroqMessages(history, text, context),
+      messages: buildGroqMessages(history, text, context, userContext),
     }),
   });
   const json = await res.json();
@@ -223,6 +281,7 @@ const VOICE_PITCH: Record<VoiceGender, number> = {
 };
 
 export default function CaseyScreen() {
+  const { user } = useUser();
   const [resources, setResources] = useState<Resource[]>([]);
   const [messages, setMessages] = useState<Message[]>([OPENING_MESSAGE]);
   const [input, setInput] = useState('');
@@ -369,10 +428,18 @@ export default function CaseyScreen() {
     setLoading(true);
 
     try {
-      const allUserText = historySnapshot
-        .filter((m) => m.role === 'user')
-        .map((m) => m.text)
-        .join(' ');
+      const surveyAnswers = user && !user.isGuest ? user.surveyAnswers : undefined;
+      const userContext = buildUserContext(
+        user && !user.isGuest ? user.displayName : undefined,
+        surveyAnswers,
+      );
+
+      // Retrieval uses the conversation plus the user's stated needs from the
+      // survey, so the first recommendation is relevant even before they type specifics.
+      const allUserText = [
+        historySnapshot.filter((m) => m.role === 'user').map((m) => m.text).join(' '),
+        surveyRetrievalKeywords(surveyAnswers),
+      ].join(' ');
       const matched = filterResources(resources, allUserText);
       const context = buildContext(matched);
 
@@ -381,10 +448,10 @@ export default function CaseyScreen() {
       // working for users without interruption.
       let reply: string;
       try {
-        reply = await fetchGeminiReply(messages, text, context);
+        reply = await fetchGeminiReply(messages, text, context, userContext);
       } catch (geminiErr) {
         if (__DEV__) console.warn('[Casey] Gemini failed, falling back to Groq:', geminiErr);
-        reply = await fetchGroqReply(messages, text, context);
+        reply = await fetchGroqReply(messages, text, context, userContext);
       }
 
       const replyId = (Date.now() + 1).toString();
