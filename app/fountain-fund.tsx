@@ -40,26 +40,92 @@ export default function FountainFundScreen() {
         </Text>
 
         <View style={styles.testimonialSection}>
-          <View style={styles.testimonialImage}>
-            <IconSymbol name="person.fill" size={48} color="rgba(255,255,255,0.5)" />
-            <Text style={styles.testimonialImageText}>Melli&apos;s Story</Text>
+          <Text style={styles.caption}>Everyone has a story. Here are a few from our community.</Text>
+
+          <View style={styles.storyCard}>
+            <View style={styles.storyHeader}>
+              <View style={styles.storyAvatar}>
+                <Text style={styles.storyAvatarText}>CB</Text>
+              </View>
+              <View style={styles.storyHeaderText}>
+                <Text style={styles.storyName}>Charisse Becnel</Text>
+                <Text style={styles.storyLocation}>New Orleans</Text>
+              </View>
+            </View>
+            <Text style={styles.storyBody}>
+              Charisse Becnel, a 30-year-old single mother, had nearly completed her nursing degree, but an inability
+              to cover outstanding college expenses nearly derailed her dream.
+            </Text>
+            <Text style={styles.storyBody}>
+              “I had been paying tuition out of pocket, and it was so hard,” says Becnel. With two young boys, the
+              financial and emotional stresses felt insurmountable, so she turned to her DCFS caseworker to explore
+              other resources. That single conversation created a bridge to the Fountain Fund, and shortly thereafter,
+              Becnel secured an academic loan, paid off the remaining tuition and set herself up for success.
+            </Text>
+            <Text style={styles.storyBody}>
+              Despite the many setbacks between 2019–2023, Becnel remarks, “It was all such a blessing, even the hard
+              parts. Because everything finally fell into place.” One word she would use to describe walking across the
+              graduation stage? SHOCK! “It still doesn’t feel real. I couldn’t believe it was happening.”
+            </Text>
+            <Text style={styles.storyBody}>
+              Since then, Becnel has been hired as an RN with Ochsner Health and has paid her loan off in full. When
+              describing the best parts of being a nurse, her voice lights up. “I love it when my patients feel seen and
+              heard. Some people are sick for a very long time and they have given up hope. When you give patients the
+              best care, they see you like family.”
+            </Text>
+            <Text style={styles.quote}>
+              “Your struggle is temporary. Pray. Seek out others. Don’t feel ashamed. Don’t hold it in. You never know
+              who might be a blessing in disguise.”
+            </Text>
           </View>
-          <Text style={styles.caption}>Everyone has a story about their relationship with money.</Text>
-          <Text style={styles.body}>
-            Listen to how Melli turned her financial stress into success by utilizing The Fountain Fund&apos;s services
-            and courses.
-          </Text>
-          <Text style={styles.quote}>
-            &quot;Fountain Fund has given me the ability to function better in my community and be proud of who I am
-            and how far I have came. I&apos;ve been in my position almost two years and with the help of the Fountain
-            Fund I&apos;ve been offered better jobs with higher pay. They have guided me in many ways on how to present
-            myself and never stop reaching for better.&quot;
-          </Text>
+
+          <View style={styles.storyCard}>
+            <View style={styles.storyHeader}>
+              <View style={styles.storyAvatar}>
+                <Text style={styles.storyAvatarText}>DL</Text>
+              </View>
+              <View style={styles.storyHeaderText}>
+                <Text style={styles.storyName}>Dormen Lisby</Text>
+                <Text style={styles.storyLocation}>Philadelphia</Text>
+              </View>
+            </View>
+            <Text style={styles.storyBody}>
+              Dormen Lisby is a Renaissance man: an artist, a writer, a teacher, a mentor.
+            </Text>
+            <Text style={styles.storyBody}>
+              As a Program Facilitator with Shining Light, he brings evidence-based practices of positive psychology and
+              character strengths into the nation’s prisons. Working with professors, therapists and actors, he helps
+              those who are incarcerated find their voice. And he knows these offerings are transformative and
+              life-affirming, because they changed his.
+            </Text>
+            <Text style={styles.storyBody}>
+              Lisby spent nearly 26 years in the Pennsylvania Department of Corrections. He faced immense obstacles upon
+              reentry, but as Lisby likes to say, “For every door that’s closed, there’s a bigger door waiting to open.”
+            </Text>
+            <Text style={styles.storyBody}>
+              While exploring jobs and starting a small arts business, he quickly realized that having a reliable car
+              would be key. He also knew that traditional financing would be impossible. “I don’t believe any of
+              society’s banking systems would have provided me with a loan,” he says. “To those systems, I didn’t exist
+              prior to 2022.”
+            </Text>
+            <Text style={styles.storyBody}>
+              That’s where the Fountain Fund stepped in with an auto loan to help him on his journey. “They walk you
+              through every step of the process,” says Lisby. “They’re transparent. They ask tough questions, but they
+              want you to succeed.” Looking back, he remarks, “It wasn’t the loan that was the most important, it was the
+              relationships.”
+            </Text>
+            <Text style={styles.storyBody}>
+              Lisby is now the proud owner of “Maxine,” a car that does triple duty — providing essential transportation
+              for work, allowing him to participate in exhibits like the Black Boy Art Show, and helping him care for
+              family.
+            </Text>
+          </View>
+
           <Pressable
             style={[styles.ctaBtn, styles.ctaBtnDark]}
             onPress={() => router.replace('/(drawer)/learning-academy' as never)}
             android_ripple={{ color: FreepassColors.primaryDark }}>
-            <IconSymbol name="play.rectangle.fill" size={20} color={FreepassColors.white} />
+            <IconSymbol name="book.fill" size={20} color={FreepassColors.white} />
             <Text style={styles.ctaText}>LEARNING ACADEMY COURSES</Text>
           </Pressable>
         </View>
@@ -124,31 +190,62 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: FreepassColors.lightGray,
   },
-  testimonialImage: {
-    height: 200,
-    backgroundColor: FreepassColors.primary,
-    borderRadius: 12,
-    marginBottom: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  testimonialImageText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.7)',
-    marginTop: 8,
-  },
   caption: {
     fontSize: 18,
     fontWeight: '700',
     color: FreepassColors.text,
+    marginBottom: 16,
+  },
+  storyCard: {
+    backgroundColor: FreepassColors.cardBg,
+    borderRadius: 12,
+    padding: 18,
+    marginBottom: 16,
+  },
+  storyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  storyAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: FreepassColors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storyAvatarText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: FreepassColors.white,
+  },
+  storyHeaderText: {
+    flex: 1,
+  },
+  storyName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: FreepassColors.primary,
+  },
+  storyLocation: {
+    fontSize: 13,
+    color: FreepassColors.textSecondary,
+    marginTop: 2,
+  },
+  storyBody: {
+    fontSize: 15,
+    color: FreepassColors.text,
+    lineHeight: 23,
     marginBottom: 12,
   },
   quote: {
     fontSize: 15,
-    color: FreepassColors.text,
+    color: FreepassColors.primary,
     lineHeight: 24,
     fontStyle: 'italic',
-    marginBottom: 20,
+    fontWeight: '600',
+    marginTop: 4,
   },
 });

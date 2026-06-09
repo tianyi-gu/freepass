@@ -32,7 +32,6 @@ export default function RootLayout() {
         <Stack.Screen name="user-guide" />
         <Stack.Screen name="interview-library" />
         <Stack.Screen name="community-board" />
-        <Stack.Screen name="chat/[id]" />
         <Stack.Screen name="quick-list" />
         <Stack.Screen name="staff-view" />
         <Stack.Screen name="resource-types" />

@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 
-type TabId = 'home' | 'chat' | 'casey' | 'courses' | 'events' | 'budget';
+type TabId = 'home' | 'casey' | 'courses' | 'events' | 'budget';
 
 const TABS: { id: TabId; label: string; icon: string; route: string }[] = [
   { id: 'home', label: 'Home', icon: 'house.fill', route: '/(drawer)' },

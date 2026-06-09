@@ -17,12 +17,14 @@ export function useSavedResources() {
       return;
     }
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('saved_resources')
       .select('resource_id, resource:resources(*, category:resource_categories(name, icon))')
       .eq('user_id', user.id);
 
-    if (data) {
+    if (error) {
+      if (__DEV__) console.error('[useSavedResources] fetch failed:', error);
+    } else if (data) {
       setSavedIds(new Set(data.map((d) => d.resource_id)));
       setSavedResources(data.map((d) => d.resource as unknown as Resource).filter(Boolean));
     }
@@ -38,11 +40,15 @@ export function useSavedResources() {
     }
 
     if (savedIds.has(resourceId)) {
-      await supabase
+      const { error } = await supabase
         .from('saved_resources')
         .delete()
         .eq('user_id', user.id)
         .eq('resource_id', resourceId);
+      if (error) {
+        Alert.alert('Could not update', 'We could not remove this favorite. Please try again.');
+        return;
+      }
       setSavedIds((prev) => {
         const next = new Set(prev);
         next.delete(resourceId);
@@ -50,9 +56,13 @@ export function useSavedResources() {
       });
       setSavedResources((prev) => prev.filter((r) => r.id !== resourceId));
     } else {
-      await supabase
+      const { error } = await supabase
         .from('saved_resources')
         .insert({ user_id: user.id, resource_id: resourceId });
+      if (error) {
+        Alert.alert('Could not update', 'We could not save this resource. Please try again.');
+        return;
+      }
       setSavedIds((prev) => new Set(prev).add(resourceId));
       // Refetch to get the full resource data
       await fetch();

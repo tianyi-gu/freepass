@@ -19,15 +19,18 @@ export function useEvents() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     supabase
       .from('events')
       .select('*')
       .order('event_date')
       .then(({ data, error: err }) => {
+        if (cancelled) return;
         if (err) setError(err.message);
         setEvents(data ?? []);
         setLoading(false);
       });
+    return () => { cancelled = true; };
   }, []);
 
   return { events, loading, error };
@@ -49,16 +52,19 @@ export function useEvent(id: string) {
     setLoading(true);
     setError(null);
     setEvent(null);
+    let cancelled = false;
     supabase
       .from('events')
       .select('*')
       .eq('id', id)
       .maybeSingle()
       .then(({ data, error: err }) => {
+        if (cancelled) return;
         if (err) setError(err.message);
         setEvent(data);
         setLoading(false);
       });
+    return () => { cancelled = true; };
   }, [id]);
 
   return { event, loading, error };

@@ -13,7 +13,7 @@ const MENU_ITEMS = [
   { id: 'account', label: 'Account', icon: 'person.fill', route: '/(drawer)/account' },
   { id: 'documents', label: 'My Documents', icon: 'doc.text.fill', route: '/documents' },
   { id: 'message-board', label: 'Message Board', icon: 'rectangle.grid.2x2.fill', route: '/(drawer)/message-board' },
-  { id: 'chat', label: 'Chat', icon: 'bubble.left.and.bubble.right.fill', route: '/(drawer)/chat' },
+  { id: 'community-board', label: 'Community Chat', icon: 'bubble.left.and.bubble.right.fill', route: '/community-board' },
   { id: 'learning-academy', label: 'Learning Academy', icon: 'book.fill', route: '/(drawer)/learning-academy' },
   { id: 'event-calendar', label: 'Event Calendar', icon: 'calendar', route: '/(drawer)/event-calendar' },
   { id: 'ask-question', label: 'Ask a Question', icon: 'questionmark.circle.fill', route: '/(drawer)/ask-question' },
@@ -89,7 +89,6 @@ function getDrawerRoute(route: string): string {
   const map: Record<string, string> = {
     '/(drawer)/account': 'account',
     '/(drawer)/message-board': 'message-board',
-    '/(drawer)/chat': 'chat',
     '/(drawer)/learning-academy': 'learning-academy',
     '/(drawer)/event-calendar': 'event-calendar',
     '/(drawer)/ask-question': 'ask-question',

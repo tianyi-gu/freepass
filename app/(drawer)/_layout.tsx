@@ -17,7 +17,6 @@ export default function DrawerLayout() {
         swipeEnabled: true,
       }}>
       <Drawer.Screen name="index" options={{ drawerLabel: () => null, title: 'Home' }} />
-      <Drawer.Screen name="chat" options={{ drawerLabel: () => null }} />
       <Drawer.Screen name="account" options={{ drawerLabel: () => null }} />
       <Drawer.Screen name="message-board" options={{ drawerLabel: () => null }} />
       <Drawer.Screen name="learning-academy" options={{ drawerLabel: () => null }} />

@@ -53,6 +53,23 @@ function sessionToProfile(
   };
 }
 
+// Fetch the profile + survey answers for a session and assemble a UserProfile.
+// Uses maybeSingle() so a brand-new user without a profile row doesn't error.
+async function buildProfileFromSession(session: Session): Promise<UserProfile> {
+  const [{ data: profile }, { data: surveyAnswers }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('display_name, onboarding_complete')
+      .eq('id', session.user.id)
+      .maybeSingle(),
+    supabase
+      .from('survey_answers')
+      .select('question_id, answer')
+      .eq('user_id', session.user.id),
+  ]);
+  return sessionToProfile(session, profile ?? undefined, normalizeSurveyAnswers(surveyAnswers));
+}
+
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,57 +77,49 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Load initial auth state
   useEffect(() => {
     async function init() {
-      // Check for guest session first
-      const guestData = await AsyncStorage.getItem(GUEST_STORAGE_KEY);
-      if (guestData) {
-        setUser(JSON.parse(guestData));
-        setIsLoading(false);
-        return;
-      }
+      try {
+        // Check for guest session first
+        const guestData = await AsyncStorage.getItem(GUEST_STORAGE_KEY);
+        if (guestData) {
+          try {
+            setUser(JSON.parse(guestData));
+            return;
+          } catch {
+            // Corrupted guest data — clear it and fall through to auth check
+            await AsyncStorage.removeItem(GUEST_STORAGE_KEY);
+          }
+        }
 
-      // Check Supabase session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const [{ data: profile }, { data: surveyAnswers }] = await Promise.all([
-          supabase
-            .from('profiles')
-            .select('display_name, onboarding_complete')
-            .eq('id', session.user.id)
-            .single(),
-          supabase
-            .from('survey_answers')
-            .select('question_id, answer')
-            .eq('user_id', session.user.id),
-        ]);
-        setUser(sessionToProfile(session, profile ?? undefined, normalizeSurveyAnswers(surveyAnswers)));
+        // Check Supabase session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setUser(await buildProfileFromSession(session));
+        }
+      } catch (err) {
+        if (__DEV__) console.error('[UserContext] init failed:', err);
+      } finally {
+        // Always release the loading gate so the app never hangs on a blank screen
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
     init();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        const [{ data: profile }, { data: surveyAnswers }] = await Promise.all([
-          supabase
-            .from('profiles')
-            .select('display_name, onboarding_complete')
-            .eq('id', session.user.id)
-            .single(),
-          supabase
-            .from('survey_answers')
-            .select('question_id, answer')
-            .eq('user_id', session.user.id),
-        ]);
-        setUser(sessionToProfile(session, profile ?? undefined, normalizeSurveyAnswers(surveyAnswers)));
-        // Clear guest data if they sign in
-        await AsyncStorage.removeItem(GUEST_STORAGE_KEY);
-      } else {
-        // Only clear user if no guest session
-        const guestData = await AsyncStorage.getItem(GUEST_STORAGE_KEY);
-        if (!guestData) {
-          setUser(null);
+      try {
+        if (session) {
+          setUser(await buildProfileFromSession(session));
+          // Clear guest data if they sign in
+          await AsyncStorage.removeItem(GUEST_STORAGE_KEY);
+        } else {
+          // Only clear user if no guest session
+          const guestData = await AsyncStorage.getItem(GUEST_STORAGE_KEY);
+          if (!guestData) {
+            setUser(null);
+          }
         }
+      } catch (err) {
+        if (__DEV__) console.error('[UserContext] auth change failed:', err);
       }
     });
 
@@ -173,16 +182,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }));
 
     if (upserts.length > 0) {
-      await supabase
+      const { error } = await supabase
         .from('survey_answers')
         .upsert(upserts, { onConflict: 'user_id,question_id' });
+      if (error && __DEV__) console.error('[UserContext] saveSurveyAnswers failed:', error);
     }
 
     if (typeof answers.zip_code === 'string' && answers.zip_code.trim()) {
-      await supabase
+      const { error } = await supabase
         .from('profiles')
         .update({ zip_code: answers.zip_code.trim() })
         .eq('id', user.id);
+      if (error && __DEV__) console.error('[UserContext] zip_code update failed:', error);
     }
 
     setUser((prev) => prev ? {
@@ -195,10 +206,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     if (!user.isGuest) {
-      await supabase
+      const { error } = await supabase
         .from('profiles')
         .update({ onboarding_complete: true })
         .eq('id', user.id);
+      if (error && __DEV__) console.error('[UserContext] completeOnboarding failed:', error);
     }
 
     setUser((prev) => prev ? { ...prev, onboardingComplete: true } : prev);

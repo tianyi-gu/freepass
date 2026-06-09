@@ -63,13 +63,29 @@ export function useBudget() {
 
   useEffect(() => {
     async function load() {
-      const [budgetStr, expensesStr] = await Promise.all([
-        AsyncStorage.getItem(BUDGET_KEY),
-        AsyncStorage.getItem(EXPENSES_KEY),
-      ]);
-      if (budgetStr) setMonthlyBudgetState(parseFloat(budgetStr));
-      if (expensesStr) setExpensesState(JSON.parse(expensesStr));
-      setIsLoading(false);
+      try {
+        const [budgetStr, expensesStr] = await Promise.all([
+          AsyncStorage.getItem(BUDGET_KEY),
+          AsyncStorage.getItem(EXPENSES_KEY),
+        ]);
+        if (budgetStr) {
+          const parsed = parseFloat(budgetStr);
+          if (!isNaN(parsed)) setMonthlyBudgetState(parsed);
+        }
+        if (expensesStr) {
+          try {
+            const parsed = JSON.parse(expensesStr);
+            if (Array.isArray(parsed)) setExpensesState(parsed);
+          } catch {
+            // Corrupted expenses data — start fresh rather than crashing
+            await AsyncStorage.removeItem(EXPENSES_KEY);
+          }
+        }
+      } catch (err) {
+        if (__DEV__) console.error('[useBudget] load failed:', err);
+      } finally {
+        setIsLoading(false);
+      }
     }
     load();
   }, []);
