@@ -274,11 +274,18 @@ async function fetchGroqReply(
 
 type VoiceGender = 'female' | 'male';
 
-// Pitch values for gender-based voice selection (works on all platforms)
+// Pitch fallback for gender when no matching installed voice is found.
+// Kept subtle — aggressive pitch-shifting is what made speech sound robotic.
 const VOICE_PITCH: Record<VoiceGender, number> = {
-  female: 1.3,
-  male: 0.8,
+  female: 1.15,
+  male: 0.9,
 };
+
+// Known iOS voice names by gender, best-first. Matched at runtime against
+// the device's installed voices — never hardcode a voice identifier, since
+// availability varies by device/OS version and a missing one breaks speech.
+const FEMALE_VOICE_NAMES = ['ava', 'zoe', 'allison', 'samantha', 'susan', 'nicky', 'karen'];
+const MALE_VOICE_NAMES = ['evan', 'nathan', 'tom', 'aaron', 'alex', 'daniel', 'fred'];
 
 export default function CaseyScreen() {
   const { user } = useUser();
@@ -290,6 +297,37 @@ export default function CaseyScreen() {
   const [voiceGender, setVoiceGender] = useState<VoiceGender>('female');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+  const [installedVoices, setInstalledVoices] = useState<Speech.Voice[]>([]);
+
+  useEffect(() => {
+    // Voice list can be empty on first call while the system warms up; a
+    // failure here simply leaves the system-default voice in place.
+    Speech.getAvailableVoicesAsync()
+      .then(setInstalledVoices)
+      .catch(() => {});
+  }, []);
+
+  // Best installed en-US voice for the requested gender. Prefers
+  // Enhanced-quality variants; returns undefined when nothing matches so
+  // the caller can fall back to the default voice + gentle pitch shift.
+  const pickVoice = useCallback(
+    (gender: VoiceGender): Speech.Voice | undefined => {
+      const enUS = installedVoices.filter((v) => v.language === 'en-US');
+      if (enUS.length === 0) return undefined;
+      const enhancedFirst = [...enUS].sort(
+        (a, b) =>
+          (b.quality === Speech.VoiceQuality.Enhanced ? 1 : 0) -
+          (a.quality === Speech.VoiceQuality.Enhanced ? 1 : 0),
+      );
+      const names = gender === 'female' ? FEMALE_VOICE_NAMES : MALE_VOICE_NAMES;
+      for (const name of names) {
+        const match = enhancedFirst.find((v) => v.name?.toLowerCase().includes(name));
+        if (match) return match;
+      }
+      return undefined;
+    },
+    [installedVoices],
+  );
   const listRef = useRef<FlatList>(null);
 
   const stopSpeaking = useCallback(() => {
@@ -304,9 +342,13 @@ export default function CaseyScreen() {
       setSpeakingMsgId(msgId);
       setIsSpeaking(true);
 
+      // A real gendered voice at natural pitch sounds far more human than
+      // the default voice pitch-shifted; only pitch-shift when no matching
+      // voice is installed.
+      const voice = pickVoice(voiceGender);
       const options: Speech.SpeechOptions = {
         language: 'en-US',
-        pitch: VOICE_PITCH[voiceGender],
+        ...(voice ? { voice: voice.identifier } : { pitch: VOICE_PITCH[voiceGender] }),
         onDone: () => { setIsSpeaking(false); setSpeakingMsgId(null); },
         onStopped: () => { setIsSpeaking(false); setSpeakingMsgId(null); },
         onError: () => { setIsSpeaking(false); setSpeakingMsgId(null); },
@@ -314,7 +356,7 @@ export default function CaseyScreen() {
 
       Speech.speak(text, options);
     },
-    [voiceGender]
+    [voiceGender, pickVoice]
   );
 
   // Audio recording ref for speech-to-text
