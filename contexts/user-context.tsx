@@ -5,6 +5,16 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, 
 import { supabase } from '@/lib/supabase';
 
 const GUEST_STORAGE_KEY = '@freepass_guest';
+// Survey answers collected before the user has an authenticated session
+// (email confirmation pending, or guest browsing). Flushed to Supabase on
+// the first sign-in — without this, answers given right after signup are
+// lost because writes require an authenticated session under RLS.
+const PENDING_SURVEY_KEY = '@freepass_pending_survey';
+const PENDING_ONBOARDING_KEY = '@freepass_pending_onboarding_complete';
+// The auth user id the pending data belongs to (known at signup time even
+// without a session). Guards against a different account logging in on a
+// shared device and absorbing someone else's answers.
+const PENDING_OWNER_KEY = '@freepass_pending_owner';
 
 export interface UserProfile {
   id: string;
@@ -53,9 +63,77 @@ function sessionToProfile(
   };
 }
 
+// Merge answers into the locally-stashed pending survey data.
+async function stashPendingAnswers(answers: Record<string, string | string[]>): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_SURVEY_KEY);
+    let existing: Record<string, string | string[]> = {};
+    if (raw) {
+      try { existing = JSON.parse(raw); } catch { /* corrupted — overwrite */ }
+    }
+    await AsyncStorage.setItem(PENDING_SURVEY_KEY, JSON.stringify({ ...existing, ...answers }));
+  } catch (err) {
+    if (__DEV__) console.error('[UserContext] stashPendingAnswers failed:', err);
+  }
+}
+
+// Push any locally-stashed survey answers / onboarding flag to Supabase once
+// an authenticated session exists. No-op when nothing is pending.
+async function flushPendingLocalData(userId: string): Promise<void> {
+  try {
+    // If the pending data was collected during a specific account's signup,
+    // only flush it into that same account.
+    const owner = await AsyncStorage.getItem(PENDING_OWNER_KEY);
+    if (owner && owner !== userId) return;
+
+    const raw = await AsyncStorage.getItem(PENDING_SURVEY_KEY);
+    if (raw) {
+      let pending: Record<string, string | string[]> | null = null;
+      try { pending = JSON.parse(raw); } catch { /* corrupted */ }
+      const entries = pending ? Object.entries(pending) : [];
+      if (entries.length > 0) {
+        const upserts = entries.map(([questionId, answer]) => ({
+          user_id: userId,
+          question_id: questionId,
+          answer,
+        }));
+        const { error } = await supabase
+          .from('survey_answers')
+          .upsert(upserts, { onConflict: 'user_id,question_id' });
+        if (error) {
+          if (__DEV__) console.error('[UserContext] flush pending survey failed:', error);
+          return; // keep the stash and retry on the next sign-in event
+        }
+        const zip = pending?.zip_code;
+        if (typeof zip === 'string' && zip.trim()) {
+          await supabase.from('profiles').update({ zip_code: zip.trim() }).eq('id', userId);
+        }
+      }
+      await AsyncStorage.removeItem(PENDING_SURVEY_KEY);
+    }
+
+    const pendingComplete = await AsyncStorage.getItem(PENDING_ONBOARDING_KEY);
+    if (pendingComplete) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ onboarding_complete: true })
+        .eq('id', userId);
+      if (!error) await AsyncStorage.removeItem(PENDING_ONBOARDING_KEY);
+    }
+
+    await AsyncStorage.removeItem(PENDING_OWNER_KEY);
+  } catch (err) {
+    if (__DEV__) console.error('[UserContext] flushPendingLocalData failed:', err);
+  }
+}
+
 // Fetch the profile + survey answers for a session and assemble a UserProfile.
 // Uses maybeSingle() so a brand-new user without a profile row doesn't error.
 async function buildProfileFromSession(session: Session): Promise<UserProfile> {
+  // Sync any answers collected before this session existed, so the
+  // fetch below already sees them.
+  await flushPendingLocalData(session.user.id);
+
   const [{ data: profile }, { data: surveyAnswers }] = await Promise.all([
     supabase
       .from('profiles')
@@ -142,12 +220,28 @@ export function UserProvider({ children }: { children: ReactNode }) {
       throw new Error('already registered');
     }
 
-    // Update profile with zip code if provided
+    // Update profile with zip code if provided. Without a session (email
+    // confirmation pending) RLS blocks the write, so stash it for the
+    // post-confirmation sign-in instead.
     if (zipCode && data.user) {
-      await supabase
-        .from('profiles')
-        .update({ zip_code: zipCode })
-        .eq('id', data.user.id);
+      if (data.session) {
+        await supabase
+          .from('profiles')
+          .update({ zip_code: zipCode })
+          .eq('id', data.user.id);
+      } else {
+        await stashPendingAnswers({ zip_code: zipCode });
+      }
+    }
+
+    // Tag any pre-session survey data with this account so it can only
+    // ever sync into this account.
+    if (data.user && !data.session) {
+      try {
+        await AsyncStorage.setItem(PENDING_OWNER_KEY, data.user.id);
+      } catch (err) {
+        if (__DEV__) console.error('[UserContext] pending owner stash failed:', err);
+      }
     }
 
     // If email confirmation is required, the session will be null.
@@ -172,7 +266,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const saveSurveyAnswers = useCallback(async (answers: Record<string, string | string[]>) => {
-    if (!user || user.isGuest) return;
+    if (!user || user.isGuest) {
+      // No authenticated session yet (fresh signup awaiting email
+      // confirmation, or guest). Keep the answers locally — they sync to
+      // Supabase automatically on the first sign-in.
+      await stashPendingAnswers(answers);
+      setUser((prev) => prev?.isGuest ? {
+        ...prev,
+        surveyAnswers: { ...prev.surveyAnswers, ...answers },
+      } : prev);
+      return;
+    }
 
     // Upsert each answer to Supabase
     const upserts = Object.entries(answers).map(([questionId, answer]) => ({
@@ -203,7 +307,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const completeOnboarding = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      // Signed up but not signed in yet — record completion locally and
+      // sync it on the first sign-in.
+      try {
+        await AsyncStorage.setItem(PENDING_ONBOARDING_KEY, 'true');
+      } catch (err) {
+        if (__DEV__) console.error('[UserContext] pending onboarding stash failed:', err);
+      }
+      return;
+    }
 
     if (!user.isGuest) {
       const { error } = await supabase
