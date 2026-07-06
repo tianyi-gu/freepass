@@ -18,7 +18,9 @@
   "submit": {
     "production": {
       "ios": {
-        "ascAppId": "6764477495"
+        "ascApiKeyPath": "/Users/tianyievansgu/.appstoreconnect/private_keys/AuthKey_8WPG35YTXM.p8",
+        "ascApiKeyId": "8WPG35YTXM",
+        "ascApiKeyIssuerId": "4d895034-052d-4931-b13d-e6a297b49a42"
       }
     }
   }

@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "org.thefountainfund.freepass",
+      "bundleIdentifier": "org.thefountainfund.freepass.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
