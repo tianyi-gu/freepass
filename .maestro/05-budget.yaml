@@ -1,0 +1,13 @@
+appId: com.anonymous.freepass
+name: Budget tool records an expense
+---
+- launchApp
+- tapOn: ".*Budget.*"
+- tapOn: ".*Add.*"
+- assertVisible: "Add Expense"
+- tapOn: "0.00"
+- inputText: "12.50"
+- tapOn: "e.g. Groceries at Aldi"
+- inputText: "Test groceries"
+- tapOn: "Save Expense"
+- assertVisible: ".*Test groceries.*"

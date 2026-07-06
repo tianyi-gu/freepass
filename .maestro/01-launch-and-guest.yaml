@@ -1,0 +1,15 @@
+appId: com.anonymous.freepass
+name: Launch, welcome screen, continue as guest
+---
+- launchApp:
+    clearState: true
+- assertVisible: "FreePass"
+- assertVisible: "QUICK ACCESS"
+- assertVisible: ".*CREATE FREE ACCOUNT.*"
+# Guest entry: go to signup screen, then continue as guest
+- tapOn: ".*CREATE FREE ACCOUNT.*"
+- assertVisible: ".*CREATE AN ACCOUNT.*"
+- assertVisible: "LOG IN"
+- tapOn: "Continue as Guest"
+- assertVisible: "QUICK ACCESS"
+- assertVisible: "EXPLORE"

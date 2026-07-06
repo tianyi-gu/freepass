@@ -1,0 +1,14 @@
+appId: com.anonymous.freepass
+name: Casey AI replies to a housing question
+---
+- launchApp
+- tapOn: ".*Casey.*"
+- assertVisible: "Message Casey..."
+- tapOn: "Message Casey..."
+- inputText: "Where can I find housing help in Philadelphia?"
+- tapOn: "Send"
+- extendedWaitUntil:
+    visible:
+      text: ".*ousing.*"
+    timeout: 45000
+- assertNotVisible: "Sorry, I'm having trouble connecting right now."

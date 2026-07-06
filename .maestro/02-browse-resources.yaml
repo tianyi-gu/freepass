@@ -1,0 +1,17 @@
+appId: com.anonymous.freepass
+name: Browse and search real resources
+---
+- launchApp
+- tapOn: ".*Resources.*"
+- assertVisible: "Below are relevant services in your area."
+- tapOn: "Search Resources..."
+- inputText: "legal"
+- tapOn: "Below are relevant services in your area."
+- scrollUntilVisible:
+    element: ".*Community Legal Services.*"
+- tapOn:
+    text: ".*Community Legal Services.*"
+    index: 0
+- extendedWaitUntil:
+    visible: ".*DIRECTIONS.*"
+    timeout: 10000

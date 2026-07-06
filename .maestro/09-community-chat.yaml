@@ -1,0 +1,19 @@
+appId: com.anonymous.freepass
+name: Community chat posts a message as guest
+---
+- launchApp:
+    clearState: true
+- tapOn: ".*CREATE FREE ACCOUNT.*"
+- tapOn: "Continue as Guest"
+- assertVisible: "QUICK ACCESS"
+- tapOn:
+    point: "9%,10%"
+- waitForAnimationToEnd
+- tapOn: ".*Community Chat.*"
+- assertVisible: "Community Board"
+- tapOn: "Write a message..."
+- inputText: "E2E test message please ignore"
+- tapOn: "POST"
+- extendedWaitUntil:
+    visible: ".*E2E test message please ignore.*"
+    timeout: 15000

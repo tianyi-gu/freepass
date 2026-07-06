@@ -1,0 +1,23 @@
+appId: com.anonymous.freepass
+name: Login after confirmation syncs pending survey answers
+env:
+  EMAIL: freepass.e2e.20260706@gmail.com
+---
+- launchApp
+- tapOn: ".*CREATE FREE ACCOUNT.*"
+- tapOn: "LOG IN"
+- assertVisible: "Welcome Back"
+- tapOn: "Enter your email..."
+- inputText: ${EMAIL}
+- pressKey: Enter
+- waitForAnimationToEnd
+- tapOn: "Enter your password..."
+- inputText: "E2eTest!2026pass"
+- pressKey: Enter
+- waitForAnimationToEnd
+- tapOn:
+    text: "LOG IN"
+    index: 0
+- extendedWaitUntil:
+    visible: "Hello, E2E Tester!"
+    timeout: 20000

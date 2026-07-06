@@ -1,0 +1,9 @@
+appId: com.anonymous.freepass
+name: Learning academy lists real courses
+---
+- launchApp
+- tapOn: ".*Courses.*"
+- extendedWaitUntil:
+    visible:
+      text: ".*Financial.*"
+    timeout: 15000

@@ -1,0 +1,77 @@
+appId: com.anonymous.freepass
+name: Signup then onboarding survey (validates pending-answer fix)
+env:
+  EMAIL: freepass.e2e.20260706@gmail.com
+---
+- launchApp:
+    clearState: true
+- tapOn: ".*CREATE FREE ACCOUNT.*"
+- tapOn: ".*CREATE AN ACCOUNT.*"
+- assertVisible: "Create Your Account"
+- tapOn: "What should we call you?"
+- inputText: "E2E Tester"
+- pressKey: Enter
+- waitForAnimationToEnd
+- tapOn: "Enter your email..."
+- inputText: ${EMAIL}
+- pressKey: Enter
+- waitForAnimationToEnd
+- tapOn: "Create a password..."
+- inputText: "E2eTest!2026pass"
+- pressKey: Enter
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element: "SIGN UP"
+- tapOn: "SIGN UP"
+- extendedWaitUntil:
+    visible: "Account Created!"
+    timeout: 20000
+- tapOn: ".*TAKE THE SURVEY.*"
+- assertVisible: "Step 1 of 5.*"
+# Step 1 — About You (double-taps: first tap dismisses keyboard)
+- tapOn:
+    text: "Type here..."
+    index: 0
+- inputText: "E2E"
+- pressKey: Enter
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element: "Less than 1 month"
+- tapOn: "Less than 1 month"
+- tapOn: ".*Continue.*"
+# Step 2 — What You Need
+- tapOn: "Housing"
+- tapOn: "Employment"
+- tapOn: ".*Continue.*"
+# Step 3 — Work & Housing
+- tapOn: "Looking for work"
+- scrollUntilVisible:
+    element: "Tech / computers"
+- tapOn: "Tech / computers"
+- scrollUntilVisible:
+    element: "Need help with housing"
+- tapOn: "Need help with housing"
+- tapOn: ".*Continue.*"
+# Step 4 — Finances & Education
+- tapOn: "Budgeting"
+- scrollUntilVisible:
+    element: "GED"
+- tapOn: "GED"
+- scrollUntilVisible:
+    element: "Yes, definitely"
+- tapOn: "Yes, definitely"
+- tapOn: ".*Continue.*"
+# Step 5 — Your Support
+- tapOn: "Somewhat"
+- scrollUntilVisible:
+    element: "Not sure what that is"
+- tapOn:
+    text: "No"
+    index: 0
+- scrollUntilVisible:
+    element: "In the app"
+- tapOn: "In the app"
+- tapOn: ".*Get Started.*"
+- assertVisible: "You're all set!"
+- tapOn: ".*Explore FreePass.*"
+- assertVisible: "QUICK ACCESS"

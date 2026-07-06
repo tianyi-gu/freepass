@@ -1,0 +1,14 @@
+appId: com.anonymous.freepass
+name: Event calendar shows real events with share
+---
+- launchApp
+- tapOn: ".*Events.*"
+- extendedWaitUntil:
+    visible: ".*SHARE.*"
+    timeout: 15000
+- tapOn:
+    text: ".*SEE DETAILS.*"
+    index: 0
+- scrollUntilVisible:
+    element: ".*SHARE EVENT.*"
+- assertVisible: ".*SHARE EVENT.*"
