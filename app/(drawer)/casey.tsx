@@ -45,10 +45,10 @@ Your goal is to have a short, guided conversation before recommending resources.
   - The phone number
 
 Rules:
-- Never recommend organizations not in the provided list
+- Only recommend organizations from the directory below — never invent or guess at organizations, phone numbers, or hours
 - Keep every message to 3-4 sentences max
 - Be warm, human, and encouraging — never clinical or bureaucratic
-- If the user's need doesn't match any resource well, be honest and suggest they call 211
+- The directory below is the complete list of FreePass resources. If nothing in it matches the user's need, say so honestly and suggest they call 211 — don't stretch a poor match
 - If the user's profile below is provided, use it to personalize from the start — don't re-ask things you already know (their name, location, needs, housing/work situation). Lead with what's most relevant to them, but still confirm briefly before recommending.`;
 
 // Maps onboarding survey question IDs to short, readable labels for Casey's context.
@@ -87,21 +87,6 @@ function buildUserContext(
   return `Here is what the user shared about themselves during sign-up. Use it to personalize, but don't read it back to them verbatim:\n${lines.join('\n')}`;
 }
 
-// Survey fields whose values make good extra retrieval keywords, so the first
-// recommendation is relevant even before the user types specifics.
-const RETRIEVAL_KEYWORD_FIELDS = ['immediate_needs', 'work_interests', 'housing_status', 'financial_help'];
-
-function surveyRetrievalKeywords(answers: Record<string, string | string[]> | undefined): string {
-  if (!answers) return '';
-  const parts: string[] = [];
-  for (const field of RETRIEVAL_KEYWORD_FIELDS) {
-    const value = answers[field];
-    if (Array.isArray(value)) parts.push(...value);
-    else if (value) parts.push(value);
-  }
-  return parts.join(' ');
-}
-
 type Resource = {
   name: string;
   address: string | null;
@@ -125,32 +110,10 @@ const OPENING_MESSAGE: Message = {
   text: "Hi, I'm Casey. I'm so glad you're here. I can help you find resources in Philadelphia — whether it's a job, housing, legal help, or anything else. What's on your mind?",
 };
 
-function filterResources(resources: Resource[], query: string): Resource[] {
-  const keywords = query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((w) => w.length > 2);
-
-  if (!keywords.length) return resources.slice(0, 5);
-
-  const scored = resources
-    .map((r) => {
-      const haystack = [...(r.tags || []), r.name, r.description]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      const hits = keywords.filter((kw) => haystack.includes(kw)).length;
-      return { resource: r, hits };
-    })
-    .filter((x) => x.hits > 0)
-    .sort((a, b) => b.hits - a.hits)
-    .slice(0, 6)
-    .map((x) => x.resource);
-
-  return scored.length > 0 ? scored : resources.slice(0, 5);
-}
-
 function buildContext(resources: Resource[]): string {
+  if (resources.length === 0) {
+    return 'The resource directory could not be loaded right now. Do not invent or recommend any organization — apologize and suggest the user browse the Resources tab or call 211.';
+  }
   return resources
     .map(
       (r) =>
@@ -168,7 +131,7 @@ type GeminiPayload = {
 
 function buildSystemInstruction(resourceContext: string, userContext: string): string {
   const profileBlock = userContext ? `\n\n${userContext}` : '';
-  return `${SYSTEM_PROMPT}${profileBlock}\n\nHere are the available Philadelphia reentry resources you may recommend from:\n\n${resourceContext}`;
+  return `${SYSTEM_PROMPT}${profileBlock}\n\nHere is the complete FreePass directory of Philadelphia reentry resources:\n\n${resourceContext}`;
 }
 
 function buildGeminiPayload(
@@ -476,14 +439,11 @@ export default function CaseyScreen() {
         surveyAnswers,
       );
 
-      // Retrieval uses the conversation plus the user's stated needs from the
-      // survey, so the first recommendation is relevant even before they type specifics.
-      const allUserText = [
-        historySnapshot.filter((m) => m.role === 'user').map((m) => m.text).join(' '),
-        surveyRetrievalKeywords(surveyAnswers),
-      ].join(' ');
-      const matched = filterResources(resources, allUserText);
-      const context = buildContext(matched);
+      // The full published directory is small (~100 orgs, ~8k tokens), so send
+      // all of it and let the model match semantically. Keyword pre-filtering
+      // missed needs phrased differently from the tags (e.g. "somewhere to
+      // sleep" vs "housing") and padded misses with arbitrary orgs.
+      const context = buildContext(resources);
 
       // Primary provider is Gemini; if it fails for any reason (e.g. quota /
       // billing depleted), automatically fall back to Groq so the chat keeps
@@ -623,6 +583,9 @@ export default function CaseyScreen() {
             <Text style={styles.sendBtnText}>Send</Text>
           </Pressable>
         </View>
+        <Text style={styles.disclaimer}>
+          Casey can make mistakes. Double-check phone numbers and hours, and call 211 for urgent needs.
+        </Text>
       </KeyboardAvoidingView>
       <FreepassTabBar activeTab="casey" />
     </View>
@@ -787,5 +750,14 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     marginTop: 6,
     padding: 4,
+  },
+  disclaimer: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: FreepassColors.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 8,
+    backgroundColor: FreepassColors.white,
   },
 });
