@@ -3,10 +3,10 @@ name: Browse and search real resources
 ---
 - launchApp
 - tapOn: ".*Resources.*"
-- assertVisible: "Below are relevant services in your area."
+- assertVisible: "Below are services in the FreePass directory."
 - tapOn: "Search Resources..."
 - inputText: "legal"
-- tapOn: "Below are relevant services in your area."
+- tapOn: "Below are services in the FreePass directory."
 - scrollUntilVisible:
     element: ".*Community Legal Services.*"
 - tapOn:
