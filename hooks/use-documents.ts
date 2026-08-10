@@ -59,22 +59,34 @@ export function useDocuments(userId: string | null) {
   const [documents, setDocuments] = useState<UserDocument[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!userId) {
       setDocuments([]);
+      setLoadError(null);
       return;
     }
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from('user_documents')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    if (!error && data) {
-      setDocuments(data as UserDocument[]);
+    try {
+      const { data, error } = await supabase
+        .from('user_documents')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      if (error || !data) {
+        // Never show "No documents yet" for a failed fetch — a user whose ID
+        // photos are stored here must not be told their documents are gone.
+        setLoadError(error?.message ?? 'Could not load documents');
+      } else {
+        setDocuments(data as UserDocument[]);
+        setLoadError(null);
+      }
+    } catch (err: any) {
+      setLoadError(err?.message ?? 'Could not load documents');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, [userId]);
 
   useEffect(() => {
@@ -130,8 +142,18 @@ export function useDocuments(userId: string | null) {
 
   const deleteDocument = useCallback(
     async (doc: UserDocument) => {
-      await supabase.storage.from(BUCKET).remove([doc.storage_path]);
-      await supabase.from('user_documents').delete().eq('id', doc.id);
+      // Delete the file FIRST and verify it worked. Deleting the metadata row
+      // unconditionally would strand the image in the bucket forever with no
+      // UI able to reach it — while telling the user it was permanently deleted.
+      const { error: storageError } = await supabase.storage
+        .from(BUCKET)
+        .remove([doc.storage_path]);
+      if (storageError) throw storageError;
+      const { error: rowError } = await supabase
+        .from('user_documents')
+        .delete()
+        .eq('id', doc.id);
+      if (rowError) throw rowError;
       setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
     },
     [],
@@ -166,6 +188,7 @@ export function useDocuments(userId: string | null) {
     documents,
     isLoading,
     isUploading,
+    loadError,
     reload: load,
     uploadDocument,
     deleteDocument,

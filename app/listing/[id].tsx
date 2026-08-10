@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { openDirections, openEmail, openPhone, openWebUrl } from '@/lib/links';
 import { useResource } from '@/hooks/use-resources';
 
 export default function ListingScreen() {
@@ -85,7 +86,7 @@ export default function ListingScreen() {
           {resource.phone && (
             <Pressable
               style={styles.actionBtn}
-              onPress={() => Linking.openURL(`tel:${resource.phone!.replace(/[^0-9+]/g, '')}`)}>
+              onPress={() => openPhone(resource.phone)}>
               <IconSymbol name="phone.fill" size={18} color={FreepassColors.white} />
               <Text style={styles.actionBtnText}>CALL</Text>
             </Pressable>
@@ -97,11 +98,7 @@ export default function ListingScreen() {
                 const query = resource.address
                   ? `${resource.address}, ${resource.city}, ${resource.state}`
                   : `${resource.name}, ${resource.city}, ${resource.state}`;
-                const encoded = encodeURIComponent(query);
-                const url = Platform.OS === 'ios'
-                  ? `maps://app?daddr=${encoded}`
-                  : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-                Linking.openURL(url);
+                openDirections(query);
               }}>
               <IconSymbol name="map.fill" size={18} color={FreepassColors.white} />
               <Text style={styles.actionBtnText}>DIRECTIONS</Text>
@@ -110,10 +107,7 @@ export default function ListingScreen() {
           {resource.website && (
             <Pressable
               style={styles.actionBtn}
-              onPress={() => {
-                const url = resource.website!.startsWith('http') ? resource.website! : `https://${resource.website}`;
-                Linking.openURL(url);
-              }}>
+              onPress={() => openWebUrl(resource.website)}>
               <IconSymbol name="globe" size={18} color={FreepassColors.white} />
               <Text style={styles.actionBtnText}>WEBSITE</Text>
             </Pressable>
@@ -136,14 +130,14 @@ export default function ListingScreen() {
             <View style={styles.contactActions}>
               <Pressable
                 style={styles.contactBtn}
-                onPress={() => Linking.openURL(`mailto:${resource.email}`)}>
+                onPress={() => openEmail(resource.email)}>
                 <IconSymbol name="envelope.fill" size={16} color={FreepassColors.white} />
                 <Text style={styles.contactBtnText}>Email</Text>
               </Pressable>
               {resource.phone && (
                 <Pressable
                   style={styles.contactBtn}
-                  onPress={() => Linking.openURL(`tel:${resource.phone!.replace(/[^0-9+]/g, '')}`)}>
+                  onPress={() => openPhone(resource.phone)}>
                   <IconSymbol name="phone.fill" size={16} color={FreepassColors.white} />
                   <Text style={styles.contactBtnText}>Call</Text>
                 </Pressable>

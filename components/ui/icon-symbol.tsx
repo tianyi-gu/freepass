@@ -66,6 +66,17 @@ const MAPPING = {
   'bolt.fill': 'bolt',
   'ellipsis.circle.fill': 'more-horiz',
   'square.and.arrow.up': 'ios-share',
+  'location.fill': 'place',
+  'location.slash.fill': 'location-off',
+  'arrow.triangle.turn.up.right.circle.fill': 'directions',
+  'checkmark.circle.fill': 'check-circle',
+  'checkmark.seal.fill': 'verified',
+  'exclamationmark.circle': 'error-outline',
+  'hand.wave.fill': 'waving-hand',
+  'list.bullet': 'format-list-bulleted',
+  'square.grid.2x2.fill': 'grid-view',
+  'doc.fill': 'insert-drive-file',
+  'person.text.rectangle': 'badge',
 } as IconMapping;
 
 /**
