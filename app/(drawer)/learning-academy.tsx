@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { openWebUrl } from '@/lib/links';
 import { supabase } from '@/lib/supabase';
 
 const BANZAI_URL = 'https://fountainfund.banzai.org/wellness';
@@ -61,19 +62,19 @@ export default function LearningAcademyScreen() {
 
         <Pressable
           style={[styles.ctaBtn, styles.ctaBtnAccent]}
-          onPress={() => Linking.openURL(BANZAI_URL)}
+          onPress={() => openWebUrl(BANZAI_URL)}
           android_ripple={{ color: FreepassColors.primaryDark }}>
           <IconSymbol name="book.fill" size={20} color={FreepassColors.white} />
           <Text style={styles.ctaText}>FINANCIAL EDUCATION (BANZAI)</Text>
         </Pressable>
 
         <Text style={styles.body}>
-          FreePass includes The Fountain Fund&apos;s vetted resources and courses to help you achieve independence and
-          financial stability.
+          FreePass brings together resources and courses shared by The Fountain Fund to help you
+          achieve independence and financial stability.
         </Text>
         <Text style={styles.body}>
-          The Learning Academy Program offers self-guided exercises, certifications, and on-demand video workshops for
-          financial well-being—accessible to all FreePass account holders.
+          The Learning Academy offers self-guided courses and financial education materials.
+          New content is added over time — check back if you don&apos;t see what you need yet.
         </Text>
 
         <View style={styles.darkSection}>
@@ -100,14 +101,12 @@ export default function LearningAcademyScreen() {
               key={c.id}
               style={styles.courseCard}
               onPress={() => {
+                // Course links come from the database — treat them as web
+                // URLs only. Routing arbitrary DB text into the navigator
+                // produced "Unmatched Route" screens for scheme-less URLs.
                 const link = c.web_link || c.video_link;
-                if (link) {
-                  if (link.startsWith('http')) {
-                    Linking.openURL(link);
-                  } else {
-                    router.push(link as never);
-                  }
-                }
+                if (link) openWebUrl(link);
+                else router.push(`/course/${c.id}` as never);
               }}
               android_ripple={{ color: FreepassColors.lightGray }}>
               <View style={styles.courseImage}>
@@ -124,8 +123,8 @@ export default function LearningAcademyScreen() {
 
         <View style={styles.darkSection}>
           <Text style={styles.darkText}>
-            In order to have your loan application approved, you must obtain a completed certificate from the FDIC
-            Money Smart program. Instructions have been included and can be completed here:
+            The Fountain Fund may ask loan applicants to complete an FDIC Money Smart course —
+            check with staff about your application. You can review the courses here:
           </Text>
           <Pressable
             style={styles.darkBtn}

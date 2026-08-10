@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { openWebUrl } from '@/lib/links';
 
 const FOUNTAIN_FUND_URL = 'https://www.fountainfund.org/';
 
@@ -26,7 +27,7 @@ export default function FountainFundScreen() {
 
         <Pressable
           style={styles.ctaBtn}
-          onPress={() => Linking.openURL(FOUNTAIN_FUND_URL)}
+          onPress={() => openWebUrl(FOUNTAIN_FUND_URL)}
           android_ripple={{ color: FreepassColors.primaryDark }}>
           <IconSymbol name="globe" size={20} color={FreepassColors.white} />
           <Text style={styles.ctaText}>FOUNTAIN FUND WEBSITE</Text>
@@ -121,6 +122,10 @@ export default function FountainFundScreen() {
             </Text>
           </View>
 
+          <Text style={styles.sourceNote}>
+            Stories shared from The Fountain Fund&apos;s Impact page at fountainfund.org.
+          </Text>
+
           <Pressable
             style={[styles.ctaBtn, styles.ctaBtnDark]}
             onPress={() => router.replace('/(drawer)/learning-academy' as never)}
@@ -195,6 +200,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: FreepassColors.text,
     marginBottom: 16,
+  },
+  sourceNote: {
+    fontSize: 12,
+    color: FreepassColors.textSecondary,
+    marginBottom: 16,
+    fontStyle: 'italic',
   },
   storyCard: {
     backgroundColor: FreepassColors.cardBg,

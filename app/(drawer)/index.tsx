@@ -132,7 +132,7 @@ export default function HomeScreen() {
               <View style={styles.docPromptText}>
                 <Text style={styles.docPromptTitle}>Keep your documents safe</Text>
                 <Text style={styles.docPromptBody}>
-                  Snap a photo of your ID, certifications, or paperwork. Only you can see them.
+                  Snap a photo of your ID, certifications, or paperwork — private to your account.
                 </Text>
               </View>
               <Pressable
