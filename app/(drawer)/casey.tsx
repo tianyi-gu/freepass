@@ -1,4 +1,5 @@
 import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Speech from 'expo-speech';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -22,6 +23,7 @@ import { useUser } from '@/contexts/user-context';
 import { supabase } from '@/lib/supabase';
 
 const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_KEY;
+const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 
 const GEMINI_API_BASE =
   'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
@@ -250,6 +252,66 @@ const VOICE_PITCH: Record<VoiceGender, number> = {
 const FEMALE_VOICE_NAMES = ['ava', 'zoe', 'allison', 'samantha', 'susan', 'nicky', 'karen'];
 const MALE_VOICE_NAMES = ['evan', 'nathan', 'tom', 'aaron', 'alex', 'daniel', 'fred'];
 
+// Primary TTS: OpenAI gpt-4o-mini-tts — far more natural than device speech
+// synthesis. Device speech (above) remains the fallback when the key is
+// missing or the request fails, so voice keeps working offline.
+const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech';
+const OPENAI_TTS_MODEL = 'gpt-4o-mini-tts';
+const OPENAI_TTS_VOICES: Record<VoiceGender, string> = {
+  female: 'nova',
+  male: 'onyx',
+};
+const OPENAI_TTS_INSTRUCTIONS =
+  'Speak warmly and supportively, at a relaxed natural pace, like a friendly caseworker reassuring someone.';
+
+// Synthesizes speech with OpenAI and returns a local file URI for playback.
+// Written to the cache directory so replays of the same message are free.
+async function fetchOpenAiSpeech(
+  text: string,
+  gender: VoiceGender,
+  cacheKey: string,
+): Promise<string> {
+  if (!OPENAI_API_KEY) throw new Error('Missing EXPO_PUBLIC_OPENAI_API_KEY.');
+
+  const res = await fetch(OPENAI_TTS_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: OPENAI_TTS_MODEL,
+      voice: OPENAI_TTS_VOICES[gender],
+      input: text,
+      instructions: OPENAI_TTS_INSTRUCTIONS,
+      response_format: 'mp3',
+    }),
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => null);
+    throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
+  }
+
+  // RN's fetch has no arrayBuffer support on all platforms; go through
+  // blob → data URL to get base64 for expo-file-system.
+  const blob = await res.blob();
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      resolve(dataUrl.slice(dataUrl.indexOf(',') + 1));
+    };
+    reader.readAsDataURL(blob);
+  });
+
+  const uri = `${FileSystem.cacheDirectory}casey-tts-${cacheKey}.mp3`;
+  await FileSystem.writeAsStringAsync(uri, base64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  return uri;
+}
+
 export default function CaseyScreen() {
   const { user } = useUser();
   const [resources, setResources] = useState<Resource[]>([]);
@@ -293,21 +355,29 @@ export default function CaseyScreen() {
   );
   const listRef = useRef<FlatList>(null);
 
+  // Currently playing OpenAI TTS sound, if any.
+  const soundRef = useRef<Audio.Sound | null>(null);
+  // Bumped whenever speech is (re)started or stopped so in-flight synthesis
+  // requests know they've been superseded and must not start playing.
+  const speakSeqRef = useRef(0);
+  // msgId+gender → local audio file URI, so replaying a message is free.
+  const ttsFileCacheRef = useRef<Map<string, string>>(new Map());
+
   const stopSpeaking = useCallback(() => {
+    speakSeqRef.current += 1;
     Speech.stop();
+    const sound = soundRef.current;
+    soundRef.current = null;
+    sound?.unloadAsync().catch(() => {});
     setIsSpeaking(false);
     setSpeakingMsgId(null);
   }, []);
 
-  const speakText = useCallback(
-    (text: string, msgId: string) => {
-      Speech.stop();
-      setSpeakingMsgId(msgId);
-      setIsSpeaking(true);
-
-      // A real gendered voice at natural pitch sounds far more human than
-      // the default voice pitch-shifted; only pitch-shift when no matching
-      // voice is installed.
+  // Fallback: on-device speech synthesis. A real gendered voice at natural
+  // pitch sounds far more human than the default voice pitch-shifted; only
+  // pitch-shift when no matching voice is installed.
+  const speakWithDevice = useCallback(
+    (text: string) => {
       const voice = pickVoice(voiceGender);
       const options: Speech.SpeechOptions = {
         language: 'en-US',
@@ -320,6 +390,51 @@ export default function CaseyScreen() {
       Speech.speak(text, options);
     },
     [voiceGender, pickVoice]
+  );
+
+  const speakText = useCallback(
+    async (text: string, msgId: string) => {
+      stopSpeaking();
+      const seq = speakSeqRef.current;
+      setSpeakingMsgId(msgId);
+      setIsSpeaking(true);
+
+      try {
+        const cacheKey = `${msgId}-${voiceGender}`;
+        let uri = ttsFileCacheRef.current.get(cacheKey);
+        if (!uri) {
+          uri = await fetchOpenAiSpeech(text, voiceGender, cacheKey);
+          ttsFileCacheRef.current.set(cacheKey, uri);
+        }
+        // Another speak/stop happened while we were synthesizing.
+        if (speakSeqRef.current !== seq) return;
+
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+        });
+        const { sound } = await Audio.Sound.createAsync({ uri }, { shouldPlay: true });
+        if (speakSeqRef.current !== seq) {
+          sound.unloadAsync().catch(() => {});
+          return;
+        }
+        soundRef.current = sound;
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (!status.isLoaded || !status.didJustFinish) return;
+          if (soundRef.current === sound) {
+            soundRef.current = null;
+            setIsSpeaking(false);
+            setSpeakingMsgId(null);
+          }
+          sound.unloadAsync().catch(() => {});
+        });
+      } catch (err) {
+        if (__DEV__) console.warn('[Casey] OpenAI TTS failed, using device speech:', err);
+        if (speakSeqRef.current !== seq) return;
+        speakWithDevice(text);
+      }
+    },
+    [voiceGender, stopSpeaking, speakWithDevice]
   );
 
   // Audio recording ref for speech-to-text
@@ -370,11 +485,7 @@ export default function CaseyScreen() {
     }
 
     // Stop TTS if playing
-    if (isSpeaking) {
-      Speech.stop();
-      setIsSpeaking(false);
-      setSpeakingMsgId(null);
-    }
+    if (isSpeaking) stopSpeaking();
 
     // Start recording
     try {
@@ -398,12 +509,14 @@ export default function CaseyScreen() {
       if (__DEV__) console.error('[Casey] Recording error:', err);
       Alert.alert('Microphone error', err?.message || 'Could not start recording.');
     }
-  }, [isListening, isSpeaking]);
+  }, [isListening, isSpeaking, stopSpeaking]);
 
   // Clean up on unmount
   useEffect(() => {
     return () => {
       Speech.stop();
+      soundRef.current?.unloadAsync().catch(() => {});
+      soundRef.current = null;
       if (recordingRef.current) {
         recordingRef.current.stopAndUnloadAsync().catch(() => {});
         recordingRef.current = null;
