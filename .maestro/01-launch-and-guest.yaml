@@ -1,4 +1,4 @@
-appId: com.anonymous.freepass
+appId: org.thefountainfund.freepass.app
 name: Launch, welcome screen, continue as guest
 ---
 - launchApp:

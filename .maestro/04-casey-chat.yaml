@@ -1,4 +1,4 @@
-appId: com.anonymous.freepass
+appId: org.thefountainfund.freepass.app
 name: Casey AI replies to a housing question
 ---
 - launchApp
@@ -11,4 +11,4 @@ name: Casey AI replies to a housing question
     visible:
       text: ".*ousing.*"
     timeout: 45000
-- assertNotVisible: "Sorry, I'm having trouble connecting right now."
+- assertNotVisible: ".*having trouble connecting right now.*"

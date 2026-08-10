@@ -1,4 +1,4 @@
-appId: com.anonymous.freepass
+appId: org.thefountainfund.freepass.app
 name: Login after confirmation syncs pending survey answers
 env:
   EMAIL: freepass.e2e.20260706@gmail.com

@@ -15,7 +15,7 @@ The root layout uses a **drawer** for primary sections and a **stack** for detai
 
 ## Features (high level)
 
-- **Home & drawer** — Account, Message Board, Chat, Learning Academy, Event Calendar, Ask a Question, New User Guide  
+- **Home & drawer** — Account, Message Board, Casey (AI assistant), Learning Academy, Event Calendar, Ask a Question, New User Guide  
 - **Community & content** — Listings, maps, street view, events, Q&A threads, community board, interview library  
 - **Programs** — Fountain Fund, Money Smart, loan inquiry, courses, staff view, quick list, signup  
 

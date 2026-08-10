@@ -1,4 +1,4 @@
-appId: com.anonymous.freepass
+appId: org.thefountainfund.freepass.app
 name: Event calendar shows real events with share
 ---
 - launchApp
