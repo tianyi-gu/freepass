@@ -25,10 +25,16 @@ export default function EditQuestionModal() {
       return;
     }
     setSubmitting(true);
-    const { error } = await supabase.from('questions').update({ question: text.trim() }).eq('id', questionId);
+    // .select() returns the updated rows — RLS drops the write silently when
+    // the user doesn't own the row, so a row count is the only honest signal.
+    const { data, error } = await supabase
+      .from('questions')
+      .update({ question: text.trim() })
+      .eq('id', questionId)
+      .select('id');
     setSubmitting(false);
-    if (error) {
-      Alert.alert('Error', 'Could not update the question. Please try again.');
+    if (error || !data || data.length === 0) {
+      Alert.alert('Could not update', 'You can only edit questions you posted while signed in.');
       return;
     }
     Alert.alert('Updated', 'Your question has been updated.', [
@@ -44,9 +50,13 @@ export default function EditQuestionModal() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          const { error } = await supabase.from('questions').delete().eq('id', questionId);
-          if (error) {
-            Alert.alert('Error', 'Could not delete the question.');
+          const { data, error } = await supabase
+            .from('questions')
+            .delete()
+            .eq('id', questionId)
+            .select('id');
+          if (error || !data || data.length === 0) {
+            Alert.alert('Could not delete', 'You can only delete questions you posted while signed in.');
             return;
           }
           router.back();

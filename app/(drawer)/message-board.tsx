@@ -44,6 +44,8 @@ export default function MessageBoardScreen() {
         setLoading(false);
       });
   }, []);
+  // Blocked-author filtering happens on the full board (community-board.tsx);
+  // this preview shows the same feed and links there for all interactions.
 
   return (
     <View style={styles.container}>
@@ -55,9 +57,10 @@ export default function MessageBoardScreen() {
         </View>
 
         <Text style={styles.body}>
-          Want to hear what the community has found so far? Our platform makes it easy to plan and organize your steps
-          plus coordinate with your group. Whether it&apos;s finding work, a good doctor, or community events, FreePass
-          lets you chat with people on the same path.
+          Want to hear what the community has found so far? The message board is a public space
+          where FreePass members share tips and encouragement — whether it&apos;s finding work, a
+          good doctor, or community events, you can learn from people on the same path and post
+          your own message.
         </Text>
 
         <Pressable

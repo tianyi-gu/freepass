@@ -25,10 +25,13 @@ export default function GiveFeedbackModal() {
     const feedbackText = resourceName
       ? `[Feedback for ${resourceName}] ${feedback.trim()}`
       : feedback.trim();
+    // Feedback rows use category 'Feedback' and are filtered out of the
+    // public Q&A list — they're for staff, not for publication.
     const { error } = await supabase.from('questions').insert({
       question: feedbackText,
       category: 'Feedback',
       asked_by: user?.displayName ?? 'Anonymous',
+      user_id: user.id,
     });
     setSubmitting(false);
     if (error) {

@@ -5,6 +5,7 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { useUser } from '@/contexts/user-context';
+import { BLOCKED_LANGUAGE_MESSAGE, containsBlockedLanguage } from '@/lib/moderation';
 import { supabase } from '@/lib/supabase';
 
 export default function AnswerQuestionModal() {
@@ -26,11 +27,16 @@ export default function AnswerQuestionModal() {
       Alert.alert('Sign in required', 'Please create an account or log in before answering a question.');
       return;
     }
+    if (containsBlockedLanguage(answer)) {
+      Alert.alert('Please rephrase', BLOCKED_LANGUAGE_MESSAGE);
+      return;
+    }
     setSubmitting(true);
     const { error } = await supabase.from('answers').insert({
       question_id: questionId,
       answer: answer.trim(),
       answered_by: user?.displayName ?? 'Anonymous',
+      user_id: user.id,
     });
     setSubmitting(false);
     if (error) {

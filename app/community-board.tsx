@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +17,13 @@ import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { useUser } from '@/contexts/user-context';
+import {
+  BLOCKED_LANGUAGE_MESSAGE,
+  blockUser,
+  containsBlockedLanguage,
+  fetchBlockedIds,
+  submitReport,
+} from '@/lib/moderation';
 import { supabase } from '@/lib/supabase';
 
 type Post = {
@@ -42,28 +50,39 @@ export default function CommunityBoardScreen() {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const signedInUserId = user && !user.isGuest ? user.id : null;
+
   useEffect(() => {
-    supabase
-      .from('community_posts')
-      .select('id, display_name, content, created_at, user_id')
-      .order('created_at', { ascending: false })
-      .then(({ data, error: err }) => {
-        if (err) setError(err.message);
-        if (data) setPosts(data as Post[]);
-        setLoading(false);
-      });
-  }, []);
+    Promise.all([
+      supabase
+        .from('community_posts')
+        .select('id, display_name, content, created_at, user_id')
+        .order('created_at', { ascending: false }),
+      fetchBlockedIds(signedInUserId),
+    ]).then(([{ data, error: err }, blocked]) => {
+      if (err) setError(err.message);
+      if (data) {
+        setPosts((data as Post[]).filter((p) => !p.user_id || !blocked.has(p.user_id)));
+      }
+      setLoading(false);
+    });
+  }, [signedInUserId]);
 
   const handlePost = useCallback(async () => {
     const text = comment.trim();
     if (!text || posting) return;
+    if (!user || user.isGuest) {
+      Alert.alert('Sign in required', 'Please create an account or log in to post on the community board.');
+      return;
+    }
+    if (containsBlockedLanguage(text)) {
+      Alert.alert('Please rephrase', BLOCKED_LANGUAGE_MESSAGE);
+      return;
+    }
     setPosting(true);
-    const displayName =
-      user && !user.isGuest ? (user.displayName || 'Anonymous') : 'Anonymous';
-    const userId = user && !user.isGuest ? user.id : null;
     const { data, error } = await supabase
       .from('community_posts')
-      .insert({ content: text, display_name: displayName, user_id: userId })
+      .insert({ content: text, display_name: user.displayName || 'Anonymous', user_id: user.id })
       .select('id, display_name, content, created_at, user_id')
       .single();
     if (!error && data) {
@@ -75,8 +94,43 @@ export default function CommunityBoardScreen() {
     setPosting(false);
   }, [comment, posting, user]);
 
+  const handlePostOptions = useCallback(
+    (item: Post) => {
+      const options: { text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }[] = [
+        {
+          text: 'Report post',
+          onPress: async () => {
+            const { error: err } = await submitReport('community_post', item.id, signedInUserId);
+            Alert.alert(
+              err ? 'Could not send report' : 'Report sent',
+              err ?? 'Thank you. Our team will review this post.',
+            );
+          },
+        },
+      ];
+      if (signedInUserId && item.user_id && item.user_id !== signedInUserId) {
+        options.push({
+          text: `Block ${item.display_name}`,
+          style: 'destructive',
+          onPress: async () => {
+            const { error: err } = await blockUser(signedInUserId, item.user_id!);
+            if (err) {
+              Alert.alert('Could not block', err);
+              return;
+            }
+            setPosts((prev) => prev.filter((p) => p.user_id !== item.user_id));
+            Alert.alert('Blocked', `You won't see posts from ${item.display_name} anymore.`);
+          },
+        });
+      }
+      options.push({ text: 'Cancel', style: 'cancel' });
+      Alert.alert('Post options', undefined, options);
+    },
+    [signedInUserId],
+  );
+
   const renderPost = ({ item }: { item: Post }) => {
-    const isOwner = user && !user.isGuest && item.user_id === user.id;
+    const isOwner = !!signedInUserId && item.user_id === signedInUserId;
     return (
       <View style={styles.postCard}>
         <View style={styles.postHeader}>
@@ -89,7 +143,7 @@ export default function CommunityBoardScreen() {
             <Text style={styles.postName}>{item.display_name}</Text>
             <Text style={styles.postTime}>{timeAgo(item.created_at)}</Text>
           </View>
-          {isOwner && (
+          {isOwner ? (
             <Pressable
               style={styles.postEditBtn}
               hitSlop={8}
@@ -99,6 +153,15 @@ export default function CommunityBoardScreen() {
                 )
               }>
               <IconSymbol name="square.and.pencil" size={18} color={FreepassColors.textSecondary} />
+            </Pressable>
+          ) : (
+            <Pressable
+              style={styles.postEditBtn}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Report or block"
+              onPress={() => handlePostOptions(item)}>
+              <IconSymbol name="ellipsis" size={18} color={FreepassColors.textSecondary} />
             </Pressable>
           )}
         </View>
@@ -124,27 +187,37 @@ export default function CommunityBoardScreen() {
               <Text style={styles.intro}>
                 Share resources, ask questions, and support others on their reentry journey.
               </Text>
-              <View style={styles.inputSection}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Write a message..."
-                  placeholderTextColor={FreepassColors.textSecondary}
-                  value={comment}
-                  onChangeText={setComment}
-                  multiline
-                  maxLength={500}
-                />
+              {signedInUserId ? (
+                <View style={styles.inputSection}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Write a message..."
+                    placeholderTextColor={FreepassColors.textSecondary}
+                    value={comment}
+                    onChangeText={setComment}
+                    multiline
+                    maxLength={500}
+                  />
+                  <Pressable
+                    style={[styles.postBtn, (!comment.trim() || posting) && styles.postBtnDisabled]}
+                    onPress={handlePost}
+                    disabled={!comment.trim() || posting}>
+                    {posting ? (
+                      <ActivityIndicator size="small" color={FreepassColors.white} />
+                    ) : (
+                      <Text style={styles.postBtnText}>POST</Text>
+                    )}
+                  </Pressable>
+                </View>
+              ) : (
                 <Pressable
-                  style={[styles.postBtn, (!comment.trim() || posting) && styles.postBtnDisabled]}
-                  onPress={handlePost}
-                  disabled={!comment.trim() || posting}>
-                  {posting ? (
-                    <ActivityIndicator size="small" color={FreepassColors.white} />
-                  ) : (
-                    <Text style={styles.postBtnText}>POST</Text>
-                  )}
+                  style={styles.signInPrompt}
+                  onPress={() => router.push('/signup' as never)}>
+                  <Text style={styles.signInPromptText}>
+                    Sign in to post. You can read the board as a guest.
+                  </Text>
                 </Pressable>
-              </View>
+              )}
               <View style={styles.kindnessBanner}>
                 <Text style={styles.kindnessText}>
                   Please keep this space kind and supportive. We&apos;re all on a journey.
@@ -205,6 +278,20 @@ const styles = StyleSheet.create({
   },
   postBtnDisabled: { opacity: 0.45 },
   postBtnText: { fontSize: 15, fontWeight: '700', color: FreepassColors.white },
+  signInPrompt: {
+    backgroundColor: FreepassColors.cardBg,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: FreepassColors.lightGray,
+    alignItems: 'center',
+  },
+  signInPromptText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: FreepassColors.primary,
+  },
   kindnessBanner: {
     backgroundColor: FreepassColors.cardBg,
     borderRadius: 10,
