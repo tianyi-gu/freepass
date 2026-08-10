@@ -12,15 +12,30 @@ const GUEST_STORAGE_KEY = '@freepass_guest';
 const PENDING_SURVEY_KEY = '@freepass_pending_survey';
 const PENDING_ONBOARDING_KEY = '@freepass_pending_onboarding_complete';
 // The auth user id the pending data belongs to (known at signup time even
-// without a session). Guards against a different account logging in on a
-// shared device and absorbing someone else's answers.
+// without a session), or 'guest' while the answers belong to a guest browsing
+// session. Guards against a different account logging in on a shared device
+// and absorbing someone else's answers.
 const PENDING_OWNER_KEY = '@freepass_pending_owner';
+const GUEST_OWNER = 'guest';
+
+// Everything FreePass keeps on-device for a person. Cleared on logout and
+// account deletion so nothing carries over to the next user of a shared phone.
+const LOCAL_DATA_KEYS = [
+  GUEST_STORAGE_KEY,
+  PENDING_SURVEY_KEY,
+  PENDING_ONBOARDING_KEY,
+  PENDING_OWNER_KEY,
+  '@freepass_budget',
+  '@freepass_expenses',
+  '@freepass_casey_share_profile',
+];
 
 export interface UserProfile {
   id: string;
   email?: string;
   displayName?: string;
   isGuest: boolean;
+  isStaff?: boolean;
   onboardingComplete: boolean;
   surveyAnswers: Record<string, string | string[]>;
 }
@@ -34,6 +49,10 @@ interface UserContextValue {
   saveSurveyAnswers: (answers: Record<string, string | string[]>) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   logOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  confirmPasswordReset: (email: string, code: string, newPassword: string) => Promise<void>;
+  resendConfirmation: (email: string) => Promise<void>;
 }
 
 const UserContext = createContext<UserContextValue | null>(null);
@@ -50,7 +69,7 @@ function normalizeSurveyAnswers(
 
 function sessionToProfile(
   session: Session,
-  profile?: { display_name?: string; onboarding_complete?: boolean },
+  profile?: { display_name?: string; onboarding_complete?: boolean; is_staff?: boolean },
   surveyAnswers: Record<string, string | string[]> = {},
 ): UserProfile {
   return {
@@ -58,6 +77,7 @@ function sessionToProfile(
     email: session.user.email,
     displayName: profile?.display_name ?? session.user.user_metadata?.display_name ?? session.user.email?.split('@')[0],
     isGuest: false,
+    isStaff: profile?.is_staff ?? false,
     onboardingComplete: profile?.onboarding_complete ?? false,
     surveyAnswers,
   };
@@ -81,10 +101,12 @@ async function stashPendingAnswers(answers: Record<string, string | string[]>): 
 // an authenticated session exists. No-op when nothing is pending.
 async function flushPendingLocalData(userId: string): Promise<void> {
   try {
-    // If the pending data was collected during a specific account's signup,
-    // only flush it into that same account.
+    // Only flush pending data explicitly claimed by this account (set at
+    // signup). Data with no owner or a guest/other owner is left alone —
+    // signUp claims a guest's stash for the new account, and logIn discards
+    // stashes that belong to someone else on a shared device.
     const owner = await AsyncStorage.getItem(PENDING_OWNER_KEY);
-    if (owner && owner !== userId) return;
+    if (owner !== userId) return;
 
     const raw = await AsyncStorage.getItem(PENDING_SURVEY_KEY);
     if (raw) {
@@ -137,7 +159,7 @@ async function buildProfileFromSession(session: Session): Promise<UserProfile> {
   const [{ data: profile }, { data: surveyAnswers }] = await Promise.all([
     supabase
       .from('profiles')
-      .select('display_name, onboarding_complete')
+      .select('display_name, onboarding_complete, is_staff')
       .eq('id', session.user.id)
       .maybeSingle(),
     supabase
@@ -160,8 +182,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const guestData = await AsyncStorage.getItem(GUEST_STORAGE_KEY);
         if (guestData) {
           try {
-            setUser(JSON.parse(guestData));
-            return;
+            const parsed = JSON.parse(guestData);
+            // Shape-guard: a malformed blob (e.g. missing surveyAnswers)
+            // would crash screens that iterate profile fields.
+            if (parsed && parsed.isGuest === true && typeof parsed.surveyAnswers === 'object' && parsed.surveyAnswers !== null) {
+              setUser(parsed);
+              return;
+            }
+            await AsyncStorage.removeItem(GUEST_STORAGE_KEY);
           } catch {
             // Corrupted guest data — clear it and fall through to auth check
             await AsyncStorage.removeItem(GUEST_STORAGE_KEY);
@@ -234,13 +262,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Tag any pre-session survey data with this account so it can only
-    // ever sync into this account.
-    if (data.user && !data.session) {
+    // Claim any pre-session survey data (including answers given while
+    // browsing as a guest) for this new account, so it can only ever sync
+    // into this account.
+    if (data.user) {
       try {
         await AsyncStorage.setItem(PENDING_OWNER_KEY, data.user.id);
       } catch (err) {
         if (__DEV__) console.error('[UserContext] pending owner stash failed:', err);
+      }
+      // With email confirmation disabled a session exists immediately, and
+      // the auth-change flush may have already run before the owner tag was
+      // written — flush explicitly now that it is.
+      if (data.session) {
+        await flushPendingLocalData(data.user.id);
       }
     }
 
@@ -250,8 +285,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+
+    // Logging into an EXISTING account must never absorb survey answers
+    // stashed by a guest or a different signup on this device.
+    try {
+      const owner = await AsyncStorage.getItem(PENDING_OWNER_KEY);
+      if (data.user && owner && owner !== data.user.id) {
+        await AsyncStorage.multiRemove([PENDING_SURVEY_KEY, PENDING_ONBOARDING_KEY, PENDING_OWNER_KEY]);
+      }
+    } catch (err) {
+      if (__DEV__) console.error('[UserContext] pending cleanup on login failed:', err);
+    }
   }, []);
 
   const continueAsGuest = useCallback(async () => {
@@ -271,10 +317,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
       // confirmation, or guest). Keep the answers locally — they sync to
       // Supabase automatically on the first sign-in.
       await stashPendingAnswers(answers);
-      setUser((prev) => prev?.isGuest ? {
-        ...prev,
-        surveyAnswers: { ...prev.surveyAnswers, ...answers },
-      } : prev);
+      if (user?.isGuest) {
+        // Tag the stash as guest-owned: a later signUp claims it for the new
+        // account; a logIn to an existing account discards it.
+        try {
+          const owner = await AsyncStorage.getItem(PENDING_OWNER_KEY);
+          if (!owner) await AsyncStorage.setItem(PENDING_OWNER_KEY, GUEST_OWNER);
+        } catch { /* best-effort */ }
+        // Persist onto the stored guest profile too, so answers survive an
+        // app relaunch instead of silently resetting to {}.
+        const updated: UserProfile = {
+          ...user,
+          surveyAnswers: { ...user.surveyAnswers, ...answers },
+        };
+        AsyncStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
+        setUser(updated);
+      }
       return;
     }
 
@@ -330,9 +388,59 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const logOut = useCallback(async () => {
-    await AsyncStorage.removeItem(GUEST_STORAGE_KEY);
+    // Clear everything personal from the device, not just the guest profile —
+    // budgets, stashed survey answers, and Casey consent must not leak to the
+    // next person who uses a shared phone.
+    await AsyncStorage.multiRemove(LOCAL_DATA_KEYS).catch(() => {});
     await supabase.auth.signOut();
     setUser(null);
+  }, []);
+
+  const deleteAccount = useCallback(async () => {
+    // Best-effort removal of document files through the storage API first;
+    // the delete_account() SQL function is the authoritative backstop.
+    if (user && !user.isGuest) {
+      try {
+        const { data: files } = await supabase.storage.from('documents').list(user.id);
+        if (files && files.length > 0) {
+          await supabase.storage
+            .from('documents')
+            .remove(files.map((f) => `${user.id}/${f.name}`));
+        }
+      } catch (err) {
+        if (__DEV__) console.error('[UserContext] storage cleanup failed:', err);
+      }
+    }
+
+    const { error } = await supabase.rpc('delete_account');
+    if (error) throw error;
+
+    await AsyncStorage.multiRemove(LOCAL_DATA_KEYS).catch(() => {});
+    // The auth user no longer exists, so the sign-out call may fail — the
+    // local session still needs clearing either way.
+    await supabase.auth.signOut().catch(() => {});
+    setUser(null);
+  }, [user]);
+
+  const resetPassword = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) throw error;
+  }, []);
+
+  const confirmPasswordReset = useCallback(async (email: string, code: string, newPassword: string) => {
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email,
+      token: code.trim(),
+      type: 'recovery',
+    });
+    if (verifyError) throw verifyError;
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    if (updateError) throw updateError;
+  }, []);
+
+  const resendConfirmation = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resend({ type: 'signup', email });
+    if (error) throw error;
   }, []);
 
   const value = useMemo(() => ({
@@ -344,7 +452,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
     saveSurveyAnswers,
     completeOnboarding,
     logOut,
-  }), [user, isLoading, signUp, logIn, continueAsGuest, saveSurveyAnswers, completeOnboarding, logOut]);
+    deleteAccount,
+    resetPassword,
+    confirmPasswordReset,
+    resendConfirmation,
+  }), [user, isLoading, signUp, logIn, continueAsGuest, saveSurveyAnswers, completeOnboarding, logOut, deleteAccount, resetPassword, confirmPasswordReset, resendConfirmation]);
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
