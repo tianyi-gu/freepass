@@ -2,6 +2,36 @@
 
 Last updated: 2026-08-10 (production-readiness fix pass)
 
+## Status (2026-08-10, evening)
+
+- ✅ iOS build 7 (all fixes) built AND submitted to TestFlight
+  (build 383b91e3; submission dc8ecf73 finished 1:24 PM)
+- ✅ **DB migration APPLIED and verified** via Management API: documents
+  bucket private, delete_account/upvote functions live, reports +
+  blocked_users tables with correct RLS, anonymous posting closed.
+  Moderation smoke-tested end to end against prod (guest report → staff
+  read → cleanup).
+- ✅ Supabase auth config fixed: site_url was localhost:3000 (confirmation
+  links dead-ended) → now fountainfund.org; recovery email now sends the
+  OTP code the in-app flow expects. Email confirmation confirmed ON.
+- ✅ Signing credentials + .env restored into this workspace (gitignored)
+- ✅ ASC listing: support URL, draft description, and keywords set via API
+  (review/edit wording in App Store Connect before submitting)
+- ✅ Live DB: 103 published resources; 1 uncategorized
+  (`Community Behavioral Health`); **no future events — newest is Oct 2025**
+- ❌ Privacy policy: fountainfund.org has NO existing policy (checked
+  footer + /privacy-policy, /privacy, /legal, /terms — all 404). The draft
+  in docs/PRIVACY_POLICY_DRAFT.md must be approved and hosted; Apple
+  requires a live URL.
+- ✅ Screenshots: 6 iPhone (6.9") + 6 iPad (13") captured from the Release
+  simulator build and uploaded to ASC via API (UPLOAD_COMPLETE). Capturing
+  them also E2E-validated the new build's guest flow, resources, Casey,
+  courses, and budget screens.
+- ❌ ASC still missing: privacy policy URL, privacy nutrition labels,
+  age rating questionnaire, attach build 7 once Apple finishes processing
+- Decisions made: 17+ age rating OK; keep iPad support (→ iPad screenshots
+  required)
+
 This is the single source of truth for what must happen before the app goes
 live to real users. Code changes from the August 2026 fix pass are already in
 this branch; the items below are the **deployment and decision steps that
