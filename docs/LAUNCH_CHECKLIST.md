@@ -27,8 +27,20 @@ Last updated: 2026-08-10 (production-readiness fix pass)
   simulator build and uploaded to ASC via API (UPLOAD_COMPLETE). Capturing
   them also E2E-validated the new build's guest flow, resources, Casey,
   courses, and budget screens.
-- ❌ ASC still missing: privacy policy URL, privacy nutrition labels,
-  age rating questionnaire, attach build 7 once Apple finishes processing
+- ✅ Build 7 attached to version 1.0
+- ✅ Age rating questionnaire answered via API (honest answers + 17+
+  override; displays as 18+ under Apple's 2025 tiers)
+- ✅ Categories set: Lifestyle (primary) + Education (secondary)
+- ✅ App Review demo account created and login-verified:
+  applereview@freepass-demo.app / ReviewFreePass#2026
+- ❌ Review contact details: blocked on a contact PHONE number (+1 format)
+- ❌ App Privacy nutrition labels: NO public API exists — must be filled in
+  the ASC web UI (~10 min; answers documented in the launch summary)
+- ❌ Privacy policy URL: still not found on fountainfund.org (all standard
+  paths 404) — need the exact published URL
+- ⚠️ **CRITICAL: Supabase free tier auto-paused twice in one week.** A
+  paused DB takes the whole app down for real users. Upgrade the project
+  to Pro (or configure a keep-alive ping) BEFORE the app goes live.
 - Decisions made: 17+ age rating OK; keep iPad support (→ iPad screenshots
   required)
 
