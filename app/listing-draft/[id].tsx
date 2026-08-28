@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { openEmail, openPhone, openWebUrl } from '@/lib/links';
 import { useResource } from '@/hooks/use-resources';
 
 export default function ListingDraftScreen() {
@@ -64,10 +65,7 @@ export default function ListingDraftScreen() {
           {resource.website && (
             <>
               <Text style={styles.sectionTitle}>Web Address</Text>
-              <Pressable onPress={() => {
-                const url = resource.website!.startsWith('http') ? resource.website! : `https://${resource.website}`;
-                Linking.openURL(url);
-              }}>
+              <Pressable onPress={() => openWebUrl(resource.website)}>
                 <Text style={[styles.detail, { textDecorationLine: 'underline' }]}>{resource.website}</Text>
               </Pressable>
             </>
@@ -94,11 +92,11 @@ export default function ListingDraftScreen() {
             <Text style={styles.sectionTitle}>Contact</Text>
             <Text style={styles.contactEmail}>{resource.email}</Text>
             <View style={styles.contactActions}>
-              <Pressable style={styles.contactBtn} onPress={() => Linking.openURL(`mailto:${resource.email}`)}>
+              <Pressable style={styles.contactBtn} onPress={() => openEmail(resource.email)}>
                 <Text style={styles.contactBtnText}>SEND EMAIL</Text>
               </Pressable>
               {resource.phone && (
-                <Pressable style={styles.contactBtn} onPress={() => Linking.openURL(`tel:${resource.phone!.replace(/[^0-9+]/g, '')}`)}>
+                <Pressable style={styles.contactBtn} onPress={() => openPhone(resource.phone)}>
                   <Text style={styles.contactBtnText}>PHONE CALL</Text>
                 </Pressable>
               )}

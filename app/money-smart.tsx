@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassColors } from '@/constants/theme';
+import { openWebUrl } from '@/lib/links';
 
 const BANZAI_URL = 'https://fountainfund.banzai.org/wellness';
 const FDIC_CATALOG_URL = 'https://catalog.fdic.gov/';
@@ -34,8 +35,10 @@ export default function MoneySmartScreen() {
           <Text style={styles.title}>Learning Academy</Text>
           <Text style={styles.subtitle}>Money Smart Process</Text>
           <Text style={styles.body}>
-            The Fountain Fund requires participants to provide a certificate of completion from at least one FDIC
-            Money Smart course before their loan is approved.
+            The Fountain Fund may ask loan participants to complete an FDIC Money Smart course as
+            part of the loan process. Check with Fountain Fund staff about what applies to your
+            application — and either way, these free courses are a great way to build financial
+            skills.
           </Text>
         </View>
 
@@ -47,7 +50,7 @@ export default function MoneySmartScreen() {
           </Text>
           <Pressable
             style={styles.ctaBtn}
-            onPress={() => Linking.openURL(FDIC_CATALOG_URL)}
+            onPress={() => openWebUrl(FDIC_CATALOG_URL)}
             android_ripple={{ color: FreepassColors.primaryDark }}>
             <Text style={styles.ctaText}>CREATE ACCOUNT</Text>
           </Pressable>
@@ -56,8 +59,9 @@ export default function MoneySmartScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Choosing a Course:</Text>
           <Text style={styles.body}>
-            There are 14 possible courses to choose. While only one is required to proceed, we recommend completing what
-            is relevant towards your increased responsibility and aid the approval of your loan.
+            The FDIC offers a range of Money Smart courses — the topics below are common ones.
+            Pick whichever is most relevant to your situation. The buttons open the FDIC catalog,
+            where you can find each course and the current full list.
           </Text>
           <Pressable
             style={styles.ctaBtn}
@@ -67,10 +71,10 @@ export default function MoneySmartScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.courseListTitle}>Courses:</Text>
+        <Text style={styles.courseListTitle}>Course topics (each opens the FDIC catalog):</Text>
         {MONEY_SMART_COURSES.map((c, i) => (
           <View key={i} style={styles.courseRow}>
-            <Pressable style={styles.courseBtn} onPress={() => Linking.openURL(FDIC_CATALOG_URL)}>
+            <Pressable style={styles.courseBtn} onPress={() => openWebUrl(FDIC_CATALOG_URL)}>
               <Text style={styles.courseBtnText}>{c.title}</Text>
             </Pressable>
             <Text style={styles.courseDesc}>{c.desc}</Text>
@@ -84,7 +88,7 @@ export default function MoneySmartScreen() {
           </Text>
           <Pressable
             style={styles.ctaBtn}
-            onPress={() => Linking.openURL(BANZAI_URL)}
+            onPress={() => openWebUrl(BANZAI_URL)}
             android_ripple={{ color: FreepassColors.primaryDark }}>
             <Text style={styles.ctaText}>FINANCIAL EDUCATION (BANZAI)</Text>
           </Pressable>

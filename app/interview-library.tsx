@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { openWebUrl } from '@/lib/links';
 import { supabase } from '@/lib/supabase';
 
 interface Course {
@@ -40,9 +41,9 @@ export default function InterviewLibraryScreen() {
           <IconSymbol name="play.rectangle.fill" size={48} color={FreepassColors.accent} />
           <Text style={styles.introTitle}>Interview Library</Text>
           <Text style={styles.introText}>
-            You can view videos of local organizations who explain their facility and what to expect when you visit.
-            This includes employers and other resources. We also provide and share interviews with individuals recently
-            returning from prison and those involved in the reentry process.
+            This library is for videos from local organizations explaining what they offer and
+            what to expect when you visit, along with interviews from people in the reentry
+            community. Content is added over time as organizations share it.
           </Text>
         </View>
 
@@ -58,7 +59,7 @@ export default function InterviewLibraryScreen() {
               style={styles.courseCard}
               onPress={() => {
                 const link = course.video_link || course.web_link;
-                if (link) Linking.openURL(link);
+                if (link) openWebUrl(link);
                 else router.push(`/course/${course.id}` as never);
               }}
               android_ripple={{ color: FreepassColors.lightGray }}>

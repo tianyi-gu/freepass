@@ -15,15 +15,16 @@ export default function UserGuideDrawerScreen() {
         </Text>
         <Text style={styles.sectionTitle}>Getting Started</Text>
         <Text style={styles.body}>
-          1. Use the Category Search to browse resources by type: Housing, Employment, or Low Income Assistance.{'\n'}
-          2. Tap Resources Near You to find organizations in your area.{'\n'}
-          3. The Q&A section lets you ask questions and see answers from staff and the community.{'\n'}
+          1. Use the Category Search to browse resources by type, like housing or employment.{'\n'}
+          2. Tap Resources Near You to find organizations close to your location.{'\n'}
+          3. The Q&A section lets you ask questions and see answers from the community.{'\n'}
           4. Events helps you stay on track with appointments and community events.
         </Text>
         <Text style={styles.sectionTitle}>Need Help?</Text>
         <Text style={styles.body}>
-          FreePass staff regularly monitor the Q&A page. Ask a question anytime, and check back for answers from our
-          team or community members.
+          You can post a question on the Q&A page anytime — answers come from the community and
+          may take time. For anything urgent, call 211, or contact an organization directly from
+          Resources.
         </Text>
       </ScrollView>
     </View>

@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Speech from 'expo-speech';
@@ -33,6 +34,23 @@ const GEMINI_API_BASE =
 const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_CHAT_MODEL = 'llama-3.3-70b-versatile';
 
+// Abort provider calls that hang on a bad cell connection instead of letting
+// the platform default (60s+) freeze the chat behind a spinner.
+const REQUEST_TIMEOUT_MS = 20000;
+
+// Only the most recent turns are sent to the model. The directory block
+// dominates the prompt anyway; unbounded history grows cost quadratically and
+// lets an early wrong answer keep re-conditioning later replies.
+const HISTORY_LIMIT = 12;
+
+// Hard cap on a voice recording so a forgotten live mic can't upload
+// minutes of ambient audio.
+const MAX_RECORDING_MS = 60000;
+
+// Persisted user choices
+const AUTO_SPEAK_KEY = '@freepass_casey_autospeak';
+const SHARE_PROFILE_KEY = '@freepass_casey_share_profile';
+
 const SYSTEM_PROMPT = `You are Casey, a warm and supportive reentry resource assistant for FreePass, a Philadelphia app helping formerly incarcerated individuals find support in Philadelphia.
 
 Your goal is to have a short, guided conversation before recommending resources. Follow this flow:
@@ -47,17 +65,22 @@ Your goal is to have a short, guided conversation before recommending resources.
   - The phone number
 
 Rules:
-- Only recommend organizations from the directory below — never invent or guess at organizations, phone numbers, or hours
-- Keep every message to 3-4 sentences max
+- Only recommend organizations from the directory below — never invent or guess at organizations, phone numbers, hours, or websites. If a detail is marked "not listed", say you don't have it and suggest calling to ask.
+- Directory details can go out of date. When you share an org, remind the user to call ahead to confirm hours and services.
+- If the user talks about wanting to hurt themselves or someone else, being in danger, abuse at home, or a mental health emergency, drop the resource flow immediately. Tell them they can call or text 988 (the Suicide & Crisis Lifeline, free, 24/7), and to call 911 if they are in immediate danger. Be gentle and take as many sentences as you need — the length limit below does not apply in a crisis.
+- You are not a lawyer, doctor, or financial advisor. Do not answer questions about parole or probation conditions, court cases, immigration, medications, diagnoses, or whether to take a loan or financial product. Say plainly that you can't advise on that, and point them to a relevant organization from the directory or to 211.
+- Stay on the topic of finding support and resources in Philadelphia. If asked about unrelated things, gently steer back.
+- Keep every message to 3-4 sentences max (except in a crisis).
 - Be warm, human, and encouraging — never clinical or bureaucratic
 - The directory below is the complete list of FreePass resources. If nothing in it matches the user's need, say so honestly and suggest they call 211 — don't stretch a poor match
 - If the user's profile below is provided, use it to personalize from the start — don't re-ask things you already know (their name, location, needs, housing/work situation). Lead with what's most relevant to them, but still confirm briefly before recommending.`;
 
-// Maps onboarding survey question IDs to short, readable labels for Casey's context.
+// Maps onboarding survey question IDs to short, readable labels for Casey's
+// context. Deliberately excludes time_home and has_caseworker — they add
+// little routing value and are the most sensitive fields to send off-device.
 const SURVEY_LABELS: Record<string, string> = {
   preferred_name: 'Preferred name',
   zip_code: 'Area / ZIP',
-  time_home: 'Time since coming home',
   immediate_needs: 'Looking for help with',
   employment_status: 'Work situation',
   work_interests: 'Work interests',
@@ -66,7 +89,6 @@ const SURVEY_LABELS: Record<string, string> = {
   education_level: 'Education',
   learning_interest: 'Interested in learning',
   support_system: 'Has a support system',
-  has_caseworker: 'Working with a case worker',
 };
 
 // Builds a concise profile block from the user's onboarding survey answers so
@@ -104,13 +126,43 @@ type Message = {
   id: string;
   role: 'user' | 'bot';
   text: string;
+  // Synthetic messages (opening, errors, crisis cards) are shown in the UI
+  // but never sent back to the model as conversation history.
+  synthetic?: boolean;
 };
 
 const OPENING_MESSAGE: Message = {
   id: 'opening',
   role: 'bot',
-  text: "Hi, I'm Casey. I'm so glad you're here. I can help you find resources in Philadelphia — whether it's a job, housing, legal help, or anything else. What's on your mind?",
+  synthetic: true,
+  text: "Hi, I'm Casey. I'm so glad you're here. I can help you find resources in Philadelphia — whether it's a job, housing, legal help, or anything else. What's on your mind? Just so you know: I can make mistakes, so double-check details like phone numbers before you rely on them.",
 };
+
+// Deterministic crisis screen — never leave this to the model. Numbers here
+// are national, stable lines only.
+const CRISIS_PATTERNS: RegExp[] = [
+  /suicid/i,
+  /kill\s+(myself|me|himself|herself|themselves)/i,
+  /end\s+(my\s+life|it\s+all)/i,
+  /hurt\s+(myself|himself|herself)/i,
+  /self[-\s]?harm/i,
+  /want(?:\s+to|na)\s+die/i,
+  /better\s+off\s+dead/i,
+  /no\s+reason\s+to\s+(live|keep\s+going)/i,
+  /don'?t\s+want\s+to\s+(live|be\s+here)/i,
+  /overdos/i,
+  /(hitting|beating|abusing|hurting)\s+me\b/i,
+  /domestic\s+violence/i,
+  /abusive\s+(partner|relationship|home|boyfriend|girlfriend|husband|wife)/i,
+  /kill\s+(him|her|them|someone)/i,
+];
+
+function isCrisisMessage(text: string): boolean {
+  return CRISIS_PATTERNS.some((re) => re.test(text));
+}
+
+const CRISIS_REPLY =
+  "It sounds like you may be going through something really serious right now, and I want you to talk to a real person, not just an app. You can call or text 988 any time, day or night — that's the Suicide & Crisis Lifeline, it's free, and the people there can help. If you're in immediate danger, call 911. If home isn't safe, the National Domestic Violence Hotline is 1-800-799-7233. You matter, and you don't have to handle this alone. I'm still here if you want help finding other resources.";
 
 function buildContext(resources: Resource[]): string {
   if (resources.length === 0) {
@@ -119,7 +171,7 @@ function buildContext(resources: Resource[]): string {
   return resources
     .map(
       (r) =>
-        `Org: ${r.name} | Location: ${[r.address, r.city].filter(Boolean).join(', ') || 'Location not listed'} | Services: ${(r.tags || []).join(', ') || 'Not tagged'} | Phone: ${r.phone || 'Phone not listed'} | ${r.description || 'No description listed'}`
+        `Org: ${r.name} | Location: ${[r.address, r.city].filter(Boolean).join(', ') || 'Location not listed'} | Services: ${(r.tags || []).join(', ') || 'Not tagged'} | Phone: ${r.phone || 'Phone not listed'} | Hours: ${r.hours || 'Hours not listed'} | Website: ${r.website || 'Website not listed'} | ${r.description || 'No description listed'}`
     )
     .join('\n');
 }
@@ -129,11 +181,21 @@ type GeminiContent = { role: string; parts: GeminiPart[] };
 type GeminiPayload = {
   system_instruction: { parts: GeminiPart[] };
   contents: GeminiContent[];
+  generationConfig: {
+    maxOutputTokens: number;
+    temperature: number;
+    thinkingConfig: { thinkingBudget: number };
+  };
 };
 
 function buildSystemInstruction(resourceContext: string, userContext: string): string {
   const profileBlock = userContext ? `\n\n${userContext}` : '';
   return `${SYSTEM_PROMPT}${profileBlock}\n\nHere is the complete FreePass directory of Philadelphia reentry resources:\n\n${resourceContext}`;
+}
+
+// Recent, real conversation turns only — no synthetic UI messages.
+function recentHistory(history: Message[]): Message[] {
+  return history.filter((m) => !m.synthetic).slice(-HISTORY_LIMIT);
 }
 
 function buildGeminiPayload(
@@ -142,15 +204,10 @@ function buildGeminiPayload(
   resourceContext: string,
   userContext: string
 ): GeminiPayload {
-  const contents: GeminiContent[] = [];
-
-  for (const msg of history) {
-    if (msg.id === 'opening') continue;
-    contents.push({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.text }],
-    });
-  }
+  const contents: GeminiContent[] = recentHistory(history).map((msg) => ({
+    role: msg.role === 'user' ? 'user' : 'model',
+    parts: [{ text: msg.text }],
+  }));
 
   contents.push({ role: 'user', parts: [{ text: currentUserText }] });
 
@@ -159,6 +216,13 @@ function buildGeminiPayload(
       parts: [{ text: buildSystemInstruction(resourceContext, userContext) }],
     },
     contents,
+    generationConfig: {
+      maxOutputTokens: 1024,
+      temperature: 0.4,
+      // Routing a need to 2-3 rows of a provided list doesn't benefit from
+      // extended thinking; it just adds latency and output-rate token cost.
+      thinkingConfig: { thinkingBudget: 0 },
+    },
   };
 }
 
@@ -174,8 +238,7 @@ function buildGroqMessages(
     { role: 'system', content: buildSystemInstruction(resourceContext, userContext) },
   ];
 
-  for (const msg of history) {
-    if (msg.id === 'opening') continue;
+  for (const msg of recentHistory(history)) {
     messages.push({
       role: msg.role === 'user' ? 'user' : 'assistant',
       content: msg.text,
@@ -186,7 +249,27 @@ function buildGroqMessages(
   return messages;
 }
 
-// Primary: Gemini. Throws on any failure so the caller can fall back to Groq.
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Gemini refused to answer for safety reasons. Must NOT be retried on Groq —
+// that would bypass the safety filter on exactly the messages it caught.
+class SafetyBlockError extends Error {
+  constructor() {
+    super('Gemini safety block');
+    this.name = 'SafetyBlockError';
+  }
+}
+
+// Primary: Gemini. Throws on any failure so the caller can fall back to Groq —
+// except SafetyBlockError, which the caller must handle without falling back.
 async function fetchGeminiReply(
   history: Message[],
   text: string,
@@ -196,13 +279,22 @@ async function fetchGeminiReply(
   const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) throw new Error('Missing EXPO_PUBLIC_GEMINI_API_KEY.');
 
-  const res = await fetch(`${GEMINI_API_BASE}?key=${apiKey}`, {
+  const res = await fetchWithTimeout(`${GEMINI_API_BASE}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(buildGeminiPayload(history, text, context, userContext)),
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
+
+  const finishReason = json?.candidates?.[0]?.finishReason;
+  if (
+    json?.promptFeedback?.blockReason ||
+    finishReason === 'SAFETY' ||
+    finishReason === 'PROHIBITED_CONTENT'
+  ) {
+    throw new SafetyBlockError();
+  }
 
   const reply = json?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!reply) throw new Error('Empty Gemini response');
@@ -218,7 +310,7 @@ async function fetchGroqReply(
 ): Promise<string> {
   if (!GROQ_API_KEY) throw new Error('Missing EXPO_PUBLIC_GROQ_KEY.');
 
-  const res = await fetch(GROQ_CHAT_URL, {
+  const res = await fetchWithTimeout(GROQ_CHAT_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -227,6 +319,8 @@ async function fetchGroqReply(
     body: JSON.stringify({
       model: GROQ_CHAT_MODEL,
       messages: buildGroqMessages(history, text, context, userContext),
+      max_tokens: 1024,
+      temperature: 0.4,
     }),
   });
   const json = await res.json();
@@ -251,6 +345,16 @@ const VOICE_PITCH: Record<VoiceGender, number> = {
 // availability varies by device/OS version and a missing one breaks speech.
 const FEMALE_VOICE_NAMES = ['ava', 'zoe', 'allison', 'samantha', 'susan', 'nicky', 'karen'];
 const MALE_VOICE_NAMES = ['evan', 'nathan', 'tom', 'aaron', 'alex', 'daniel', 'fred'];
+
+// Device TTS engines read "(215) 686-7175" unpredictably as prose. Phone
+// numbers are the single most action-critical thing Casey says, so space the
+// digits out for the on-device fallback voice. (OpenAI TTS handles the
+// formatted number naturally, so it gets the raw text.)
+function formatForSpeech(text: string): string {
+  return text
+    .replace(/\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g, (m) => m.replace(/\D/g, '').split('').join(' '))
+    .replace(/\b(988|911|211)\b/g, (m) => m.split('').join(' '));
+}
 
 // Primary TTS: OpenAI gpt-4o-mini-tts — far more natural than device speech
 // synthesis. Device speech (above) remains the fallback when the key is
@@ -315,14 +419,19 @@ async function fetchOpenAiSpeech(
 export default function CaseyScreen() {
   const { user } = useUser();
   const [resources, setResources] = useState<Resource[]>([]);
+  const [resourcesStatus, setResourcesStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [messages, setMessages] = useState<Message[]>([OPENING_MESSAGE]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [voiceGender, setVoiceGender] = useState<VoiceGender>('female');
+  const [autoSpeak, setAutoSpeak] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [installedVoices, setInstalledVoices] = useState<Speech.Voice[]>([]);
+  // null = user hasn't decided yet (banner shows); false = declined
+  const [shareProfile, setShareProfile] = useState<boolean | null>(false);
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
     // Voice list can be empty on first call while the system warms up; a
@@ -330,6 +439,23 @@ export default function CaseyScreen() {
     Speech.getAvailableVoicesAsync()
       .then(setInstalledVoices)
       .catch(() => {});
+
+    AsyncStorage.getItem(AUTO_SPEAK_KEY)
+      .then((v) => setAutoSpeak(v === 'yes'))
+      .catch(() => {});
+    AsyncStorage.getItem(SHARE_PROFILE_KEY)
+      .then((v) => setShareProfile(v === null ? null : v === 'yes'))
+      .catch(() => {});
+  }, []);
+
+  const setAndStoreAutoSpeak = useCallback((value: boolean) => {
+    setAutoSpeak(value);
+    AsyncStorage.setItem(AUTO_SPEAK_KEY, value ? 'yes' : 'no').catch(() => {});
+  }, []);
+
+  const setAndStoreShareProfile = useCallback((value: boolean) => {
+    setShareProfile(value);
+    AsyncStorage.setItem(SHARE_PROFILE_KEY, value ? 'yes' : 'no').catch(() => {});
   }, []);
 
   // Best installed en-US voice for the requested gender. Prefers
@@ -387,7 +513,7 @@ export default function CaseyScreen() {
         onError: () => { setIsSpeaking(false); setSpeakingMsgId(null); },
       };
 
-      Speech.speak(text, options);
+      Speech.speak(formatForSpeech(text), options);
     },
     [voiceGender, pickVoice]
   );
@@ -439,48 +565,71 @@ export default function CaseyScreen() {
 
   // Audio recording ref for speech-to-text
   const recordingRef = useRef<Audio.Recording | null>(null);
+  const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
+
+  const stopAndTranscribe = useCallback(async () => {
+    const recording = recordingRef.current;
+    // Clear the ref immediately: if stopping fails, the next mic tap must be
+    // able to start a fresh recording rather than being wedged forever.
+    recordingRef.current = null;
+    if (recordingTimerRef.current) {
+      clearTimeout(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    setIsListening(false);
+    if (!recording) return;
+
+    setIsTranscribing(true);
+    let uri: string | null = null;
+    try {
+      try {
+        await recording.stopAndUnloadAsync();
+      } finally {
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
+      }
+      uri = recording.getURI();
+
+      if (!uri) throw new Error('No recording URI');
+      if (!GROQ_API_KEY) throw new Error('Speech-to-text is not configured.');
+
+      const formData = new FormData();
+      formData.append('file', {
+        uri,
+        type: 'audio/m4a',
+        name: 'recording.m4a',
+      } as any);
+      formData.append('model', 'whisper-large-v3');
+      formData.append('language', 'en');
+
+      const res = await fetchWithTimeout('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
+        body: formData,
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
+
+      const transcript = json.text?.trim();
+      if (transcript) setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    } catch (err: any) {
+      if (__DEV__) console.error('[Casey] Transcription error:', err);
+      Alert.alert(
+        'Voice input failed',
+        "Sorry, I couldn't hear that. Please try again, or type your message instead.",
+      );
+    } finally {
+      // Never leave audio of the user's voice sitting in the app cache.
+      if (uri) FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+      setIsTranscribing(false);
+    }
+  }, []);
 
   const toggleListening = useCallback(async () => {
     // If currently recording, stop and transcribe
-    if (isListening && recordingRef.current) {
-      setIsListening(false);
-      setIsTranscribing(true);
-      try {
-        await recordingRef.current.stopAndUnloadAsync();
-        const uri = recordingRef.current.getURI();
-        recordingRef.current = null;
-        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
-
-        if (!uri) throw new Error('No recording URI');
-        if (!GROQ_API_KEY) throw new Error('Speech-to-text is not configured.');
-
-        const formData = new FormData();
-        formData.append('file', {
-          uri,
-          type: 'audio/m4a',
-          name: 'recording.m4a',
-        } as any);
-        formData.append('model', 'whisper-large-v3');
-        formData.append('language', 'en');
-
-        const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
-          body: formData,
-        });
-
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
-
-        const transcript = json.text?.trim();
-        if (transcript) setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
-      } catch (err: any) {
-        if (__DEV__) console.error('[Casey] Transcription error:', err);
-        Alert.alert('Transcription error', err?.message || 'Could not transcribe audio.');
-      } finally {
-        setIsTranscribing(false);
-      }
+    if (recordingRef.current) {
+      await stopAndTranscribe();
       return;
     }
 
@@ -505,16 +654,24 @@ export default function CaseyScreen() {
       await recording.startAsync();
       recordingRef.current = recording;
       setIsListening(true);
+      recordingTimerRef.current = setTimeout(() => {
+        stopAndTranscribe();
+      }, MAX_RECORDING_MS);
     } catch (err: any) {
       if (__DEV__) console.error('[Casey] Recording error:', err);
-      Alert.alert('Microphone error', err?.message || 'Could not start recording.');
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
+      Alert.alert(
+        'Microphone error',
+        "Sorry, the microphone couldn't start. Please try again, or type your message instead.",
+      );
     }
-  }, [isListening, isSpeaking, stopSpeaking]);
+  }, [isSpeaking, stopSpeaking, stopAndTranscribe]);
 
   // Clean up on unmount
   useEffect(() => {
     return () => {
       Speech.stop();
+      if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
       soundRef.current?.unloadAsync().catch(() => {});
       soundRef.current = null;
       if (recordingRef.current) {
@@ -524,31 +681,55 @@ export default function CaseyScreen() {
     };
   }, []);
 
-  useEffect(() => {
+  const loadResources = useCallback(() => {
+    setResourcesStatus('loading');
     supabase
       .from('resources')
       .select('name, address, city, description, phone, website, hours, tags')
       .eq('is_published', true)
       .then(({ data, error }) => {
-        if (error) { if (__DEV__) console.error('[Casey] Supabase fetch error:', error); return; }
-        if (data) setResources(data as Resource[]);
+        if (error || !data) {
+          if (__DEV__) console.error('[Casey] Supabase fetch error:', error);
+          setResourcesStatus('error');
+          return;
+        }
+        setResources(data as Resource[]);
+        setResourcesStatus('ready');
       });
   }, []);
 
+  useEffect(() => {
+    loadResources();
+  }, [loadResources]);
+
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    if (!text || loading || inFlightRef.current) return;
+    inFlightRef.current = true;
 
     const userMsg: Message = { id: Date.now().toString(), role: 'user', text };
     const historySnapshot = [...messages, userMsg];
     setMessages(historySnapshot);
     setInput('');
+
+    // Crisis messages get a deterministic, hardcoded response — never rely on
+    // a model (or its safety-filter fallback path) for this.
+    if (isCrisisMessage(text)) {
+      setMessages((prev) => [
+        ...prev,
+        { id: `${Date.now() + 1}`, role: 'bot', text: CRISIS_REPLY, synthetic: true },
+      ]);
+      inFlightRef.current = false;
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const surveyAnswers = user && !user.isGuest ? user.surveyAnswers : undefined;
+      const surveyAnswers =
+        user && !user.isGuest && shareProfile === true ? user.surveyAnswers : undefined;
       const userContext = buildUserContext(
-        user && !user.isGuest ? user.displayName : undefined,
+        user && !user.isGuest && shareProfile === true ? user.displayName : undefined,
         surveyAnswers,
       );
 
@@ -558,13 +739,15 @@ export default function CaseyScreen() {
       // sleep" vs "housing") and padded misses with arbitrary orgs.
       const context = buildContext(resources);
 
-      // Primary provider is Gemini; if it fails for any reason (e.g. quota /
-      // billing depleted), automatically fall back to Groq so the chat keeps
-      // working for users without interruption.
+      // Primary provider is Gemini; if it fails for availability reasons
+      // (e.g. quota / billing depleted), automatically fall back to Groq so
+      // the chat keeps working. Safety blocks are NOT availability failures
+      // and never fall back.
       let reply: string;
       try {
         reply = await fetchGeminiReply(messages, text, context, userContext);
       } catch (geminiErr) {
+        if (geminiErr instanceof SafetyBlockError) throw geminiErr;
         if (__DEV__) console.warn('[Casey] Gemini failed, falling back to Groq:', geminiErr);
         reply = await fetchGroqReply(messages, text, context, userContext);
       }
@@ -575,20 +758,28 @@ export default function CaseyScreen() {
         { id: replyId, role: 'bot', text: reply },
       ]);
 
-      // Auto-read Casey's response
-      speakText(reply, replyId);
+      if (autoSpeak) speakText(reply, replyId);
     } catch (err) {
-      if (__DEV__) console.error('[Casey] Both providers failed:', err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'bot',
-          text: "Sorry, I'm having trouble connecting right now. Please try Resources or try again in a moment.",
-        },
-      ]);
+      if (err instanceof SafetyBlockError) {
+        setMessages((prev) => [
+          ...prev,
+          { id: `${Date.now() + 1}`, role: 'bot', text: CRISIS_REPLY, synthetic: true },
+        ]);
+      } else {
+        if (__DEV__) console.error('[Casey] Both providers failed:', err);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: 'bot',
+            synthetic: true,
+            text: "Sorry — I'm having trouble connecting right now. You can browse the Resources tab in the meantime, or call 211 any time for help finding services. Please try me again in a few minutes.",
+          },
+        ]);
+      }
     } finally {
       setLoading(false);
+      inFlightRef.current = false;
     }
   };
 
@@ -607,6 +798,8 @@ export default function CaseyScreen() {
           {!isUser && (
             <Pressable
               style={styles.speakerBtn}
+              accessibilityRole="button"
+              accessibilityLabel={isCurrentlySpeaking ? 'Stop reading this message' : 'Read this message aloud'}
               onPress={() =>
                 isCurrentlySpeaking ? stopSpeaking() : speakText(item.text, item.id)
               }>
@@ -622,6 +815,9 @@ export default function CaseyScreen() {
     );
   };
 
+  const showConsentBanner = shareProfile === null && !!user && !user.isGuest;
+  const sendDisabled = !input.trim() || loading || resourcesStatus === 'loading';
+
   return (
     <View style={styles.container}>
       <FreepassHeader showMenu title="Casey" />
@@ -630,15 +826,53 @@ export default function CaseyScreen() {
         <Text style={styles.voiceLabel}>Voice:</Text>
         <Pressable
           style={[styles.voiceOption, voiceGender === 'female' && styles.voiceOptionActive]}
+          accessibilityRole="button"
+          accessibilityLabel="Use a female voice"
           onPress={() => { setVoiceGender('female'); if (isSpeaking) stopSpeaking(); }}>
           <Text style={[styles.voiceOptionText, voiceGender === 'female' && styles.voiceOptionTextActive]}>Female</Text>
         </Pressable>
         <Pressable
           style={[styles.voiceOption, voiceGender === 'male' && styles.voiceOptionActive]}
+          accessibilityRole="button"
+          accessibilityLabel="Use a male voice"
           onPress={() => { setVoiceGender('male'); if (isSpeaking) stopSpeaking(); }}>
           <Text style={[styles.voiceOptionText, voiceGender === 'male' && styles.voiceOptionTextActive]}>Male</Text>
         </Pressable>
+        <View style={styles.voiceBarSpacer} />
+        <Pressable
+          style={[styles.voiceOption, autoSpeak && styles.voiceOptionActive]}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: autoSpeak }}
+          accessibilityLabel="Automatically read Casey's replies aloud"
+          onPress={() => {
+            const next = !autoSpeak;
+            setAndStoreAutoSpeak(next);
+            if (!next && isSpeaking) stopSpeaking();
+          }}>
+          <Text style={[styles.voiceOptionText, autoSpeak && styles.voiceOptionTextActive]}>
+            {autoSpeak ? 'Auto-read: On' : 'Auto-read: Off'}
+          </Text>
+        </Pressable>
       </View>
+      {resourcesStatus !== 'ready' && (
+        <View style={styles.statusStrip}>
+          {resourcesStatus === 'loading' ? (
+            <Text style={styles.statusStripText}>Loading the resource directory…</Text>
+          ) : (
+            <>
+              <Text style={styles.statusStripText}>
+                Couldn&apos;t load the resource directory.
+              </Text>
+              <Pressable
+                onPress={loadResources}
+                accessibilityRole="button"
+                accessibilityLabel="Retry loading the resource directory">
+                <Text style={styles.statusStripRetry}>Retry</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      )}
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -662,6 +896,31 @@ export default function CaseyScreen() {
             </View>
           </View>
         )}
+        {showConsentBanner && (
+          <View style={styles.consentBanner}>
+            <Text style={styles.consentText}>
+              Casey can use your survey answers (like the kind of help you&apos;re looking for) to
+              personalize suggestions. Your messages and anything you share are processed by
+              outside AI services (Google Gemini and Groq). Share your survey answers with Casey?
+            </Text>
+            <View style={styles.consentButtons}>
+              <Pressable
+                style={styles.consentBtnPrimary}
+                accessibilityRole="button"
+                accessibilityLabel="Yes, use my survey answers to personalize"
+                onPress={() => setAndStoreShareProfile(true)}>
+                <Text style={styles.consentBtnPrimaryText}>Yes, personalize</Text>
+              </Pressable>
+              <Pressable
+                style={styles.consentBtnSecondary}
+                accessibilityRole="button"
+                accessibilityLabel="No, don't share my survey answers"
+                onPress={() => setAndStoreShareProfile(false)}>
+                <Text style={styles.consentBtnSecondaryText}>No thanks</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
@@ -678,6 +937,8 @@ export default function CaseyScreen() {
           <Pressable
             style={[styles.micBtn, isListening && styles.micBtnActive]}
             onPress={toggleListening}
+            accessibilityRole="button"
+            accessibilityLabel={isListening ? 'Stop recording' : 'Speak your message'}
             disabled={isTranscribing}>
             {isTranscribing ? (
               <ActivityIndicator size="small" color={FreepassColors.textSecondary} />
@@ -690,14 +951,18 @@ export default function CaseyScreen() {
             )}
           </Pressable>
           <Pressable
-            style={[styles.sendBtn, (!input.trim() || loading) && styles.sendBtnDisabled]}
+            style={[styles.sendBtn, sendDisabled && styles.sendBtnDisabled]}
             onPress={sendMessage}
-            disabled={!input.trim() || loading}>
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
+            disabled={sendDisabled}>
             <Text style={styles.sendBtnText}>Send</Text>
           </Pressable>
         </View>
         <Text style={styles.disclaimer}>
-          Casey can make mistakes. Double-check phone numbers and hours, and call 211 for urgent needs.
+          Casey can make mistakes — double-check phone numbers and hours before relying on them.
+          Messages are processed by outside AI services. Call 211 for urgent needs, or call/text
+          988 in a crisis.
         </Text>
       </KeyboardAvoidingView>
       <FreepassTabBar activeTab="casey" />
@@ -834,6 +1099,9 @@ const styles = StyleSheet.create({
     borderBottomColor: FreepassColors.lightGray,
     backgroundColor: FreepassColors.offWhite,
   },
+  voiceBarSpacer: {
+    flex: 1,
+  },
   voiceLabel: {
     fontSize: 13,
     color: FreepassColors.textSecondary,
@@ -859,14 +1127,75 @@ const styles = StyleSheet.create({
   voiceOptionTextActive: {
     color: FreepassColors.white,
   },
+  statusStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    backgroundColor: FreepassColors.cardBg,
+  },
+  statusStripText: {
+    fontSize: 12,
+    color: FreepassColors.textSecondary,
+  },
+  statusStripRetry: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: FreepassColors.accent,
+  },
+  consentBanner: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: FreepassColors.cardBg,
+    borderWidth: 1,
+    borderColor: FreepassColors.lightGray,
+  },
+  consentText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: FreepassColors.text,
+  },
+  consentButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  consentBtnPrimary: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: FreepassColors.primary,
+  },
+  consentBtnPrimaryText: {
+    color: FreepassColors.white,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  consentBtnSecondary: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: FreepassColors.white,
+    borderWidth: 1,
+    borderColor: FreepassColors.lightGray,
+  },
+  consentBtnSecondaryText: {
+    color: FreepassColors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   speakerBtn: {
     alignSelf: 'flex-end',
     marginTop: 6,
     padding: 4,
   },
   disclaimer: {
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 12,
+    lineHeight: 16,
     color: FreepassColors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: 24,

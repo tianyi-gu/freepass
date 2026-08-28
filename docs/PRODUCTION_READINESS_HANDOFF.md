@@ -1,6 +1,19 @@
 # FreePass Production Readiness Handoff
 
-Last updated: 2026-05-28
+Last updated: 2026-08-10
+
+> **2026-08-10 update:** a full pre-launch audit and fix pass was completed.
+> See `docs/LAUNCH_CHECKLIST.md` for the current authoritative list of
+> remaining steps, and `scripts/production-launch-fixes.sql` for the DB
+> migration that MUST be applied before shipping this code. Notable changes
+> since the May snapshot below: account deletion, password reset, and
+> report/block moderation were added; community chat is no longer local-only
+> (posts live in `community_posts`); Casey gained crisis handling, a consent
+> gate, and timeouts; the fabricated loan-eligibility copy was removed; the
+> Maestro suite now targets the real bundle id. Parts of the May document
+> below are therefore stale — trust the checklist first.
+
+Original snapshot (2026-05-28):
 
 This document captures the production-readiness audit and fix context for future agents working on the Hack4Impact x FreePass app. It intentionally separates code fixes from live Supabase/data work so future work does not accidentally claim completion when content or deployment is still required.
 

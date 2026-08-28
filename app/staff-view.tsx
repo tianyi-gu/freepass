@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { useUser } from '@/contexts/user-context';
 import { supabase } from '@/lib/supabase';
 
 interface Question {
@@ -16,11 +17,17 @@ interface Question {
 
 export default function StaffViewScreen() {
   const insets = useSafeAreaInsets();
+  const { user } = useUser();
+  const isStaff = !!user && !user.isGuest && user.isStaff === true;
   const [questions, setQuestions] = useState<Question[]>([]);
   const [drafts, setDrafts] = useState<{id: string; name: string; phone: string | null; email: string | null; created_at: string}[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isStaff) {
+      setLoading(false);
+      return;
+    }
     supabase
       .from('questions')
       .select('id, question, category, answers(count)')
@@ -44,7 +51,27 @@ export default function StaffViewScreen() {
       .then(({ data }) => {
         setDrafts(data ?? []);
       });
-  }, []);
+  }, [isStaff]);
+
+  if (!isStaff) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <IconSymbol name="chevron.left" size={18} color={FreepassColors.white} />
+            <Text style={styles.backText}>Back</Text>
+          </Pressable>
+        </View>
+        <View style={styles.gateWrap}>
+          <Text style={styles.gateTitle}>Staff only</Text>
+          <Text style={styles.gateText}>
+            This area is for FreePass staff. If you work with The Fountain Fund and need access,
+            ask an administrator to enable staff access on your account.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -115,6 +142,24 @@ export default function StaffViewScreen() {
 }
 
 const styles = StyleSheet.create({
+  gateWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  gateTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: FreepassColors.white,
+    marginBottom: 10,
+  },
+  gateText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: FreepassColors.accentLight,
+    textAlign: 'center',
+  },
   container: { flex: 1, backgroundColor: FreepassColors.primary },
   header: {
     flexDirection: 'row',

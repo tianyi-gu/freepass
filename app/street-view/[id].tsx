@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { openWebUrl } from '@/lib/links';
 import { useResource } from '@/hooks/use-resources';
 
 export default function StreetViewScreen() {
@@ -18,11 +19,9 @@ export default function StreetViewScreen() {
 
   const openInMaps = () => {
     if (hasCoords) {
-      const url = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${resource!.latitude},${resource!.longitude}`;
-      Linking.openURL(url);
+      openWebUrl(`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${resource!.latitude},${resource!.longitude}`);
     } else if (address) {
-      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-      Linking.openURL(url);
+      openWebUrl(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`);
     }
   };
 

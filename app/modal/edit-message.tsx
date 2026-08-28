@@ -25,10 +25,16 @@ export default function EditMessageModal() {
       return;
     }
     setSubmitting(true);
-    const { error } = await supabase.from('community_posts').update({ content: text.trim() }).eq('id', messageId);
+    // .select() returns the updated rows — RLS drops the write silently when
+    // the user doesn't own the row, so a row count is the only honest signal.
+    const { data, error } = await supabase
+      .from('community_posts')
+      .update({ content: text.trim() })
+      .eq('id', messageId)
+      .select('id');
     setSubmitting(false);
-    if (error) {
-      Alert.alert('Error', 'Could not update the message. Please try again.');
+    if (error || !data || data.length === 0) {
+      Alert.alert('Could not update', 'You can only edit posts you made while signed in.');
       return;
     }
     Alert.alert('Updated', 'Your message has been updated.', [
@@ -44,9 +50,13 @@ export default function EditMessageModal() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          const { error } = await supabase.from('community_posts').delete().eq('id', messageId);
-          if (error) {
-            Alert.alert('Error', 'Could not delete the message.');
+          const { data, error } = await supabase
+            .from('community_posts')
+            .delete()
+            .eq('id', messageId)
+            .select('id');
+          if (error || !data || data.length === 0) {
+            Alert.alert('Could not delete', 'You can only delete posts you made while signed in.');
             return;
           }
           router.back();

@@ -1,10 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { useUser } from '@/contexts/user-context';
+import { blockUser, fetchBlockedIds, submitReport } from '@/lib/moderation';
 import { supabase } from '@/lib/supabase';
 
 interface Answer {
@@ -12,6 +14,7 @@ interface Answer {
   answer: string;
   answered_by: string | null;
   upvotes: number;
+  user_id: string | null;
 }
 
 interface Question {
@@ -19,34 +22,111 @@ interface Question {
   question: string;
   upvotes: number;
   category: string | null;
+  user_id: string | null;
 }
 
 export default function QuestionViewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const { user } = useUser();
+  const signedInUserId = user && !user.isGuest ? user.id : null;
   const [question, setQuestion] = useState<Question | null>(null);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
-    Promise.all([
-      supabase.from('questions').select('*').eq('id', id).single(),
-      supabase.from('answers').select('*').eq('question_id', id).order('upvotes', { ascending: false }),
-    ]).then(([qRes, aRes]) => {
-      if (qRes.data) setQuestion(qRes.data);
-      if (aRes.data) setAnswers(aRes.data);
+    if (!id) {
       setLoading(false);
-    });
-  }, [id]);
+      setLoadError(true);
+      return;
+    }
+    let cancelled = false;
+    Promise.all([
+      supabase.from('questions').select('*').eq('id', id).maybeSingle(),
+      supabase.from('answers').select('*').eq('question_id', id).order('upvotes', { ascending: false }),
+      fetchBlockedIds(signedInUserId),
+    ])
+      .then(([qRes, aRes, blocked]) => {
+        if (cancelled) return;
+        if (qRes.error || !qRes.data) setLoadError(true);
+        if (qRes.data) setQuestion(qRes.data);
+        if (aRes.data) {
+          setAnswers((aRes.data as Answer[]).filter((a) => !a.user_id || !blocked.has(a.user_id)));
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLoadError(true);
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [id, signedInUserId]);
 
-  if (loading) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator color={FreepassColors.white} size="large" />
-      </View>
-    );
-  }
+  const upvoteQuestion = useCallback(async () => {
+    if (!question) return;
+    if (!signedInUserId) {
+      Alert.alert('Sign in required', 'Please create an account or log in to upvote.');
+      return;
+    }
+    const { data, error } = await supabase.rpc('upvote_question', { qid: question.id });
+    if (error || typeof data !== 'number') {
+      Alert.alert('Could not upvote', 'Please try again in a moment.');
+      return;
+    }
+    setQuestion((prev) => (prev ? { ...prev, upvotes: data } : prev));
+  }, [question, signedInUserId]);
+
+  const upvoteAnswer = useCallback(async (answerId: string) => {
+    if (!signedInUserId) {
+      Alert.alert('Sign in required', 'Please create an account or log in to upvote.');
+      return;
+    }
+    const { data, error } = await supabase.rpc('upvote_answer', { aid: answerId });
+    if (error || typeof data !== 'number') {
+      Alert.alert('Could not upvote', 'Please try again in a moment.');
+      return;
+    }
+    setAnswers((prev) => prev.map((ans) => (ans.id === answerId ? { ...ans, upvotes: data } : ans)));
+  }, [signedInUserId]);
+
+  const reportOptions = useCallback(
+    (contentType: 'question' | 'answer', contentId: string, authorId: string | null, authorName: string) => {
+      const options: { text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }[] = [
+        {
+          text: contentType === 'question' ? 'Report question' : 'Report answer',
+          onPress: async () => {
+            const { error } = await submitReport(contentType, contentId, signedInUserId);
+            Alert.alert(
+              error ? 'Could not send report' : 'Report sent',
+              error ?? 'Thank you. Our team will review this.',
+            );
+          },
+        },
+      ];
+      if (signedInUserId && authorId && authorId !== signedInUserId) {
+        options.push({
+          text: `Block ${authorName}`,
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await blockUser(signedInUserId, authorId);
+            if (error) {
+              Alert.alert('Could not block', error);
+              return;
+            }
+            setAnswers((prev) => prev.filter((a) => a.user_id !== authorId));
+            Alert.alert('Blocked', `You won't see posts from ${authorName} anymore.`);
+          },
+        });
+      }
+      options.push({ text: 'Cancel', style: 'cancel' });
+      Alert.alert('Options', undefined, options);
+    },
+    [signedInUserId],
+  );
+
+  const ownsQuestion = !!signedInUserId && question?.user_id === signedInUserId;
 
   return (
     <View style={styles.container}>
@@ -57,33 +137,48 @@ export default function QuestionViewScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>Question View</Text>
         <View style={styles.headerRightActions}>
-          <Pressable
-            style={styles.editBtn}
-            onPress={() =>
-              router.push(
-                `/modal/edit-question?questionId=${id}&currentText=${encodeURIComponent(question?.question ?? '')}` as never
-              )
-            }>
-            <IconSymbol name="square.and.pencil" size={18} color={FreepassColors.white} />
-          </Pressable>
-          <Pressable
-            style={styles.upvoteBtn}
-            onPress={async () => {
-              if (!question) return;
-              const newCount = (question.upvotes ?? 0) + 1;
-              await supabase.from('questions').update({ upvotes: newCount }).eq('id', question.id);
-              setQuestion({ ...question, upvotes: newCount });
-            }}>
+          {ownsQuestion ? (
+            <Pressable
+              style={styles.editBtn}
+              onPress={() =>
+                router.push(
+                  `/modal/edit-question?questionId=${id}&currentText=${encodeURIComponent(question?.question ?? '')}` as never
+                )
+              }>
+              <IconSymbol name="square.and.pencil" size={18} color={FreepassColors.white} />
+            </Pressable>
+          ) : question ? (
+            <Pressable
+              style={styles.editBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Report or block"
+              onPress={() =>
+                reportOptions('question', question.id, question.user_id, 'this member')
+              }>
+              <IconSymbol name="ellipsis" size={18} color={FreepassColors.white} />
+            </Pressable>
+          ) : null}
+          <Pressable style={styles.upvoteBtn} onPress={upvoteQuestion}>
             <IconSymbol name="hand.thumbsup.fill" size={18} color={FreepassColors.white} />
             <Text style={styles.upvoteText}>{question?.upvotes ?? 0}</Text>
           </Pressable>
         </View>
       </View>
 
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={FreepassColors.white} size="large" />
+        </View>
+      ) : (
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.questionCard}>
           <Text style={styles.questionLabel}>Question:</Text>
-          <Text style={styles.questionText}>{question?.question ?? 'Question not found'}</Text>
+          <Text style={styles.questionText}>
+            {question?.question ??
+              (loadError
+                ? 'This question could not be loaded. It may have been removed, or you may be offline.'
+                : 'Question not found')}
+          </Text>
           {question?.category && <Text style={styles.categoryTag}>{question.category}</Text>}
         </View>
 
@@ -91,35 +186,43 @@ export default function QuestionViewScreen() {
         {answers.length === 0 ? (
           <Text style={styles.noAnswers}>No answers yet. Be the first to respond!</Text>
         ) : (
-          answers.map((a) => (
+          answers.map((a) => {
+            const ownsAnswer = !!signedInUserId && a.user_id === signedInUserId;
+            return (
             <View key={a.id} style={styles.answerCard}>
               <Text style={styles.answerText}>{a.answer}</Text>
               <View style={styles.answerMain}>
                 <Text style={styles.answerName}>{a.answered_by ?? 'Anonymous'}</Text>
-                <Pressable
-                  style={styles.answerEditBtn}
-                  onPress={() =>
-                    router.push(
-                      `/modal/edit-answer?answerId=${a.id}&currentText=${encodeURIComponent(a.answer)}` as never
-                    )
-                  }>
-                  <IconSymbol name="square.and.pencil" size={16} color={FreepassColors.textSecondary} />
-                </Pressable>
-                <Pressable
-                  style={styles.answerUpvote}
-                  onPress={async () => {
-                    const newCount = (a.upvotes ?? 0) + 1;
-                    await supabase.from('answers').update({ upvotes: newCount }).eq('id', a.id);
-                    setAnswers((prev) => prev.map((ans) => ans.id === a.id ? { ...ans, upvotes: newCount } : ans));
-                  }}>
+                {ownsAnswer ? (
+                  <Pressable
+                    style={styles.answerEditBtn}
+                    onPress={() =>
+                      router.push(
+                        `/modal/edit-answer?answerId=${a.id}&currentText=${encodeURIComponent(a.answer)}` as never
+                      )
+                    }>
+                    <IconSymbol name="square.and.pencil" size={16} color={FreepassColors.textSecondary} />
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={styles.answerEditBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Report or block"
+                    onPress={() => reportOptions('answer', a.id, a.user_id, a.answered_by ?? 'this member')}>
+                    <IconSymbol name="ellipsis" size={16} color={FreepassColors.textSecondary} />
+                  </Pressable>
+                )}
+                <Pressable style={styles.answerUpvote} onPress={() => upvoteAnswer(a.id)}>
                   <IconSymbol name="hand.thumbsup.fill" size={16} color={FreepassColors.textSecondary} />
                   <Text style={styles.answerUpvoteText}>{a.upvotes}</Text>
                 </Pressable>
               </View>
             </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
+      )}
 
       <Pressable
         style={styles.addAnswerBtn}
@@ -134,6 +237,7 @@ export default function QuestionViewScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: FreepassColors.primaryDark },
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

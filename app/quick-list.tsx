@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { useUser } from '@/contexts/user-context';
 import { useResources } from '@/hooks/use-resources';
 import { useSavedResources } from '@/hooks/use-saved-resources';
 import { resourceMatchesSearch } from '@/lib/resource-utils';
@@ -12,8 +13,10 @@ import { resourceMatchesSearch } from '@/lib/resource-utils';
 export default function QuickListScreen() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const { user } = useUser();
   const { resources: allResources, loading } = useResources();
   const { isSaved, toggleSave } = useSavedResources();
+  const isStaff = !!user && !user.isGuest && user.isStaff === true;
 
   const resources = useMemo(() => allResources.filter((r) => {
     if (showFavoritesOnly && !isSaved(r.id)) return false;
@@ -30,8 +33,8 @@ export default function QuickListScreen() {
         <View style={styles.branding}>
           <Text style={styles.brandTitle}>FreePass Quick List</Text>
           <Text style={styles.brandSubtitle}>
-            To find relevant services in your area, you may use the Search Bar, choose Search by Category, or view
-            Resources near you.
+            To find services, use the Search Bar, choose Search by Category, or tap Near Me to see
+            resources close to your location.
           </Text>
         </View>
 
@@ -46,7 +49,7 @@ export default function QuickListScreen() {
               onChangeText={setSearchQuery}
             />
           </View>
-          <Text style={styles.sectionHeading}>Below are relevant services in your area.</Text>
+          <Text style={styles.sectionHeading}>Below are services in the FreePass directory.</Text>
         </View>
 
         <View style={styles.actionGrid}>
@@ -88,13 +91,15 @@ export default function QuickListScreen() {
             <View style={[styles.checkboxBox, showFavoritesOnly && styles.checkboxChecked]} />
             <Text style={styles.checkboxLabel}>Show Favorites Only</Text>
           </Pressable>
-          <Pressable
-            style={styles.staffBtn}
-            onPress={() => router.push('/staff-view' as never)}
-            android_ripple={{ color: FreepassColors.lightGray }}>
-            <IconSymbol name="person.fill" size={16} color={FreepassColors.primary} />
-            <Text style={styles.staffBtnText}>Staff View</Text>
-          </Pressable>
+          {isStaff && (
+            <Pressable
+              style={styles.staffBtn}
+              onPress={() => router.push('/staff-view' as never)}
+              android_ripple={{ color: FreepassColors.lightGray }}>
+              <IconSymbol name="person.fill" size={16} color={FreepassColors.primary} />
+              <Text style={styles.staffBtnText}>Staff View</Text>
+            </Pressable>
+          )}
         </View>
 
         {loading ? (

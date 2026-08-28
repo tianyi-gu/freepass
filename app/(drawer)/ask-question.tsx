@@ -20,13 +20,18 @@ interface Question {
 export default function AskQuestionScreen() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
       .from('questions')
       .select('id, question, category, upvotes, is_faq, answers(count)')
+      // Feedback submitted through "Give Feedback" lands in this table; it's
+      // meant for staff, not for the public Q&A list.
+      .not('category', 'eq', 'Feedback')
       .order('upvotes', { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error: err }) => {
+        if (err) setError(err.message);
         setQuestions((data as unknown as Question[]) ?? []);
         setLoading(false);
       });
@@ -38,8 +43,9 @@ export default function AskQuestionScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Q & A</Text>
         <Text style={styles.intro}>
-          Use this page to find answers to your questions, search for information, and ask new questions. FreePass staff
-          will regularly monitor this page and answer questions.
+          Use this page to find answers to your questions, search for information, and ask new
+          questions. Answers come from the community and may take time — for anything urgent,
+          call 211 or contact an organization directly from Resources.
         </Text>
 
         <Pressable
@@ -53,6 +59,10 @@ export default function AskQuestionScreen() {
         <Text style={styles.sectionTitle}>Browse Questions</Text>
         {loading ? (
           <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 20 }} />
+        ) : error ? (
+          <Text style={styles.emptyText}>
+            Questions couldn&apos;t be loaded right now. Please check your connection and try again.
+          </Text>
         ) : questions.length === 0 ? (
           <Text style={styles.emptyText}>No questions yet. Be the first to ask!</Text>
         ) : (

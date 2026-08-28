@@ -75,7 +75,26 @@ export function useBudget() {
         if (expensesStr) {
           try {
             const parsed = JSON.parse(expensesStr);
-            if (Array.isArray(parsed)) setExpensesState(parsed);
+            // Element-level shape check: one malformed entry (non-numeric
+            // amount) would crash the Budget tab on every render, and since
+            // the bad data is persisted the tab would stay broken until
+            // reinstall. Drop invalid entries instead.
+            if (Array.isArray(parsed)) {
+              const valid = parsed.filter(
+                (e): e is Expense =>
+                  !!e &&
+                  typeof e === 'object' &&
+                  typeof e.id === 'string' &&
+                  typeof e.amount === 'number' &&
+                  isFinite(e.amount) &&
+                  typeof e.description === 'string' &&
+                  typeof e.date === 'string',
+              );
+              setExpensesState(valid);
+              if (valid.length !== parsed.length) {
+                await AsyncStorage.setItem(EXPENSES_KEY, JSON.stringify(valid));
+              }
+            }
           } catch {
             // Corrupted expenses data — start fresh rather than crashing
             await AsyncStorage.removeItem(EXPENSES_KEY);

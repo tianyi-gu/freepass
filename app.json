@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "freepass",
+    "name": "FreePass",
     "slug": "freepass",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "org.thefountainfund.freepass.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "FreePass uses the microphone so you can speak to Casey instead of typing. Voice recordings are transcribed and are not kept."
       }
     },
     "android": {
@@ -54,13 +55,16 @@
         }
       ],
       [
-        "expo-speech-recognition",
+        "expo-location",
         {
-          "microphonePermission": "FreePass needs access to your microphone so you can talk to Casey using voice.",
-          "speechRecognitionPermission": "FreePass needs access to speech recognition so Casey can understand what you say."
+          "locationWhenInUsePermission": "FreePass uses your location to show resources and services near you.",
+          "locationAlwaysPermission": false,
+          "locationAlwaysAndWhenInUsePermission": false,
+          "isAndroidBackgroundLocationEnabled": false
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,

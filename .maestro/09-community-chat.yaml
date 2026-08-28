@@ -1,5 +1,5 @@
-appId: com.anonymous.freepass
-name: Community chat posts a message as guest
+appId: org.thefountainfund.freepass.app
+name: Community board is readable as guest, posting requires sign-in
 ---
 - launchApp:
     clearState: true
@@ -9,11 +9,8 @@ name: Community chat posts a message as guest
 - tapOn:
     point: "9%,10%"
 - waitForAnimationToEnd
-- tapOn: ".*Community Chat.*"
+- tapOn: ".*Community Board.*"
 - assertVisible: "Community Board"
-- tapOn: "Write a message..."
-- inputText: "E2E test message please ignore"
-- tapOn: "POST"
-- extendedWaitUntil:
-    visible: ".*E2E test message please ignore.*"
-    timeout: 15000
+# Guests can read the board but must sign in to post
+- assertVisible: ".*Sign in to post.*"
+- assertNotVisible: "Write a message..."

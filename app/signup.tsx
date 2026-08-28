@@ -7,16 +7,18 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { useUser } from '@/contexts/user-context';
 
-type Mode = 'welcome' | 'signup' | 'login' | 'confirmed';
+type Mode = 'welcome' | 'signup' | 'login' | 'confirmed' | 'forgot' | 'reset';
 
 export default function SignupScreen() {
-  const { signUp, logIn, continueAsGuest } = useUser();
+  const { signUp, logIn, continueAsGuest, resetPassword, confirmPasswordReset, resendConfirmation } = useUser();
   const [mode, setMode] = useState<Mode>('welcome');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [zipCode, setZipCode] = useState('');
+  const [resetCode, setResetCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
 
   const handleSignUp = useCallback(async () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
@@ -67,6 +69,54 @@ export default function SignupScreen() {
     router.replace('/(drawer)');
   }, [continueAsGuest]);
 
+  const handleSendReset = useCallback(async () => {
+    if (!email.trim()) {
+      Alert.alert('Missing info', 'Please enter the email you signed up with.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await resetPassword(email.trim());
+      setMode('reset');
+    } catch (err) {
+      Alert.alert('Could not send reset email', (err as Error).message || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [email, resetPassword]);
+
+  const handleConfirmReset = useCallback(async () => {
+    if (!resetCode.trim() || !password.trim()) {
+      Alert.alert('Missing info', 'Please enter the code from your email and a new password.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await confirmPasswordReset(email.trim(), resetCode, password);
+      Alert.alert('Password updated', 'You are now logged in with your new password.');
+      router.replace('/(drawer)');
+    } catch (err) {
+      Alert.alert(
+        'Could not reset password',
+        (err as Error).message || 'The code may be wrong or expired. Please try again.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [email, resetCode, password, confirmPasswordReset]);
+
+  const handleResendConfirmation = useCallback(async () => {
+    setResending(true);
+    try {
+      await resendConfirmation(email.trim());
+      Alert.alert('Email sent', `We sent another confirmation email to ${email.trim()}.`);
+    } catch (err) {
+      Alert.alert('Could not resend', (err as Error).message || 'Please try again in a minute.');
+    } finally {
+      setResending(false);
+    }
+  }, [email, resendConfirmation]);
+
   if (mode === 'confirmed') {
     return (
       <View style={styles.container}>
@@ -80,8 +130,14 @@ export default function SignupScreen() {
           <IconSymbol name="checkmark.circle.fill" size={72} color={FreepassColors.accentLight} />
           <Text style={styles.confirmedTitle}>Account Created!</Text>
           <Text style={styles.confirmedBody}>
-            Welcome to FreePass. We&apos;ve sent a confirmation email to {email} — you can verify it at any time.
+            Welcome to FreePass. Check your inbox (and spam folder) for a confirmation email sent
+            to {email}, and tap the link inside — you&apos;ll need to confirm before you can log in.
           </Text>
+          <Pressable style={styles.skipLink} onPress={handleResendConfirmation} disabled={resending}>
+            <Text style={styles.skipLinkText}>
+              {resending ? 'Sending…' : "Didn't get it? Resend the email"}
+            </Text>
+          </Pressable>
           <Text style={styles.confirmedNote}>
             Next, answer a few quick questions so we can personalize your experience.
           </Text>
@@ -282,9 +338,106 @@ export default function SignupScreen() {
 
             <Pressable
               style={styles.switchBtn}
+              onPress={() => { setMode('forgot'); setPassword(''); }}>
+              <Text style={styles.switchText}>
+                <Text style={styles.switchLink}>Forgot your password?</Text>
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.switchBtn}
               onPress={() => { setMode('signup'); setPassword(''); }}>
               <Text style={styles.switchText}>
                 Don&apos;t have an account? <Text style={styles.switchLink}>Sign up</Text>
+              </Text>
+            </Pressable>
+          </>
+        )}
+
+        {mode === 'forgot' && (
+          <>
+            <Text style={styles.formTitle}>Reset Your Password</Text>
+            <Text style={styles.formSubtitle}>
+              Enter the email you signed up with and we&apos;ll send you a reset code.
+            </Text>
+
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email..."
+                placeholderTextColor={FreepassColors.textSecondary}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <Pressable
+              style={[styles.primaryBtn, loading && styles.btnDisabled]}
+              onPress={handleSendReset}
+              disabled={loading}
+              android_ripple={{ color: FreepassColors.accent }}>
+              <Text style={styles.primaryBtnText}>
+                {loading ? 'SENDING...' : 'SEND RESET EMAIL'}
+              </Text>
+            </Pressable>
+
+            <Pressable style={styles.switchBtn} onPress={() => setMode('login')}>
+              <Text style={styles.switchText}>
+                Remembered it? <Text style={styles.switchLink}>Log in</Text>
+              </Text>
+            </Pressable>
+          </>
+        )}
+
+        {mode === 'reset' && (
+          <>
+            <Text style={styles.formTitle}>Check Your Email</Text>
+            <Text style={styles.formSubtitle}>
+              We sent a reset email to {email}. Enter the code from that email and choose a new
+              password.
+            </Text>
+
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Reset Code</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter the code from the email..."
+                placeholderTextColor={FreepassColors.textSecondary}
+                value={resetCode}
+                onChangeText={setResetCode}
+                keyboardType="number-pad"
+                autoCapitalize="none"
+              />
+            </View>
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>New Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Create a new password..."
+                placeholderTextColor={FreepassColors.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                returnKeyType="done"
+              />
+            </View>
+
+            <Pressable
+              style={[styles.primaryBtn, loading && styles.btnDisabled]}
+              onPress={handleConfirmReset}
+              disabled={loading}
+              android_ripple={{ color: FreepassColors.accent }}>
+              <Text style={styles.primaryBtnText}>
+                {loading ? 'UPDATING...' : 'SET NEW PASSWORD'}
+              </Text>
+            </Pressable>
+
+            <Pressable style={styles.switchBtn} onPress={handleSendReset} disabled={loading}>
+              <Text style={styles.switchText}>
+                Didn&apos;t get it? <Text style={styles.switchLink}>Resend the email</Text>
               </Text>
             </Pressable>
           </>

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useCallback } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -8,16 +8,48 @@ import { FreepassColors } from '@/constants/theme';
 import { useUser } from '@/contexts/user-context';
 import { useDocuments } from '@/hooks/use-documents';
 
+const SUPPORT_URL = 'https://www.fountainfund.org/';
+
 export default function AccountScreen() {
-  const { user, logOut } = useUser();
+  const { user, logOut, deleteAccount } = useUser();
   const documentsUserId = user && !user.isGuest ? user.id : null;
   const { documents } = useDocuments(documentsUserId);
   const docCount = documents.length;
+  const [deleting, setDeleting] = useState(false);
 
   const handleLogOut = useCallback(async () => {
     await logOut();
     router.replace('/signup');
   }, [logOut]);
+
+  const handleDeleteAccount = useCallback(() => {
+    Alert.alert(
+      'Delete your account?',
+      'This permanently deletes your account, your saved documents, your survey answers, and your saved resources. Posts you made on the community board will stay but will no longer show your name. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete My Account',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteAccount();
+              Alert.alert('Account deleted', 'Your account and data have been deleted.');
+              router.replace('/signup');
+            } catch (err: any) {
+              Alert.alert(
+                'Could not delete account',
+                err?.message || 'Something went wrong. Please try again, or contact The Fountain Fund for help.',
+              );
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [deleteAccount]);
 
   // Not logged in or guest — prompt to create account
   if (!user || user.isGuest) {
@@ -105,11 +137,6 @@ export default function AccountScreen() {
             <Text style={styles.menuLabel}>Retake Survey</Text>
             <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
           </Pressable>
-          <Pressable style={styles.menuRow} android_ripple={{ color: FreepassColors.lightGray }}>
-            <IconSymbol name="envelope.fill" size={22} color={FreepassColors.primary} />
-            <Text style={styles.menuLabel}>Notifications</Text>
-            <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
-          </Pressable>
         </View>
 
         <View style={styles.section}>
@@ -173,9 +200,29 @@ export default function AccountScreen() {
           </View>
         )}
 
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Support</Text>
+          <Pressable
+            style={styles.menuRow}
+            onPress={() => Linking.openURL(SUPPORT_URL).catch(() => {})}
+            android_ripple={{ color: FreepassColors.lightGray }}>
+            <IconSymbol name="envelope.fill" size={22} color={FreepassColors.primary} />
+            <Text style={styles.menuLabel}>Contact The Fountain Fund</Text>
+            <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
+          </Pressable>
+        </View>
+
         <Pressable style={styles.logoutBtn} onPress={handleLogOut} android_ripple={{ color: FreepassColors.lightGray }}>
           <IconSymbol name="person.fill" size={20} color={FreepassColors.destructive} />
           <Text style={styles.logoutText}>Log Out</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.deleteBtn}
+          onPress={handleDeleteAccount}
+          disabled={deleting}
+          android_ripple={{ color: FreepassColors.lightGray }}>
+          <Text style={styles.deleteText}>{deleting ? 'Deleting…' : 'Delete Account'}</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -302,6 +349,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: FreepassColors.destructive,
+  },
+  deleteBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  deleteText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: FreepassColors.textSecondary,
+    textDecorationLine: 'underline',
   },
   countBadge: {
     backgroundColor: FreepassColors.accent,

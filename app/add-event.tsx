@@ -57,14 +57,19 @@ export default function AddEventScreen() {
         address: form.address.trim() || null,
         event_date: eventDate.toISOString(),
         end_date: endDate && !isNaN(endDate.getTime()) ? endDate.toISOString() : null,
-        is_published: true,
+        // RLS only accepts unpublished submissions — a staff member reviews
+        // and publishes. (Inserting is_published: true was silently rejected
+        // by the database while the app claimed the event was live.)
+        is_published: false,
       });
 
       if (error) throw error;
 
-      Alert.alert('Event Added', 'Your event is now live on the community calendar.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      Alert.alert(
+        'Event Submitted',
+        'Thanks! Your event has been sent to FreePass staff for review and will appear on the calendar once approved.',
+        [{ text: 'OK', onPress: () => router.back() }],
+      );
     } catch (err) {
       Alert.alert('Could Not Submit Event', (err as Error).message || 'Please check your connection and try again.');
     } finally {

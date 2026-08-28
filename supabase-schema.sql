@@ -10,6 +10,7 @@ create table public.profiles (
   email text,
   zip_code text,
   is_guest boolean default false,
+  is_staff boolean not null default false,
   onboarding_complete boolean default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -125,6 +126,7 @@ create table public.course_tasks (
 -- 10. QUESTIONS — community Q&A board
 create table public.questions (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.profiles(id) on delete set null,
   question text not null,
   category text,
   upvotes int default 0,
@@ -138,6 +140,7 @@ create table public.questions (
 create table public.answers (
   id uuid primary key default gen_random_uuid(),
   question_id uuid references public.questions(id) on delete cascade not null,
+  user_id uuid references public.profiles(id) on delete set null,
   answer text not null,
   answered_by text,
   upvotes int default 0,
@@ -152,6 +155,25 @@ create table public.community_posts (
   display_name text not null default 'Anonymous',
   content text not null,
   created_at timestamptz default now()
+);
+
+-- 13. REPORTS — user flags on UGC (Apple 1.2); write-only for users, staff-readable
+create table public.reports (
+  id uuid primary key default gen_random_uuid(),
+  reporter_id uuid references public.profiles(id) on delete set null,
+  content_type text not null check (content_type in ('community_post', 'question', 'answer', 'resource', 'event')),
+  content_id uuid not null,
+  reason text,
+  created_at timestamptz default now()
+);
+
+-- 14. BLOCKED USERS — per-user block list (Apple 1.2); app hides blocked authors' content
+create table public.blocked_users (
+  id uuid primary key default gen_random_uuid(),
+  blocker_id uuid references public.profiles(id) on delete cascade not null,
+  blocked_id uuid not null,
+  created_at timestamptz default now(),
+  unique (blocker_id, blocked_id)
 );
 
 -- ============================================================
@@ -183,6 +205,8 @@ alter table public.course_tasks enable row level security;
 alter table public.questions enable row level security;
 alter table public.answers enable row level security;
 alter table public.community_posts enable row level security;
+alter table public.reports enable row level security;
+alter table public.blocked_users enable row level security;
 
 -- Profiles: users can read/update their own profile
 create policy "Users can view own profile"
@@ -208,12 +232,24 @@ create policy "Anyone can view published resources"
   on public.resources for select using (is_published = true);
 create policy "Authenticated users can submit draft resources"
   on public.resources for insert to authenticated with check (is_published = false);
+create policy "Staff can view draft resources"
+  on public.resources for select to authenticated
+  using (exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.is_staff
+  ));
 
 -- Events: everyone can read published
 create policy "Anyone can view published events"
   on public.events for select using (is_published = true);
 create policy "Authenticated users can submit draft events"
   on public.events for insert to authenticated with check (is_published = false);
+create policy "Staff can view draft events"
+  on public.events for select to authenticated
+  using (exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.is_staff
+  ));
 
 -- Saved resources: users manage their own
 create policy "Users can view own saved resources"
@@ -231,25 +267,57 @@ create policy "Anyone can view courses"
 create policy "Anyone can view course tasks"
   on public.course_tasks for select using (true);
 
--- Questions: everyone can read, authenticated users can create
+-- Questions: everyone can read; signed-in users create/edit/delete their own
 create policy "Anyone can view questions"
   on public.questions for select using (true);
 create policy "Authenticated users can ask questions"
-  on public.questions for insert to authenticated with check (true);
+  on public.questions for insert to authenticated with check (auth.uid() = user_id);
+create policy "Users can update own questions"
+  on public.questions for update to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can delete own questions"
+  on public.questions for delete to authenticated using (auth.uid() = user_id);
 
--- Answers: everyone can read, authenticated users can create
+-- Answers: everyone can read; signed-in users create/edit/delete their own
 create policy "Anyone can view answers"
   on public.answers for select using (true);
 create policy "Authenticated users can answer"
-  on public.answers for insert to authenticated with check (true);
+  on public.answers for insert to authenticated with check (auth.uid() = user_id);
+create policy "Users can update own answers"
+  on public.answers for update to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users can delete own answers"
+  on public.answers for delete to authenticated using (auth.uid() = user_id);
 
--- Community posts: everyone can read; anyone can post, including guest users
+-- Community posts: everyone can read; only signed-in users can post, as themselves
 create policy "Anyone can read posts"
   on public.community_posts for select using (true);
-create policy "Anyone can post"
-  on public.community_posts for insert with check (true);
+create policy "Signed-in users can post as themselves"
+  on public.community_posts for insert to authenticated with check (auth.uid() = user_id);
+create policy "Users can update own posts"
+  on public.community_posts for update to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "Users can delete own posts"
   on public.community_posts for delete using (auth.uid() = user_id);
+
+-- Reports: anyone (including guests) can file; only staff can read
+create policy "Anyone can file a report"
+  on public.reports for insert
+  with check (reporter_id is null or reporter_id = auth.uid());
+create policy "Staff can view reports"
+  on public.reports for select to authenticated
+  using (exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.is_staff
+  ));
+
+-- Blocked users: users manage their own block list
+create policy "Users can view own blocks"
+  on public.blocked_users for select to authenticated using (auth.uid() = blocker_id);
+create policy "Users can block"
+  on public.blocked_users for insert to authenticated with check (auth.uid() = blocker_id);
+create policy "Users can unblock"
+  on public.blocked_users for delete to authenticated using (auth.uid() = blocker_id);
 
 -- User documents: users manage their own private documents
 create policy "Users can view own documents"
@@ -263,10 +331,13 @@ create policy "Users can delete own documents"
 
 -- ============================================================
 -- STORAGE BUCKET — private bucket for user documents
--- Run these separately in Supabase Dashboard if the bucket doesn't exist:
---   Storage → New bucket → name: 'documents', Public: false
--- Then run the policies below.
+-- Created (and forced private) directly in SQL so the safety of
+-- ID photos never depends on a manual dashboard step.
 -- ============================================================
+
+insert into storage.buckets (id, name, public)
+values ('documents', 'documents', false)
+on conflict (id) do update set public = false;
 
 -- Storage policies for the 'documents' bucket
 -- Users can upload/read/delete only files in their own folder (named by user id)
@@ -359,6 +430,81 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- ============================================================
+-- ACCOUNT DELETION (Apple 5.1.1(v))
+-- Called from the app via supabase.rpc('delete_account').
+-- Anonymizes left-behind UGC, purges document files, then deletes
+-- the auth user (cascades to all user-owned tables).
+-- ============================================================
+
+create or replace function public.delete_account()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  uid uuid := auth.uid();
+begin
+  if uid is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  update public.community_posts
+    set display_name = 'Deleted user'
+    where user_id = uid;
+  update public.questions
+    set asked_by = 'Deleted user'
+    where user_id = uid;
+  update public.answers
+    set answered_by = 'Deleted user'
+    where user_id = uid;
+
+  delete from storage.objects
+    where bucket_id = 'documents'
+      and (storage.foldername(name))[1] = uid::text;
+
+  delete from auth.users where id = uid;
+end;
+$$;
+
+revoke all on function public.delete_account() from public, anon;
+grant execute on function public.delete_account() to authenticated;
+
+-- ============================================================
+-- UPVOTES — direct row updates are blocked by RLS for non-owners,
+-- so voting goes through these functions (signed-in users only).
+-- ============================================================
+
+create or replace function public.upvote_question(qid uuid)
+returns int
+language sql
+security definer
+set search_path = public
+as $$
+  update public.questions
+    set upvotes = coalesce(upvotes, 0) + 1
+    where id = qid
+    returning upvotes;
+$$;
+
+create or replace function public.upvote_answer(aid uuid)
+returns int
+language sql
+security definer
+set search_path = public
+as $$
+  update public.answers
+    set upvotes = coalesce(upvotes, 0) + 1
+    where id = aid
+    returning upvotes;
+$$;
+
+revoke all on function public.upvote_question(uuid) from public, anon;
+revoke all on function public.upvote_answer(uuid) from public, anon;
+grant execute on function public.upvote_question(uuid) to authenticated;
+grant execute on function public.upvote_answer(uuid) to authenticated;
 
 -- ============================================================
 -- SEED DATA — sample resource categories

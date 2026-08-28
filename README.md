@@ -1,94 +1,74 @@
 # FreePass
 
-**FreePass** is a cross-platform mobile app for **financial literacy**—learning resources, Q&A, events, messaging, and more. It’s built with [Expo](https://expo.dev) and [React Native](https://reactnative.dev), using [Expo Router](https://docs.expo.dev/router/introduction/) for file-based navigation.
+**FreePass** is a free iOS app from [The Fountain Fund](https://www.fountainfund.org/)
+that helps people returning from incarceration find support in Philadelphia:
+a directory of 100+ local organizations (housing, employment, legal aid,
+health care, food), an AI assistant ("Casey"), community Q&A and message
+board, a private document vault, events, financial education courses, and a
+budget tool.
+
+> **New maintainer? Start with [`docs/HANDOFF.md`](docs/HANDOFF.md)** — it
+> covers the architecture, every external service and credential, the
+> operations runbook, and current App Store status.
+> [`docs/LAUNCH_CHECKLIST.md`](docs/LAUNCH_CHECKLIST.md) tracks remaining
+> launch work.
 
 ## Tech stack
 
 | Area | Choice |
 |------|--------|
-| Framework | Expo ~54, React 19, React Native 0.81 |
-| Navigation | Expo Router (stack + drawer), typed routes |
-| UI | React Native, `@expo/vector-icons`, custom theme (`constants/theme.ts`) |
-| Platforms | iOS, Android, Web (`react-native-web`) |
-
-The root layout uses a **drawer** for primary sections and a **stack** for detail screens, modals, and deep links.
-
-## Features (high level)
-
-- **Home & drawer** — Account, Message Board, Chat, Learning Academy, Event Calendar, Ask a Question, New User Guide  
-- **Community & content** — Listings, maps, street view, events, Q&A threads, community board, interview library  
-- **Programs** — Fountain Fund, Money Smart, loan inquiry, courses, staff view, quick list, signup  
-
-Screens live under `app/`; shared UI under `components/`.
-
-## Prerequisites
-
-- [Node.js](https://nodejs.org/) (LTS recommended)  
-- [npm](https://www.npmjs.com/) (or use `yarn` / `pnpm` if you prefer)  
-- For device builds: [Xcode](https://developer.apple.com/xcode/) (iOS), [Android Studio](https://developer.android.com/studio) (Android)  
-- [Expo CLI](https://docs.expo.dev/get-started/installation/) is used via `npx` (no global install required)
+| App | Expo SDK 54, React 19, React Native 0.81, TypeScript |
+| Navigation | Expo Router (drawer + stack + tabs), typed routes |
+| Backend | Supabase — Postgres (RLS everywhere), Auth, Storage |
+| AI | Google Gemini 2.5 Flash (chat) with Groq Llama 3.3 fallback; Groq Whisper (speech-to-text); OpenAI gpt-4o-mini-tts (speech, device-voice fallback) |
+| Builds | EAS Build + Submit (iOS; bundle `org.thefountainfund.freepass.app`) |
+| E2E | Maestro flows in `.maestro/` |
 
 ## Getting started
 
-1. **Install dependencies**
+```bash
+npm install
+cp .env.example .env       # fill in Supabase + AI keys (see docs/HANDOFF.md)
+npx expo start             # dev server; press i for iOS simulator
+```
 
-   ```bash
-   npm install
-   ```
+The database schema is in `supabase-schema.sql` (fresh install) with
+incremental migrations in `scripts/` — see the handoff doc before touching
+production.
 
-2. **Start the dev server**
+## Verification
 
-   ```bash
-   npm start
-   # or
-   npx expo start
-   ```
-
-3. **Run on a platform**
-
-   - Press `i` for iOS simulator, `a` for Android emulator, or scan the QR code with **Expo Go** on a physical device  
-   - **Web:** `npm run web` (or `npx expo start --web`)
-
-## Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm start` | Start Expo dev server |
-| `npm run ios` | Build/run iOS (dev client) |
-| `npm run android` | Build/run Android (dev client) |
-| `npm run web` | Start with web target |
-| `npm run lint` | Run ESLint (`expo lint`) |
-| `npm run reset-project` | Move current `app` code to `app-example` and scaffold a blank `app` (Expo template helper) |
+```bash
+npx tsc --noEmit           # typecheck
+npx expo lint              # ESLint
+npx expo-doctor            # project health
+maestro test .maestro/     # E2E (requires a simulator build; see handoff doc)
+```
 
 ## Project layout
 
 ```
-app/                 # Routes (Expo Router)
-  (drawer)/          # Main drawer screens (home, chat, academy, etc.)
-  modal/             # Modal presentations
-  _layout.tsx        # Root stack + theme
-components/          # Reusable UI (drawer, headers, etc.)
-constants/           # Theme and shared constants
-assets/              # Images and fonts
+app/                 # Screens (Expo Router file-based routes)
+  (drawer)/          # Main sections: home, Casey, budget, courses, events…
+  modal/             # Modal flows (ask/answer/edit, feedback)
+  course|event|listing|question|street-view/[id].tsx   # Detail screens
+components/          # Shared UI (header, drawer, tab bar, icons)
+contexts/            # user-context: auth, guest mode, account deletion
+hooks/               # Data hooks (resources, documents, budget, saved)
+lib/                 # supabase client, moderation, safe link helpers
+constants/           # Theme + onboarding survey questions
+scripts/             # SQL migrations + data import tooling
+docs/                # HANDOFF, LAUNCH_CHECKLIST, privacy policy draft
+.maestro/            # E2E flows (appId must match the real bundle id)
 ```
 
-## Configuration
+## Releases (iOS)
 
-- **`app.json`** — Expo app name, slug, icons, splash, iOS/Android/web settings  
-- **Deep linking** — `scheme: "freepass"` in `app.json`  
-- **New Architecture** — enabled in `app.json` (`newArchEnabled`)  
-- **Experiments** — typed routes, React Compiler (see `app.json`)
+```bash
+npx eas-cli build --platform ios --profile production --auto-submit
+```
 
-## Building for production
-
-Use [EAS Build](https://docs.expo.dev/build/introduction/) or local `expo prebuild` + native tooling. See the [Expo distribution docs](https://docs.expo.dev/distribution/introduction/) for App Store and Play Store flows.
-
-## Learn more
-
-- [Expo documentation](https://docs.expo.dev/)  
-- [Expo Router](https://docs.expo.dev/router/introduction/)  
-- [React Native](https://reactnative.dev/docs/getting-started)
-
----
-
-*Internal / private project — adjust licensing and contribution guidelines as needed.*
+Signing uses local credentials (`credentials.json` + `credentials/`, not in
+git) and an App Store Connect API key — locations and the full release
+runbook are in `docs/HANDOFF.md`. Android is not configured (no
+`android.package`).

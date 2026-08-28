@@ -1,4 +1,4 @@
-appId: com.anonymous.freepass
+appId: org.thefountainfund.freepass.app
 name: Signup then onboarding survey (validates pending-answer fix)
 env:
   EMAIL: freepass.e2e.20260706@gmail.com

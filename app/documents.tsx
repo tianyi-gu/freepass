@@ -35,6 +35,8 @@ export default function DocumentsScreen() {
     documents,
     isLoading,
     isUploading,
+    loadError,
+    reload,
     uploadDocument,
     deleteDocument,
     updateDocument,
@@ -169,8 +171,8 @@ export default function DocumentsScreen() {
           <IconSymbol name="doc.text.fill" size={64} color={FreepassColors.lightGray} />
           <Text style={styles.emptyTitle}>Sign in to store documents</Text>
           <Text style={styles.emptyBody}>
-            Create a free account to securely save IDs, certifications, and other important
-            documents. They&apos;ll stay private to you.
+            Create a free account to save IDs, certifications, and other important documents,
+            private to your account.
           </Text>
           <Pressable style={styles.signUpBtn} onPress={() => router.push('/signup')}>
             <Text style={styles.signUpBtnText}>CREATE AN ACCOUNT</Text>
@@ -187,7 +189,8 @@ export default function DocumentsScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.headline}>Keep what matters safe</Text>
         <Text style={styles.subhead}>
-          Snap a photo of IDs, certifications, and key paperwork. Only you can see these.
+          Snap a photo of IDs, certifications, and key paperwork. They&apos;re private to your
+          account.
         </Text>
 
         {isLoading && (
@@ -197,7 +200,21 @@ export default function DocumentsScreen() {
           </View>
         )}
 
-        {!isLoading && documents.length === 0 && (
+        {!isLoading && loadError && (
+          <View style={styles.emptyCard}>
+            <IconSymbol name="doc.text.fill" size={48} color={FreepassColors.lightGray} />
+            <Text style={styles.emptyTitle}>Couldn&apos;t load your documents</Text>
+            <Text style={styles.emptyBody}>
+              Your documents are still saved — we just couldn&apos;t reach them right now. Check
+              your connection and try again.
+            </Text>
+            <Pressable style={styles.signUpBtn} onPress={reload}>
+              <Text style={styles.signUpBtnText}>TRY AGAIN</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {!isLoading && !loadError && documents.length === 0 && (
           <View style={styles.emptyCard}>
             <IconSymbol name="doc.text.fill" size={48} color={FreepassColors.lightGray} />
             <Text style={styles.emptyTitle}>No documents yet</Text>
@@ -435,12 +452,20 @@ function DocumentRow({
   getSignedUrl: (path: string) => Promise<string | null>;
 }) {
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+  const [thumbFailed, setThumbFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    getSignedUrl(doc.storage_path).then((url) => {
-      if (!cancelled) setThumbUrl(url);
-    });
+    setThumbFailed(false);
+    getSignedUrl(doc.storage_path)
+      .then((url) => {
+        if (cancelled) return;
+        if (url) setThumbUrl(url);
+        else setThumbFailed(true);
+      })
+      .catch(() => {
+        if (!cancelled) setThumbFailed(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -457,6 +482,10 @@ function DocumentRow({
       <View style={styles.thumbContainer}>
         {thumbUrl ? (
           <Image source={{ uri: thumbUrl }} style={styles.thumb} />
+        ) : thumbFailed ? (
+          <View style={[styles.thumb, styles.thumbPlaceholder]}>
+            <IconSymbol name="doc.text.fill" size={20} color={FreepassColors.textSecondary} />
+          </View>
         ) : (
           <View style={[styles.thumb, styles.thumbPlaceholder]}>
             <ActivityIndicator size="small" color={FreepassColors.textSecondary} />
@@ -502,12 +531,20 @@ function DocumentViewer({
   onDelete: () => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [urlFailed, setUrlFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    getSignedUrl(doc.storage_path).then((u) => {
-      if (!cancelled) setUrl(u);
-    });
+    setUrlFailed(false);
+    getSignedUrl(doc.storage_path)
+      .then((u) => {
+        if (cancelled) return;
+        if (u) setUrl(u);
+        else setUrlFailed(true);
+      })
+      .catch(() => {
+        if (!cancelled) setUrlFailed(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -533,6 +570,11 @@ function DocumentViewer({
         <View style={styles.viewerBody}>
           {url ? (
             <Image source={{ uri: url }} style={styles.viewerImage} resizeMode="contain" />
+          ) : urlFailed ? (
+            <Text style={styles.viewerNotes}>
+              This document couldn&apos;t be loaded right now. It is still saved — check your
+              connection and try again.
+            </Text>
           ) : (
             <ActivityIndicator color={FreepassColors.white} />
           )}

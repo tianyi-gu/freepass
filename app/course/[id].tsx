@@ -1,10 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { openWebUrl } from '@/lib/links';
 import { supabase } from '@/lib/supabase';
 
 interface Course {
@@ -31,14 +32,25 @@ export default function CourseViewScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      supabase.from('courses').select('*').eq('id', id).single(),
-      supabase.from('course_tasks').select('*').eq('course_id', id).order('sort_order'),
-    ]).then(([courseRes, tasksRes]) => {
-      setCourse(courseRes.data);
-      setTasks(tasksRes.data ?? []);
+    if (!id) {
       setLoading(false);
-    });
+      return;
+    }
+    let cancelled = false;
+    Promise.all([
+      supabase.from('courses').select('*').eq('id', id).maybeSingle(),
+      supabase.from('course_tasks').select('*').eq('course_id', id).order('sort_order'),
+    ])
+      .then(([courseRes, tasksRes]) => {
+        if (cancelled) return;
+        setCourse(courseRes.data);
+        setTasks(tasksRes.data ?? []);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [id]);
 
   if (loading) {
@@ -88,7 +100,7 @@ export default function CourseViewScreen() {
         {course.video_link && (
           <Pressable
             style={styles.videoPlaceholder}
-            onPress={() => Linking.openURL(course.video_link!)}>
+            onPress={() => openWebUrl(course.video_link)}>
             <IconSymbol name="play.rectangle.fill" size={64} color={FreepassColors.primary} />
             <Text style={styles.videoLinkText}>Tap to watch video</Text>
           </Pressable>
@@ -97,7 +109,7 @@ export default function CourseViewScreen() {
         {course.web_link && (
           <Pressable
             style={styles.reviewBtn}
-            onPress={() => Linking.openURL(course.web_link!)}
+            onPress={() => openWebUrl(course.web_link)}
             android_ripple={{ color: FreepassColors.primaryDark }}>
             <IconSymbol name="globe" size={20} color={FreepassColors.white} />
             <Text style={styles.reviewBtnText}>OPEN COURSE LINK</Text>

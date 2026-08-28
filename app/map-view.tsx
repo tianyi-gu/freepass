@@ -1,13 +1,14 @@
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Region } from 'react-native-maps';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { type Resource, useResources } from '@/hooks/use-resources';
+import { openDirections } from '@/lib/links';
 import { resourceMatchesSearch } from '@/lib/resource-utils';
 
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -20,16 +21,11 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function openDirections(resource: Resource) {
+function openResourceDirections(resource: Resource) {
   const query = resource.address
     ? `${resource.address}, ${resource.city}, ${resource.state}`
     : `${resource.name}, ${resource.city}, ${resource.state}`;
-  const encoded = encodeURIComponent(query);
-  const url =
-    Platform.OS === 'ios'
-      ? `maps://app?daddr=${encoded}`
-      : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-  Linking.openURL(url);
+  openDirections(query);
 }
 
 const PHILADELPHIA_REGION: Region = {
@@ -55,13 +51,20 @@ export default function MapViewScreen() {
   const [mapRegion, setMapRegion] = useState<Region>(PHILADELPHIA_REGION);
 
   useEffect(() => {
-    requestLocation();
+    requestLocation().catch(() => setLocationStatus('denied'));
   }, []);
 
   async function requestLocation() {
     setLocationStatus('loading');
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationStatus('denied');
+        return;
+      }
+    } catch {
+      // Location services off / provider error — treat like a denial so the
+      // resource list still renders instead of spinning forever.
       setLocationStatus('denied');
       return;
     }
@@ -218,7 +221,7 @@ export default function MapViewScreen() {
                 <Pressable
                   style={styles.directionsBtn}
                   hitSlop={8}
-                  onPress={() => openDirections(r)}>
+                  onPress={() => openResourceDirections(r)}>
                   <IconSymbol name="arrow.triangle.turn.up.right.circle.fill" size={32} color={FreepassColors.accent} />
                 </Pressable>
               </Pressable>
