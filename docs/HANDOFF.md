@@ -82,7 +82,7 @@ A new team must obtain or rotate ALL of these:
 | Supabase | Project `ihlhrorrxcwsxnxqufpb` on Tianyi's personal account | **FREE TIER — auto-pauses after ~1 week idle, which kills the live app.** Upgrade to Pro and/or transfer to an org. Management API PAT used for ops lives in workspace `.env` (`SUPABASE_ACCESS_TOKEN`). |
 | Gemini key | EAS env + local `.env` (`EXPO_PUBLIC_GEMINI_API_KEY`) | Google consumer API tier. Set quota caps + bundle-ID restrictions in Google Cloud console. |
 | Groq key | EAS env + `.env` (`EXPO_PUBLIC_GROQ_KEY`) | Chat fallback + Whisper STT. |
-| OpenAI key | `.env` (`EXPO_PUBLIC_OPENAI_API_KEY`) | Casey TTS. **Not yet added to EAS production env** — until it is, release builds silently use the device-voice fallback. |
+| OpenAI key | EAS env + `.env` (`EXPO_PUBLIC_OPENAI_API_KEY`) | Casey TTS (natural voice). In EAS production env as of 2026-08-27 — takes effect from the first build after 1.0 review (build 7 predates the feature). Set a spend limit on the OpenAI account. |
 | Privacy policy | https://freepass-privacy.vercel.app (Vercel project `freepass-privacy` on Tianyi's personal account) | Move to fountainfund.org when possible, then update the URL in ASC → App Information. |
 | App Review demo login | `applereview@freepass-demo.app` / `ReviewFreePass#2026` | Stored in ASC review details. Keep working or update both places. |
 
