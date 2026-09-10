@@ -14,8 +14,13 @@ data involved (reentry status, health needs, ID photos) is unusually
 sensitive — treat privacy regressions as launch blockers, not nits.
 
 **Current status:** version 1.0 (build 7) was submitted to App Store review
-on 2026-08-27 (`WAITING_FOR_REVIEW`). TestFlight has builds 1–7. Android has
-never been configured.
+on 2026-08-27 and **rejected on 2026-09-10** (submission
+`03547123-6c61-4609-b30b-03229ae33198`) on two points: 5.1.1(i)/5.1.2(i)
+(no in-app disclosure/consent before sending data to third-party AI
+services) and 2.1(a) (login showed an indefinite loading state — the Supabase
+project had auto-paused). Both are fixed in code (AI consent gate; time-boxed
+auth/bootstrap with retry) and need a new build + resubmission. TestFlight has
+builds 1–7. Android has never been configured.
 
 ## 2. Architecture
 
@@ -43,8 +48,9 @@ single biggest known architectural debt — see §7.
 
 | Area | Files | Notes |
 |---|---|---|
-| Auth/session/guest | `contexts/user-context.tsx` | Signup (email-confirm flow), login, guest mode, survey-answer stashing with owner tags (prevents cross-user leaks on shared phones), logout (wipes all `@freepass_*` local data), `deleteAccount()` (calls `delete_account()` SQL function), OTP password reset. |
-| Casey AI | `app/(drawer)/casey.tsx` | Read the header comments before editing. Deterministic crisis card (988/911) fires on keyword match *before* any model call; Gemini safety blocks must **never** fall back to Groq; profile data goes to providers only after in-chat opt-in consent; full published directory is sent each turn (deliberate — see in-file comment); history capped at 12 turns; 20s timeouts; auto-speak defaults OFF. |
+| Auth/session/guest | `contexts/user-context.tsx`, `lib/supabase.ts`, `lib/network.ts` | Signup (email-confirm flow), login, guest mode, survey-answer stashing with owner tags (prevents cross-user leaks on shared phones), logout (wipes all `@freepass_*` local data), `deleteAccount()` (calls `delete_account()` SQL function), OTP password reset. **Every Supabase request is time-boxed** (15s; 60s for storage) via a custom `fetch` in `lib/supabase.ts`; login/bootstrap add their own `withTimeout`. **Never `await` a Supabase call inside `onAuthStateChange`** — auth-js awaits subscribers (login waits on the DB) and holds its init lock (cold-start deadlock). Sessions become usable immediately; profile/survey rows load in the background (`applySession`). Login failures render an inline error with Retry (`app/signup.tsx`). |
+| AI consent | `contexts/ai-consent-context.tsx`, `constants/ai-consent.ts`, `components/ai-consent-notice.tsx` | Device-level informed consent required by App Review 5.1.1(i)/5.1.2(i). Casey renders the disclosure (what is sent, to Google/Groq/OpenAI, why) instead of the chat until accepted; declining leaves Casey off and the rest of the app working; revocable in Account → Privacy. Stored under `@freepass_ai_consent`, bound to the identity that gave it (auth id, or one shared key for anonymous/guest), and also wiped on logout — so another account on a shared phone is re-asked even if the wipe fails. Casey re-checks the *current* status before any async completion (a live recording's upload, auto-read after a reply). If you add a provider or send new data, update the constants file, the privacy policy, and bump `AI_CONSENT_VERSION` to re-prompt everyone. |
+| Casey AI | `app/(drawer)/casey.tsx` | Read the header comments before editing. Every provider call is reachable only when `useAiConsent().status === 'accepted'`. Deterministic crisis card (988/911) fires on keyword match *before* any model call; Gemini safety blocks must **never** fall back to Groq; profile data goes to providers only after the additional in-chat personalization opt-in; full published directory is sent each turn (deliberate — see in-file comment); history capped at 12 turns; 20s timeouts (chat, Whisper, TTS); auto-speak defaults OFF. |
 | Moderation | `lib/moderation.ts` + `community-board.tsx`, `question/[id].tsx`, `modal/*` | Language filter on submission, `reports` (write-only for users, staff-readable), `blocked_users` (client filters blocked authors). Apple 1.2 compliance depends on these. |
 | Documents vault | `hooks/use-documents.ts`, `app/documents.tsx` | Private bucket, per-user folder = `auth.uid()`, 1-hour signed URLs. Storage delete is verified *before* the metadata row is removed — keep that order. |
 | Link safety | `lib/links.ts` | All outbound links/phone/email/directions go through these helpers (imported data contains scheme-less URLs and prose in phone fields). |

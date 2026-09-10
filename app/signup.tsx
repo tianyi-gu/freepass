@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { FreepassHeader, FreepassLogo } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { useUser } from '@/contexts/user-context';
+import { friendlyErrorMessage } from '@/lib/network';
 
 type Mode = 'welcome' | 'signup' | 'login' | 'confirmed' | 'forgot' | 'reset';
 
@@ -19,6 +20,14 @@ export default function SignupScreen() {
   const [resetCode, setResetCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  // Inline, retryable error for the login form. Login is time-boxed in
+  // user-context, so a paused or unreachable backend lands here within ~15s
+  // instead of leaving the button on "LOGGING IN..." forever.
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoginError(null);
+  }, [mode]);
 
   const handleSignUp = useCallback(async () => {
     if (!name.trim() || !email.trim() || !password.trim()) {
@@ -41,7 +50,7 @@ export default function SignupScreen() {
           ],
         );
       } else {
-        Alert.alert('Sign Up Failed', msg || 'Something went wrong. Please try again.');
+        Alert.alert('Sign Up Failed', friendlyErrorMessage(err));
       }
     } finally {
       setLoading(false);
@@ -54,11 +63,12 @@ export default function SignupScreen() {
       return;
     }
     setLoading(true);
+    setLoginError(null);
     try {
       await logIn(email.trim(), password);
       router.replace('/(drawer)');
     } catch (err) {
-      Alert.alert('Login Failed', (err as Error).message || 'Something went wrong. Please try again.');
+      setLoginError(friendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -79,7 +89,7 @@ export default function SignupScreen() {
       await resetPassword(email.trim());
       setMode('reset');
     } catch (err) {
-      Alert.alert('Could not send reset email', (err as Error).message || 'Something went wrong. Please try again.');
+      Alert.alert('Could not send reset email', friendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -98,7 +108,7 @@ export default function SignupScreen() {
     } catch (err) {
       Alert.alert(
         'Could not reset password',
-        (err as Error).message || 'The code may be wrong or expired. Please try again.',
+        friendlyErrorMessage(err, 'The code may be wrong or expired. Please try again.'),
       );
     } finally {
       setLoading(false);
@@ -111,7 +121,7 @@ export default function SignupScreen() {
       await resendConfirmation(email.trim());
       Alert.alert('Email sent', `We sent another confirmation email to ${email.trim()}.`);
     } catch (err) {
-      Alert.alert('Could not resend', (err as Error).message || 'Please try again in a minute.');
+      Alert.alert('Could not resend', friendlyErrorMessage(err, 'Please try again in a minute.'));
     } finally {
       setResending(false);
     }
@@ -336,6 +346,23 @@ export default function SignupScreen() {
               </Text>
             </Pressable>
 
+            {loginError && !loading && (
+              <View style={styles.errorCard} accessibilityRole="alert">
+                <IconSymbol name="exclamationmark.triangle.fill" size={20} color={FreepassColors.white} />
+                <View style={styles.errorBody}>
+                  <Text style={styles.errorTitle}>Couldn&apos;t log you in</Text>
+                  <Text style={styles.errorText}>{loginError}</Text>
+                  <Pressable
+                    style={styles.retryBtn}
+                    onPress={handleLogIn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Try logging in again">
+                    <Text style={styles.retryBtnText}>TRY AGAIN</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
             <Pressable
               style={styles.switchBtn}
               onPress={() => { setMode('forgot'); setPassword(''); }}>
@@ -554,6 +581,43 @@ const styles = StyleSheet.create({
   },
   btnDisabled: {
     opacity: 0.6,
+  },
+  errorCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: FreepassColors.destructive,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+  },
+  errorBody: {
+    flex: 1,
+  },
+  errorTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: FreepassColors.white,
+    marginBottom: 4,
+  },
+  errorText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: FreepassColors.white,
+    opacity: 0.95,
+  },
+  retryBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: FreepassColors.white,
+  },
+  retryBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: FreepassColors.destructive,
   },
   divider: {
     flexDirection: 'row',

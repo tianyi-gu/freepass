@@ -1,6 +1,37 @@
 # FreePass Launch Checklist
 
-Last updated: 2026-08-10 (production-readiness fix pass)
+Last updated: 2026-09-10 (App Review rejection fixes)
+
+## Status (2026-09-10) — build 7 REJECTED, resubmission needed
+
+Apple rejected 1.0 (build 7) on 2026-09-10 (submission
+`03547123-6c61-4609-b30b-03229ae33198`, iPhone 17 Pro Max / iOS 26.6):
+
+- **5.1.1(i) / 5.1.2(i)** — data sent to third-party AI without in-app
+  disclosure + consent. ✅ Fixed in code: Casey now shows a consent notice
+  (what is sent, to Google/Groq/OpenAI, why) before any AI call; declining
+  keeps the rest of the app usable; revocable in Account → Privacy. Privacy
+  policy text updated (`docs/PRIVACY_POLICY_DRAFT.md`; matching change in the
+  `freepass-privacy` repo must be merged/deployed so the hosted URL matches).
+- **2.1(a)** — indefinite loading on login. The Supabase project had
+  auto-paused (2026-09-09) and was out of Disk IO budget. ✅ Fixed in code:
+  every Supabase request is time-boxed, login/bootstrap have explicit
+  timeouts, login failures show an inline error with Retry, and a
+  cold-start deadlock in the auth listener was removed.
+- ❌ Human steps before resubmitting — two separate Supabase problems, each
+  with its own fix:
+  1. **Auto-pause (inactivity):** resume the project now, then **upgrade to
+     Pro**, which removes Free-plan auto-pausing. A keep-alive ping only
+     masks it on Free and does nothing for the next item.
+  2. **Disk IO budget exhausted:** check Reports → Disk IO in the dashboard.
+     Neither Pro nor a keep-alive restores IO on its own — the budget scales
+     with the compute add-on size, so raise the compute tier and/or cut the
+     IO-heavy load (large scans, missing indexes) before review.
+  Then: verify the demo login works; merge + deploy the privacy-policy
+  change; build with EAS (`--auto-submit`); in the Resolution Center reply
+  describing the consent screen (Casey → first open) and the login
+  hardening; update App Review notes to mention the consent screen appears
+  on first use of Casey.
 
 ## Status (2026-08-10, evening)
 
@@ -99,7 +130,8 @@ update public.profiles set is_staff = true where email = 'staff@example.org';
 - **Support URL**: the app links to fountainfund.org; put the same in ASC.
 - **App Privacy nutrition labels**: declare collection of contact info,
   user content (photos/docs, messages), identifiers, precise location,
-  audio; sharing with Google (Gemini) and Groq for app functionality.
+  audio; sharing with Google (Gemini), Groq (chat fallback + Whisper), and
+  OpenAI (text-to-speech) for app functionality — all three must be listed.
   No tracking SDKs exist, so declare "Data Not Used for Tracking".
 - **Age rating**: recommend 17+ given the unfiltered-topic AI assistant.
 - **iPad**: either test on iPad (screenshots required) or set

@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Session } from '@supabase/supabase-js';
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
+import { AI_CONSENT_STORAGE_KEY } from '@/constants/ai-consent';
+import { withTimeout } from '@/lib/network';
 import { supabase } from '@/lib/supabase';
 
 const GUEST_STORAGE_KEY = '@freepass_guest';
@@ -28,7 +30,16 @@ const LOCAL_DATA_KEYS = [
   '@freepass_budget',
   '@freepass_expenses',
   '@freepass_casey_share_profile',
+  AI_CONSENT_STORAGE_KEY,
 ];
+
+// Every network-dependent step of login and bootstrap must fail within a
+// bounded time and surface a retryable error — never an endless spinner. The
+// Supabase client already caps individual requests (lib/supabase.ts); these
+// wrap whole operations as a second line of defence.
+const LOGIN_TIMEOUT_MS = 15000;
+const BOOTSTRAP_TIMEOUT_MS = 10000;
+const PROFILE_LOAD_TIMEOUT_MS = 15000;
 
 export interface UserProfile {
   id: string;
@@ -173,6 +184,30 @@ async function buildProfileFromSession(session: Session): Promise<UserProfile> {
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // Incremented for every profile load so a slow response can't overwrite the
+  // result of a newer sign-in (or resurrect a user who has since logged out).
+  const profileLoadSeq = useRef(0);
+
+  // Make the session usable immediately (no network), then fetch the
+  // profile row + survey answers in the background and upgrade the user
+  // object when they arrive. If the database is slow or down the app keeps
+  // working with the basic profile instead of waiting on it.
+  const applySession = useCallback((session: Session, refreshDetails: boolean) => {
+    setUser((prev) =>
+      prev && !prev.isGuest && prev.id === session.user.id ? prev : sessionToProfile(session),
+    );
+    if (!refreshDetails) return;
+
+    const seq = ++profileLoadSeq.current;
+    withTimeout(buildProfileFromSession(session), PROFILE_LOAD_TIMEOUT_MS, 'Loading your profile timed out.')
+      .then((profile) => {
+        if (profileLoadSeq.current !== seq) return;
+        setUser((prev) => (prev && !prev.isGuest && prev.id === profile.id ? profile : prev));
+      })
+      .catch((err) => {
+        if (__DEV__) console.warn('[UserContext] profile details unavailable; using session profile:', err);
+      });
+  }, []);
 
   // Load initial auth state
   useEffect(() => {
@@ -196,11 +231,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Check Supabase session
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          setUser(await buildProfileFromSession(session));
-        }
+        // Check Supabase session. getSession() can go to the network (token
+        // refresh), so it is time-boxed like everything else; the
+        // INITIAL_SESSION event below fetches profile details.
+        const { data: { session } } = await withTimeout(
+          supabase.auth.getSession(),
+          BOOTSTRAP_TIMEOUT_MS,
+          'Restoring your session timed out.',
+        );
+        if (session) applySession(session, false);
       } catch (err) {
         if (__DEV__) console.error('[UserContext] init failed:', err);
       } finally {
@@ -210,27 +249,35 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
     init();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      try {
-        if (session) {
-          setUser(await buildProfileFromSession(session));
-          // Clear guest data if they sign in
-          await AsyncStorage.removeItem(GUEST_STORAGE_KEY);
-        } else {
-          // Only clear user if no guest session
-          const guestData = await AsyncStorage.getItem(GUEST_STORAGE_KEY);
-          if (!guestData) {
-            setUser(null);
-          }
-        }
-      } catch (err) {
-        if (__DEV__) console.error('[UserContext] auth change failed:', err);
+    // Listen for auth changes.
+    //
+    // IMPORTANT: never `await` a Supabase call inside this callback. auth-js
+    // awaits every subscriber before signInWithPassword() resolves, so a
+    // database query here made the LOG IN button wait on the database with no
+    // timeout. Worse, during client start-up the callback runs while auth-js
+    // holds its init lock, and any query (which needs getSession() → that same
+    // lock) deadlocks forever. Hand the work to applySession(), which runs the
+    // fetch in the background with its own timeout.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        // TOKEN_REFRESHED fires hourly and changes nothing about the profile.
+        applySession(session, event !== 'TOKEN_REFRESHED');
+        // Clear guest data if they sign in
+        AsyncStorage.removeItem(GUEST_STORAGE_KEY).catch(() => {});
+        return;
       }
+      if (event === 'INITIAL_SESSION') return; // no stored session; init() handles guests
+      // Signed out — only clear user if no guest session
+      profileLoadSeq.current += 1;
+      AsyncStorage.getItem(GUEST_STORAGE_KEY)
+        .then((guestData) => {
+          if (!guestData) setUser(null);
+        })
+        .catch(() => setUser(null));
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [applySession]);
 
   const signUp = useCallback(async (email: string, password: string, displayName: string, zipCode?: string) => {
     const { data, error } = await supabase.auth.signUp({
@@ -285,7 +332,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logIn = useCallback(async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    // Time-boxed so a paused/unreachable backend produces an error the login
+    // screen can show with a Retry button instead of an indefinite "LOGGING IN…".
+    const { data, error } = await withTimeout(
+      supabase.auth.signInWithPassword({ email, password }),
+      LOGIN_TIMEOUT_MS,
+      'Logging in timed out.',
+    );
     if (error) throw error;
 
     // Logging into an EXISTING account must never absorb survey answers

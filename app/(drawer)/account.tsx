@@ -2,13 +2,71 @@ import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { openPrivacyPolicy } from '@/components/ai-consent-notice';
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { useAiConsent } from '@/contexts/ai-consent-context';
 import { useUser } from '@/contexts/user-context';
 import { useDocuments } from '@/hooks/use-documents';
 
 const SUPPORT_URL = 'https://www.fountainfund.org/';
+
+// Privacy controls shown to guests and signed-in users alike: the Casey AI
+// data-sharing consent can be reviewed/revoked here (App Review 5.1.1(i)),
+// and the privacy policy is one tap away.
+function PrivacySection() {
+  const aiConsent = useAiConsent();
+  const isOn = aiConsent.status === 'accepted';
+  const statusLabel = aiConsent.status === 'loading' ? '' : isOn ? 'On' : 'Off';
+
+  const handleAiSharing = useCallback(() => {
+    if (isOn) {
+      Alert.alert(
+        'Turn off Casey?',
+        'Casey will stop working until you turn it back on, and nothing more will be sent to Google, Groq, or OpenAI. Everything else in FreePass keeps working.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Turn Off', style: 'destructive', onPress: () => { aiConsent.decline(); } },
+        ],
+      );
+      return;
+    }
+    // Turning it on always goes through the full notice on the Casey screen.
+    router.replace('/(drawer)/casey' as never);
+  }, [isOn, aiConsent]);
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Privacy</Text>
+      <Pressable
+        style={styles.menuRow}
+        onPress={handleAiSharing}
+        accessibilityRole="button"
+        accessibilityLabel={`Casey AI data sharing, currently ${statusLabel || 'loading'}`}
+        android_ripple={{ color: FreepassColors.lightGray }}>
+        <IconSymbol name="sparkles" size={22} color={FreepassColors.primary} />
+        <Text style={styles.menuLabel}>Casey AI data sharing</Text>
+        <Text style={[styles.menuValue, isOn && styles.menuValueOn]}>{statusLabel}</Text>
+        <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
+      </Pressable>
+      <Pressable
+        style={styles.menuRow}
+        onPress={openPrivacyPolicy}
+        accessibilityRole="link"
+        accessibilityLabel="Read the privacy policy"
+        android_ripple={{ color: FreepassColors.lightGray }}>
+        <IconSymbol name="doc.text.fill" size={22} color={FreepassColors.primary} />
+        <Text style={styles.menuLabel}>Privacy Policy</Text>
+        <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
+      </Pressable>
+      <Text style={styles.sectionNote}>
+        Casey sends your messages (and voice, if you use the microphone) to outside AI services to
+        answer you. Turn it off here at any time.
+      </Text>
+    </View>
+  );
+}
 
 export default function AccountScreen() {
   const { user, logOut, deleteAccount } = useUser();
@@ -99,6 +157,8 @@ export default function AccountScreen() {
               <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
             </Pressable>
           </View>
+
+          <PrivacySection />
         </ScrollView>
       </View>
     );
@@ -199,6 +259,8 @@ export default function AccountScreen() {
             )}
           </View>
         )}
+
+        <PrivacySection />
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Support</Text>
@@ -318,6 +380,22 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: FreepassColors.text,
     marginLeft: 14,
+  },
+  menuValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: FreepassColors.textSecondary,
+    marginRight: 8,
+  },
+  menuValueOn: {
+    color: FreepassColors.accent,
+  },
+  sectionNote: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: FreepassColors.textSecondary,
+    marginTop: 6,
+    paddingHorizontal: 4,
   },
   summaryRow: {
     backgroundColor: FreepassColors.cardBg,
