@@ -16,12 +16,22 @@ import {
   View,
 } from 'react-native';
 
+import { AiConsentNotice, AiDisabledNotice } from '@/components/ai-consent-notice';
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { useAiConsent } from '@/contexts/ai-consent-context';
 import { useUser } from '@/contexts/user-context';
 import { supabase } from '@/lib/supabase';
+
+// DATA-SHARING CONSENT (App Review guideline 5.1.1(i)/5.1.2(i)): every call
+// below that leaves the device for an AI provider — Gemini/Groq chat, Groq
+// Whisper transcription, OpenAI TTS — is reachable only while
+// useAiConsent().status === 'accepted'. The consent screen is rendered in
+// place of the chat until then, and sendMessage/toggleListening/speakText
+// re-check the flag defensively. If you add a new provider or send new data,
+// update constants/ai-consent.ts and bump AI_CONSENT_VERSION.
 
 const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_KEY;
 const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
@@ -377,7 +387,7 @@ async function fetchOpenAiSpeech(
 ): Promise<string> {
   if (!OPENAI_API_KEY) throw new Error('Missing EXPO_PUBLIC_OPENAI_API_KEY.');
 
-  const res = await fetch(OPENAI_TTS_URL, {
+  const res = await fetchWithTimeout(OPENAI_TTS_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -432,6 +442,14 @@ export default function CaseyScreen() {
   // null = user hasn't decided yet (banner shows); false = declined
   const [shareProfile, setShareProfile] = useState<boolean | null>(false);
   const inFlightRef = useRef(false);
+
+  // Device-level consent to send data to the AI providers. Until accepted, the
+  // chat UI is replaced by the notice and none of the network paths run.
+  const aiConsent = useAiConsent();
+  const aiAllowed = aiConsent.status === 'accepted';
+  // After declining, the user can ask to see the full notice again from the
+  // "Casey is turned off" panel; re-enabling always requires re-reading it.
+  const [showConsentNotice, setShowConsentNotice] = useState(false);
 
   useEffect(() => {
     // Voice list can be empty on first call while the system warms up; a
@@ -525,6 +543,12 @@ export default function CaseyScreen() {
       setSpeakingMsgId(msgId);
       setIsSpeaking(true);
 
+      // Without consent, never contact OpenAI — on-device speech only.
+      if (!aiAllowed) {
+        speakWithDevice(text);
+        return;
+      }
+
       try {
         const cacheKey = `${msgId}-${voiceGender}`;
         let uri = ttsFileCacheRef.current.get(cacheKey);
@@ -560,7 +584,7 @@ export default function CaseyScreen() {
         speakWithDevice(text);
       }
     },
-    [voiceGender, stopSpeaking, speakWithDevice]
+    [voiceGender, stopSpeaking, speakWithDevice, aiAllowed]
   );
 
   // Audio recording ref for speech-to-text
@@ -636,6 +660,9 @@ export default function CaseyScreen() {
     // Stop TTS if playing
     if (isSpeaking) stopSpeaking();
 
+    // Recordings are uploaded to Groq for transcription — not without consent.
+    if (!aiAllowed) return;
+
     // Start recording
     try {
       const { granted } = await Audio.requestPermissionsAsync();
@@ -665,7 +692,7 @@ export default function CaseyScreen() {
         "Sorry, the microphone couldn't start. Please try again, or type your message instead.",
       );
     }
-  }, [isSpeaking, stopSpeaking, stopAndTranscribe]);
+  }, [isSpeaking, stopSpeaking, stopAndTranscribe, aiAllowed]);
 
   // Clean up on unmount
   useEffect(() => {
@@ -704,7 +731,9 @@ export default function CaseyScreen() {
 
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || loading || inFlightRef.current) return;
+    // aiAllowed: the chat UI isn't rendered without consent, but never rely on
+    // the UI alone to keep personal data from reaching the providers.
+    if (!text || loading || inFlightRef.current || !aiAllowed) return;
     inFlightRef.current = true;
 
     const userMsg: Message = { id: Date.now().toString(), role: 'user', text };
@@ -818,6 +847,34 @@ export default function CaseyScreen() {
   const showConsentBanner = shareProfile === null && !!user && !user.isGuest;
   const sendDisabled = !input.trim() || loading || resourcesStatus === 'loading';
 
+  // Consent gate: no chat UI (and no provider traffic) until the user has
+  // read the disclosure and accepted. 'loading' lasts one storage read.
+  if (!aiAllowed) {
+    const showNotice = aiConsent.status === 'unknown' || showConsentNotice;
+    return (
+      <View style={styles.container}>
+        <FreepassHeader showMenu title="Casey" />
+        {aiConsent.status === 'loading' ? (
+          <View style={styles.flex} />
+        ) : showNotice ? (
+          <AiConsentNotice
+            onAccept={() => {
+              setShowConsentNotice(false);
+              aiConsent.accept();
+            }}
+            onDecline={() => {
+              setShowConsentNotice(false);
+              aiConsent.decline();
+            }}
+          />
+        ) : (
+          <AiDisabledNotice onTurnOn={() => setShowConsentNotice(true)} />
+        )}
+        <FreepassTabBar activeTab="casey" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <FreepassHeader showMenu title="Casey" />
@@ -899,9 +956,10 @@ export default function CaseyScreen() {
         {showConsentBanner && (
           <View style={styles.consentBanner}>
             <Text style={styles.consentText}>
-              Casey can use your survey answers (like the kind of help you&apos;re looking for) to
-              personalize suggestions. Your messages and anything you share are processed by
-              outside AI services (Google Gemini and Groq). Share your survey answers with Casey?
+              Casey can use your name and survey answers (like the kind of help you&apos;re looking
+              for) to personalize suggestions. If you say yes, they are included in what is sent to
+              the AI services you agreed to (Google Gemini, or Groq as backup). Share your survey
+              answers with Casey?
             </Text>
             <View style={styles.consentButtons}>
               <Pressable
@@ -961,8 +1019,8 @@ export default function CaseyScreen() {
         </View>
         <Text style={styles.disclaimer}>
           Casey can make mistakes — double-check phone numbers and hours before relying on them.
-          Messages are processed by outside AI services. Call 211 for urgent needs, or call/text
-          988 in a crisis.
+          Messages are processed by outside AI services (Google, Groq, OpenAI); manage this in
+          Account → Privacy. Call 211 for urgent needs, or call/text 988 in a crisis.
         </Text>
       </KeyboardAvoidingView>
       <FreepassTabBar activeTab="casey" />

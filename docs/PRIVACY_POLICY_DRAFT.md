@@ -1,13 +1,18 @@
-# FreePass Privacy Policy — DRAFT for Fountain Fund review
+# FreePass Privacy Policy — source text for the hosted policy
 
-> **Status: DRAFT.** Written 2026-08-10 to accurately describe what the app
-> does today. Must be reviewed and approved by The Fountain Fund (and ideally
-> counsel) before being hosted and linked in App Store Connect and in-app.
-> Placeholders in [brackets] need real values.
+> **Status:** Hosted at https://freepass-privacy.vercel.app (repo
+> `tianyi-gu/freepass-privacy`, file `index.html`). Written 2026-08-10;
+> revised 2026-09-10 after App Review rejected build 7 under Guidelines
+> 5.1.1(i)/5.1.2(i). This revision adds: how data is collected, every use of
+> the data, OpenAI (text-to-speech) as a recipient, the in-app AI consent
+> notice, retention, and the statement that third parties must protect data to
+> the same standard. Keep this file and `index.html` identical in substance,
+> and keep both in sync with `constants/ai-consent.ts` (the in-app notice).
+> Placeholders in [brackets] need real values before the next publish.
 
 ---
 
-**Effective date:** [date]
+**Effective date:** September 2026
 **Contact:** [privacy contact email], The Fountain Fund, [address]
 
 FreePass is a free app from The Fountain Fund that helps people returning
@@ -29,19 +34,70 @@ Your trust matters to us, and we collect only what the app needs to work.
   publish are visible to other FreePass users, along with the display name
   you chose.
 - **Casey conversations** — messages you type or speak to Casey, our AI
-  assistant.
+  assistant, and Casey's replies. These are not stored on FreePass servers;
+  they exist on your device while the chat is open and are shared with the
+  AI services described below only after you agree.
 - **Location** — only if you allow it, and only while using the app, to show
-  resources near you. We do not track your location in the background.
+  resources near you. Your location is used on your device and is not stored
+  on our servers.
 - **Budget entries** — stay on your device only; we never receive them.
+
+## How we collect it
+
+Everything above comes directly from you: what you type or choose in the app
+(the account form, the survey, posts and questions, the Casey chat), the
+photos you pick or take for My Documents, your microphone only when you tap
+the microphone button in Casey, and your device's location only when you
+allow it. We do not buy or receive data about you from other companies, and
+the app contains no advertising or analytics trackers.
+
+## How we use your information
+
+- To create your account, keep you signed in, and let you reset your password.
+- To personalize the resources and suggestions shown to you (survey answers
+  and ZIP code) — in the app, and in Casey only if you agree to that inside
+  the chat.
+- To store the documents you save and show them back to you.
+- To show your posts and questions to other users under your display name.
+- To show resources near you (location, processed on your device).
+- To answer you through Casey, our AI assistant (see the next section).
+- To keep the community safe: reports you submit and users you block are used
+  for moderation by Fountain Fund staff.
+- To respond to feedback and support requests you send us.
+
+We do not use your information for advertising, and we do not sell it.
 
 ## How Casey (the AI assistant) uses data
 
-Casey answers by sending your messages to outside AI services — Google
-(Gemini) and Groq. If you use voice input, your recording is sent to Groq to
-be turned into text and is deleted from your device afterwards. If you agree
-to personalization (you'll be asked in the chat, and it's off until you say
-yes), the survey answers you gave are included so Casey can suggest more
-relevant resources. You can use Casey fully without agreeing.
+Casey is powered by outside AI services. **Before you can use Casey, the app
+shows you a notice listing exactly what is shared and with whom, and Casey
+stays off until you tap "I agree."** You can turn Casey off again at any time
+in **Account → Privacy**; nothing further is sent after that.
+
+When Casey is on:
+
+- **Your messages** to Casey, and Casey's replies in that conversation, are
+  sent to **Google (Gemini)** to generate an answer. If Google is unavailable,
+  the same conversation is sent to **Groq** (running the Llama model) instead.
+- **Your voice** — if you tap the microphone, the audio recording is sent to
+  **Groq** (Whisper) to be turned into text and is then deleted from your
+  phone. The text appears in your message box for you to review before you
+  send it.
+- **Casey's replies as speech** — if you tap the speaker button or turn on
+  Auto-read, the text of Casey's reply is sent to **OpenAI** to be turned into
+  spoken audio.
+- **Your name and survey answers** — only if you separately agree to
+  personalization inside the chat (it is off until you say yes). They are then
+  included with your messages so Casey can suggest more relevant resources.
+  Two survey answers are never sent: how long you have been home and whether
+  you have a caseworker.
+
+We send only what Casey needs to answer you. These providers process the data
+on our behalf to provide the service, under their API terms, and we require
+that they protect your data to at least the same standard described in this
+policy. They may hold the data briefly for security and abuse monitoring under
+their own terms. We do not use your Casey conversations for advertising and do
+not sell them.
 
 ## What we never do
 
@@ -57,7 +113,26 @@ relevant resources. You can use Casey fully without agreeing.
 - Fountain Fund staff: content you report, resource/event submissions
   awaiting review, and feedback you send.
 - Service providers that run our infrastructure: Supabase (database and
-  storage), Google and Groq (AI processing as described above).
+  storage); Google, Groq, and OpenAI (AI processing, only after you agree, as
+  described above). Every third party that receives your data must provide
+  the same or equal protection for it as this policy describes, and may use it
+  only to provide the service to us.
+
+## How long we keep it
+
+Your account information, survey answers, saved resources, and documents are
+kept until you delete your account or ask us to delete them. Voice recordings
+are deleted from your phone as soon as they are transcribed. Casey
+conversations are not kept after you leave the chat. Community posts remain
+after account deletion but no longer show your name.
+
+## Your choices
+
+- You decide whether to use Casey. Turn its data sharing on or off any time in
+  **Account → Privacy**, and turn personalization on or off inside the chat.
+- You can turn off microphone and location access in your phone's Settings.
+- You can skip every survey question, and change your answers later in
+  **Account → Retake Survey**.
 
 ## Deleting your account
 

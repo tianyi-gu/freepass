@@ -3,6 +3,18 @@ name: Casey AI replies to a housing question
 ---
 - launchApp
 - tapOn: ".*Casey.*"
+# First use: the AI data-sharing notice must appear before the chat and must
+# be accepted before anything is sent to Google/Groq/OpenAI. On later runs
+# the decision is remembered, so this block is skipped.
+- runFlow:
+    when:
+      visible: "Before you chat with Casey"
+    commands:
+      - assertVisible: "Who receives it"
+      - assertVisible: ".*Google \\(Gemini\\).*"
+      - assertVisible: ".*Groq.*"
+      - assertVisible: ".*OpenAI.*"
+      - tapOn: "I AGREE — TURN ON CASEY"
 - assertVisible: "Message Casey..."
 - tapOn: "Message Casey..."
 - inputText: "Where can I find housing help in Philadelphia?"
