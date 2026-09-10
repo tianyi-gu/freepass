@@ -52,7 +52,11 @@ export function createTimeoutFetch(timeoutFor: (url: string) => number): typeof 
       controller.abort();
     }, timeoutFor(requestUrl(input)));
 
-    const upstream = init?.signal;
+    // A caller can cancel via init.signal or, for a Request object, the
+    // signal it was constructed with — honour whichever is present.
+    const upstream =
+      init?.signal ??
+      (typeof Request !== 'undefined' && input instanceof Request ? input.signal : undefined);
     if (upstream) {
       if (upstream.aborted) controller.abort();
       else upstream.addEventListener('abort', () => controller.abort(), { once: true });
