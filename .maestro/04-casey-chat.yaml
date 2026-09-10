@@ -3,9 +3,17 @@ name: Casey AI replies to a housing question
 ---
 - launchApp
 - tapOn: ".*Casey.*"
-# First use: the AI data-sharing notice must appear before the chat and must
-# be accepted before anything is sent to Google/Groq/OpenAI. On later runs
-# the decision is remembered, so this block is skipped.
+# The AI data-sharing decision is persisted per device, so make the
+# precondition deterministic whatever state a previous run (or manual
+# testing) left behind:
+#  - declined earlier  -> "Casey is turned off" screen; ask for the notice again
+#  - never asked       -> notice is shown directly
+#  - accepted earlier  -> chat is shown; both blocks are skipped
+- runFlow:
+    when:
+      visible: "Casey is turned off"
+    commands:
+      - tapOn: "TURN ON CASEY"
 - runFlow:
     when:
       visible: "Before you chat with Casey"
