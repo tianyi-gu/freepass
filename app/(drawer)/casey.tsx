@@ -450,6 +450,13 @@ export default function CaseyScreen() {
   // After declining, the user can ask to see the full notice again from the
   // "Casey is turned off" panel; re-enabling always requires re-reading it.
   const [showConsentNotice, setShowConsentNotice] = useState(false);
+  // Consent can be revoked from Account → Privacy while this screen has work
+  // in flight (a live recording, a reply still arriving). Async completions
+  // must read the status as it is *now*, not as captured when they started.
+  const aiAllowedRef = useRef(aiAllowed);
+  useEffect(() => {
+    aiAllowedRef.current = aiAllowed;
+  }, [aiAllowed]);
 
   useEffect(() => {
     // Voice list can be empty on first call while the system warms up; a
@@ -543,8 +550,10 @@ export default function CaseyScreen() {
       setSpeakingMsgId(msgId);
       setIsSpeaking(true);
 
-      // Without consent, never contact OpenAI — on-device speech only.
-      if (!aiAllowed) {
+      // Without *current* consent, never contact OpenAI — on-device speech
+      // only. Read the ref: auto-read runs after a reply arrives, by which
+      // time consent may have been revoked.
+      if (!aiAllowedRef.current) {
         speakWithDevice(text);
         return;
       }
@@ -584,7 +593,7 @@ export default function CaseyScreen() {
         speakWithDevice(text);
       }
     },
-    [voiceGender, stopSpeaking, speakWithDevice, aiAllowed]
+    [voiceGender, stopSpeaking, speakWithDevice]
   );
 
   // Audio recording ref for speech-to-text
@@ -613,6 +622,11 @@ export default function CaseyScreen() {
         await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
       }
       uri = recording.getURI();
+
+      // Consent may have been revoked (Account → Privacy) while the mic was
+      // live — including when the 60s auto-stop timer is what got us here.
+      // Never upload in that case; the finally block deletes the file.
+      if (!aiAllowedRef.current) return;
 
       if (!uri) throw new Error('No recording URI');
       if (!GROQ_API_KEY) throw new Error('Speech-to-text is not configured.');
@@ -693,6 +707,15 @@ export default function CaseyScreen() {
       );
     }
   }, [isSpeaking, stopSpeaking, stopAndTranscribe, aiAllowed]);
+
+  // If consent is revoked while the mic is live, stop right away; the
+  // recording is discarded by stopAndTranscribe's own consent check (the
+  // ref-sync effect above runs first, so it already sees the new value).
+  useEffect(() => {
+    if (!aiAllowed && recordingRef.current) {
+      stopAndTranscribe();
+    }
+  }, [aiAllowed, stopAndTranscribe]);
 
   // Clean up on unmount
   useEffect(() => {
