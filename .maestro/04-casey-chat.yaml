@@ -36,5 +36,5 @@ name: Casey AI replies to a housing question
     visible:
       text: ".*These entries in the FreePass directory may be useful.*"
     timeout: 45000
-- assertNotVisible: ".*having trouble connecting right now.*"
+- assertNotVisible: ".*couldn't reach Casey right now.*"
 - assertVisible: ".*Please call ahead to confirm services.*"

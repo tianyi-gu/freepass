@@ -3,7 +3,7 @@ import { Audio } from 'expo-av';
 import { useIsFocused } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Speech from 'expo-speech';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -102,7 +102,9 @@ export default function CaseyScreen() {
   // in flight (a live recording, a reply still arriving). Async completions
   // must read the status as it is *now*, not as captured when they started.
   const aiAllowedRef = useRef(aiAllowed);
-  aiAllowedRef.current = aiAllowed;
+  useLayoutEffect(() => {
+    aiAllowedRef.current = aiAllowed;
+  }, [aiAllowed]);
 
   useEffect(() => {
     // Voice list can be empty on first call while the system warms up; a

@@ -4,8 +4,7 @@
  * Usage:
  *   node scripts/migrate-adalo-data.mjs
  *
- * Requires: .env with EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY
- * (uses the service role key if SUPABASE_SERVICE_ROLE_KEY is set, otherwise anon key)
+ * Requires: .env with EXPO_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
  */
 
 import { parse } from 'csv-parse/sync';
@@ -16,10 +15,10 @@ import { config } from 'dotenv';
 config(); // load .env
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('Missing SUPABASE_URL or key in .env');
+  console.error('EXPO_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required; anonymous migration is not supported.');
   process.exit(1);
 }
 
