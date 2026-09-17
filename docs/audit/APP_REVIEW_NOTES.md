@@ -1,6 +1,6 @@
-# Proposed App Review notes
+# Prepared App Review notes
 
-Use after the release gates in `../LAUNCH_CHECKLIST.md` pass and the final OpenAI build is attached. Do not submit these against build 8 or 10. Reviewer credentials remain in App Store Connect, not in this file.
+These notes are saved in App Store Connect with OpenAI build 13 attached. Keep App Review unsubmitted until the release gates in `../LAUNCH_CHECKLIST.md` pass. Do not submit these against build 8 or 10. Reviewer credentials remain in App Store Connect, not in this file.
 
 ---
 

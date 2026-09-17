@@ -52,3 +52,6 @@ credentials/
 
 # Workspace notes and local audit artifacts (may contain credentials)
 .context/
+
+# Supabase CLI local cache
+supabase/.temp/
