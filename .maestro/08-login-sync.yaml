@@ -6,7 +6,7 @@ name: Login from a fresh install completes (no indefinite spinner)
 # this flow must start from a fresh install regardless of prior runs.
 - launchApp:
     clearState: true
-- tapOn: ".*CREATE FREE ACCOUNT.*"
+- runFlow: helpers/prepare-signup.yaml
 - tapOn: "LOG IN"
 - assertVisible: "Welcome Back"
 - tapOn: "Enter your email..."

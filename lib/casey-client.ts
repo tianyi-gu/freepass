@@ -1,5 +1,6 @@
 import { CASEY_CONSENT_VERSION } from './casey-contract';
 import { supabase } from './supabase';
+import { withTimeout } from './network';
 
 const pending = new Set<AbortController>();
 export function cancelCaseyRequests() {
@@ -16,7 +17,7 @@ export async function requestCasey<T>(body: Record<string, unknown>, allowed: ()
   pending.add(controller);
   const timer = setTimeout(() => controller.abort(), 35000);
   try {
-    const { data, error } = await supabase.auth.getSession();
+    const { data, error } = await withTimeout(supabase.auth.getSession(), 10000, 'Restoring your session timed out.');
     if (error) throw new CaseyRequestError('sign_in_required');
     if (!allowed() || controller.signal.aborted) throw new CaseyRequestError('consent_required');
     const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/casey`, {

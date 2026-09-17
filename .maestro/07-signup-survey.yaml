@@ -4,7 +4,7 @@ name: Signup then onboarding survey (validates pending-answer fix)
 ---
 - launchApp:
     clearState: true
-- tapOn: ".*CREATE FREE ACCOUNT.*"
+- runFlow: helpers/prepare-signup.yaml
 - tapOn: ".*CREATE AN ACCOUNT.*"
 - assertVisible: "Create Your Account"
 - tapOn: "What should we call you?"

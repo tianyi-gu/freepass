@@ -3,7 +3,7 @@ name: Failed login resolves with an inline retry
 ---
 - launchApp:
     clearState: true
-- tapOn: ".*CREATE FREE ACCOUNT.*"
+- runFlow: helpers/prepare-signup.yaml
 - tapOn: "LOG IN"
 - tapOn: "Enter your email..."
 - inputText: "invalid-login@freepass-audit.example"

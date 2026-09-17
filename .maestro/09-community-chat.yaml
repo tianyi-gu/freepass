@@ -3,7 +3,7 @@ name: Community board is readable as guest, posting requires sign-in
 ---
 - launchApp:
     clearState: true
-- tapOn: ".*CREATE FREE ACCOUNT.*"
+- runFlow: helpers/prepare-signup.yaml
 - tapOn: "Continue as Guest"
 - assertVisible: "QUICK ACCESS"
 - tapOn: "Open menu"

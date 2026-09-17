@@ -5,9 +5,8 @@ name: Launch, welcome screen, continue as guest
     clearState: true
 - assertVisible: "FreePass"
 - assertVisible: "QUICK ACCESS"
-- assertVisible: ".*CREATE FREE ACCOUNT.*"
 # Guest entry: go to signup screen, then continue as guest
-- tapOn: ".*CREATE FREE ACCOUNT.*"
+- runFlow: helpers/prepare-signup.yaml
 - assertVisible: ".*CREATE AN ACCOUNT.*"
 - assertVisible: "LOG IN"
 - tapOn: "Continue as Guest"

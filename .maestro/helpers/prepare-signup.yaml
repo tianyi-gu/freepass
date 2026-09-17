@@ -1,0 +1,22 @@
+appId: org.thefountainfund.freepass.app
+# iOS Keychain survives reinstall. Sign out through FreePass so tests do not
+# erase credentials belonging to other apps on the simulator.
+---
+- assertVisible: "QUICK ACCESS"
+- runFlow:
+    when:
+      visible: ".*CREATE FREE ACCOUNT.*"
+    commands:
+      - tapOn: ".*CREATE FREE ACCOUNT.*"
+- runFlow:
+    when:
+      visible: "QUICK ACCESS"
+    commands:
+      - tapOn: "Open menu"
+      - tapOn:
+          text: ".*Account.*"
+          index: 0
+      - scrollUntilVisible:
+          element: ".*Log Out.*"
+      - tapOn: ".*Log Out.*"
+- assertVisible: "LOG IN"
