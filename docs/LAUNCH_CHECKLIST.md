@@ -2,7 +2,23 @@
 
 Last updated: 2026-09-16 (build 8 resubmission)
 
-## Status (2026-09-16) — build 8 submitted with the rejection fixes
+## Status (2026-09-16, late) — Casey providers were dead; build 10 carries the fix
+
+- ❌→✅ **Casey could not answer at all** (would have been a fresh 2.1(a) hit
+  since the review notes point the reviewer at Casey): Gemini returns 429
+  "prepayment credits are depleted" (needs a top-up at ai.studio/projects —
+  human step) and Groq had retired `llama-3.3-70b-versatile` (404). Fixed:
+  Groq model → `openai/gpt-oss-120b`; the Groq path now sends a compact
+  directory (no descriptions/websites, ~6.5k tokens) and only the last two
+  exchanges because Groq's free tier allows 8,000 tokens **per minute**
+  (the full directory is ~11k → HTTP 413). Rate-limit hits now show an
+  honest "busy, try again in a minute" message. **Until Gemini has credit or
+  Groq is on the paid Dev Tier, Casey is effectively limited to about one
+  message per minute across all users.**
+- Builds 8 and 9 processed but were NOT submitted (validation caught the
+  Casey failure first). Build 10 = build 9 + Groq compact-context fix.
+
+## Status (2026-09-16) — build 8 resubmission (superseded)
 
 - ✅ Rejection fixes (PR #4, merged 2026-09-10) verified on main: tsc/lint
   clean; consent notice names Google/Groq/OpenAI + what is sent + purpose,

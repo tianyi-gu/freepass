@@ -189,6 +189,34 @@ function buildContext(resources: Resource[]): string {
     .join('\n');
 }
 
+// Leaner directory for the Groq fallback. Groq's free tier caps requests at
+// 8,000 tokens per minute and the full directory alone is ~11k tokens, so
+// the fallback was failing with HTTP 413 on every message. Descriptions and
+// websites are dropped (the largest fields); name, location, services, phone
+// and hours are what a recommendation needs. Measured Sept 2026: ~6.5k tokens.
+function buildCompactContext(resources: Resource[]): string {
+  if (resources.length === 0) return buildContext(resources);
+  return (
+    'Compact directory (descriptions omitted — recommend by services and location, and tell the user to call for details):\n' +
+    resources
+      .map(
+        (r) =>
+          `${r.name} | ${[r.address, r.city].filter(Boolean).join(', ') || 'Location not listed'} | ${(r.tags || []).join(', ') || 'Not tagged'} | ${r.phone || 'Phone not listed'} | ${r.hours || 'Hours not listed'}`
+      )
+      .join('\n')
+  );
+}
+
+// Groq rejected the request for its per-minute token budget (HTTP 413/429).
+// Distinguished from a connectivity failure so the user gets an honest
+// "busy, try in a minute" rather than "trouble connecting".
+class RateLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RateLimitError';
+  }
+}
+
 type GeminiPart = { text: string };
 type GeminiContent = { role: string; parts: GeminiPart[] };
 type GeminiPayload = {
@@ -340,6 +368,9 @@ async function fetchGroqReply(
     }),
   });
   const json = await res.json();
+  if (res.status === 413 || res.status === 429) {
+    throw new RateLimitError(json?.error?.message ?? `HTTP ${res.status}`);
+  }
   if (!res.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
 
   const reply = json?.choices?.[0]?.message?.content;
@@ -807,7 +838,14 @@ export default function CaseyScreen() {
       } catch (geminiErr) {
         if (geminiErr instanceof SafetyBlockError) throw geminiErr;
         if (__DEV__) console.warn('[Casey] Gemini failed, falling back to Groq:', geminiErr);
-        reply = await fetchGroqReply(messages, text, context, userContext);
+        // Groq's free tier is capped at 8k tokens/minute: send the compact
+        // directory and only the last two exchanges so one message fits.
+        reply = await fetchGroqReply(
+          messages.slice(-4),
+          text,
+          buildCompactContext(resources),
+          userContext,
+        );
       }
 
       const replyId = (Date.now() + 1).toString();
@@ -822,6 +860,16 @@ export default function CaseyScreen() {
         setMessages((prev) => [
           ...prev,
           { id: `${Date.now() + 1}`, role: 'bot', text: CRISIS_REPLY, synthetic: true },
+        ]);
+      } else if (err instanceof RateLimitError) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: 'bot',
+            synthetic: true,
+            text: "I'm helping a lot of people right now and need a moment to catch up — please try me again in about a minute. In the meantime you can browse the Resources tab, or call 211 any time for help finding services.",
+          },
         ]);
       } else {
         if (__DEV__) console.error('[Casey] Both providers failed:', err);

@@ -35,7 +35,7 @@ builds 1–7. Android has never been configured.
    │     └── Storage bucket `documents` (PRIVATE) — user ID photos, per-user folders
    │
    ├── Google Gemini 2.5 Flash  — Casey chat (primary)
-   ├── Groq                     — Casey chat fallback (llama-3.3-70b) + Whisper STT
+   ├── Groq                     — Casey chat fallback (openai/gpt-oss-120b, compact directory; free tier = 8k tokens/min) + Whisper STT
    └── OpenAI                   — Casey TTS (gpt-4o-mini-tts; device voice fallback)
 ```
 
