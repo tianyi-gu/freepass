@@ -1,6 +1,39 @@
 # FreePass Launch Checklist
 
-Last updated: 2026-09-16 (build 8 resubmission)
+Last updated: 2026-09-16 (handoff to next engineer)
+
+## HANDOFF STATE (2026-09-16, end of day) — resubmission NOT yet filed
+
+Exactly where things stand, so the next engineer can finish in ~30 min:
+
+- **Build 10** (EAS `c7e0e91c`, commit `d039bb4`) is processed by Apple
+  (`VALID`) and in TestFlight. It contains: PR #4's rejection fixes (AI
+  consent gate, request timeouts, login retry) + Groq model swap + compact
+  Groq context. **Version 1.0 still has build 8 attached** — attach build 10
+  in ASC before submitting.
+- **Review submission `3932e741` exists (READY_FOR_REVIEW, no items).** The
+  old rejected submission was canceled. `/tmp/submit_build10.py` on Tianyi's
+  Mac attaches build 10 + adds the version + submits in one go; or do it in
+  the ASC UI (Add build 10 → Add for Review → Submit).
+- **App Review notes already rewritten** (describe consent screen location:
+  Home → Ask Casey, guest OK; and the login hardening). Privacy policy
+  (approved text) is live at https://freepass-privacy.vercel.app.
+- **Last validation step was interrupted before completing.** Verified on
+  the simulator so far: consent notice gates the composer and names
+  Google/Groq/OpenAI; agree → composer appears; demo-account login reaches
+  Home; bad password shows inline Retry (no spinner). NOT yet re-verified on
+  the build-10 code: that Casey actually *replies* (previous builds failed
+  because Gemini has no credit and Groq's free tier caps 8k tokens/min).
+  Direct API tests confirm the compact prompt (~6.5k tokens) is accepted by
+  Groq, so it should pass. Run: `maestro test .maestro/04-casey-chat.yaml`
+  against a Release simulator build (see §6). Maestro note: buttons with
+  `accessibilityLabel` must be targeted by that label ("Send message",
+  "I agree, turn on Casey"), not their visible text.
+- **Human/billing items still open** (any one unblocks Casey properly):
+  Gemini prepaid credit top-up (ai.studio/projects); Groq paid Dev Tier
+  (removes the 8k tokens/min cap — today ≈ one Casey message per minute
+  across ALL users); Supabase Pro + Disk IO check (root cause of the login
+  hang Apple saw). Supabase Management API token in `.env` is revoked (401).
 
 ## Status (2026-09-16, late) — Casey providers were dead; build 10 carries the fix
 
