@@ -1,6 +1,28 @@
 # FreePass Launch Checklist
 
-Last updated: 2026-09-10 (App Review rejection fixes)
+Last updated: 2026-09-16 (build 8 resubmission)
+
+## Status (2026-09-16) — build 8 submitted with the rejection fixes
+
+- ✅ Rejection fixes (PR #4, merged 2026-09-10) verified on main: tsc/lint
+  clean; consent notice names Google/Groq/OpenAI + what is sent + purpose,
+  gates the composer, revocable in Account → Privacy; all Supabase requests
+  time-boxed (15s / 60s storage) with inline login retry.
+- ✅ Approved privacy policy text (freepass-privacy PR #1) deployed to
+  https://freepass-privacy.vercel.app — the hosted page had not been
+  redeployed after the text change.
+- ✅ App Review notes rewritten to describe both fixes and where to find the
+  consent notice (Home → Ask Casey, guest OK).
+- ✅ Supabase confirmed ACTIVE_HEALTHY; demo login re-verified (HTTP 200).
+- ✅ EAS build 8 (e5d1cf9f) started with --auto-submit; a script attaches it
+  to version 1.0 and files the review submission once Apple finishes
+  processing.
+- ⚠️ Supabase Management API token (`SUPABASE_ACCESS_TOKEN`) now returns 401
+  — revoked/expired. Disk IO and pause state can only be checked in the
+  dashboard until a new PAT is issued.
+- ❌ Still human: upgrade Supabase to Pro + check Reports → Disk IO (the
+  reviewer's login hang was the paused/IO-starved DB); optionally reply in
+  the Resolution Center thread pointing at the new build.
 
 ## Status (2026-09-10) — build 7 REJECTED, resubmission needed
 
