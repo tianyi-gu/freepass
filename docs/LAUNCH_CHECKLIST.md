@@ -17,6 +17,16 @@ Last updated: 2026-09-16 (build 8 resubmission)
 - ✅ EAS build 8 (e5d1cf9f) started with --auto-submit; a script attaches it
   to version 1.0 and files the review submission once Apple finishes
   processing.
+- ⚠️ **Casey providers were BOTH dead** when validated on the simulator
+  (2026-09-16): Gemini returns 429 "prepayment credits are depleted" (Google
+  AI Studio billing — needs a credit top-up by the account owner), and Groq
+  returned 404 because `llama-3.3-70b-versatile` was retired. Code fix:
+  Groq fallback now uses `openai/gpt-oss-120b` (build 9). Until Gemini has
+  credit, Casey runs on the Groq fallback only.
+- ✅ Simulator validation of main's fixes: login with the demo account
+  reaches Home (15/15 steps); a bad password shows the inline "Couldn't log
+  you in — Try again" card (no spinner); the consent notice gates the
+  composer and names Google/Groq/OpenAI; agree → chat works.
 - ⚠️ Supabase Management API token (`SUPABASE_ACCESS_TOKEN`) now returns 401
   — revoked/expired. Disk IO and pause state can only be checked in the
   dashboard until a new PAT is issued.

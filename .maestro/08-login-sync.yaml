@@ -1,9 +1,16 @@
 appId: org.thefountainfund.freepass.app
-name: Login after confirmation syncs pending survey answers
+name: Login from a fresh install completes (no indefinite spinner)
+# Uses the App Review demo account by default; override with
+#   maestro test -e EMAIL=... -e PASSWORD=... .maestro/08-login-sync.yaml
+# (The July e2e Gmail account's credentials no longer work.)
 env:
-  EMAIL: freepass.e2e.20260706@gmail.com
+  EMAIL: applereview@freepass-demo.app
+  PASSWORD: ReviewFreePass#2026
 ---
-- launchApp
+# clearState: the guest home screen has no CREATE FREE ACCOUNT button, so
+# this flow must start from a fresh install regardless of prior runs.
+- launchApp:
+    clearState: true
 - tapOn: ".*CREATE FREE ACCOUNT.*"
 - tapOn: "LOG IN"
 - assertVisible: "Welcome Back"
@@ -12,12 +19,13 @@ env:
 - pressKey: Enter
 - waitForAnimationToEnd
 - tapOn: "Enter your password..."
-- inputText: "E2eTest!2026pass"
+- inputText: ${PASSWORD}
 - pressKey: Enter
 - waitForAnimationToEnd
 - tapOn:
     text: "LOG IN"
     index: 0
+# Login must resolve one way or the other within the app's request timeout.
 - extendedWaitUntil:
-    visible: "Hello, E2E Tester!"
-    timeout: 20000
+    visible: "QUICK ACCESS"
+    timeout: 25000

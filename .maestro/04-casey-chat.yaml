@@ -13,7 +13,7 @@ name: Casey AI replies to a housing question
     when:
       visible: "Casey is turned off"
     commands:
-      - tapOn: "TURN ON CASEY"
+      - tapOn: "Review the AI notice and turn on Casey"
 - runFlow:
     when:
       visible: "Before you chat with Casey"
@@ -22,7 +22,12 @@ name: Casey AI replies to a housing question
       - assertVisible: ".*Google \\(Gemini\\).*"
       - assertVisible: ".*Groq.*"
       - assertVisible: ".*OpenAI.*"
-      - tapOn: "I AGREE — TURN ON CASEY"
+      # The notice is taller than the screen on most phones; the accept
+      # button is below the fold.
+      - scrollUntilVisible:
+          element: "I agree, turn on Casey"
+          direction: DOWN
+      - tapOn: "I agree, turn on Casey"
 - assertVisible: "Message Casey..."
 - tapOn: "Message Casey..."
 - inputText: "Where can I find housing help in Philadelphia?"

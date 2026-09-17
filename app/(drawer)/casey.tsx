@@ -42,7 +42,10 @@ const GEMINI_API_BASE =
 // Groq is used as an automatic backup for the chat when Gemini is unavailable
 // (e.g. depleted billing / quota). Speech-to-text also uses the same Groq key.
 const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_CHAT_MODEL = 'llama-3.3-70b-versatile';
+// llama-3.3-70b-versatile was retired by Groq (404 as of 2026-09) — that left
+// the fallback dead while Gemini was out of credit, so Casey failed entirely.
+// Check `GET https://api.groq.com/openai/v1/models` before changing this.
+const GROQ_CHAT_MODEL = 'openai/gpt-oss-120b';
 
 // Abort provider calls that hang on a bad cell connection instead of letting
 // the platform default (60s+) freeze the chat behind a spinner.
@@ -331,6 +334,9 @@ async function fetchGroqReply(
       messages: buildGroqMessages(history, text, context, userContext),
       max_tokens: 1024,
       temperature: 0.4,
+      // gpt-oss is a reasoning model; routing a need to 2-3 directory rows
+      // doesn't benefit from long deliberation, and users are waiting.
+      reasoning_effort: 'low',
     }),
   });
   const json = await res.json();
