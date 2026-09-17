@@ -2,10 +2,12 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { LoadError } from '@/components/load-error';
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { courseLink } from '@/lib/course-content';
 import { openWebUrl } from '@/lib/links';
 import { supabase } from '@/lib/supabase';
 
@@ -23,19 +25,24 @@ interface Course {
 export default function LearningAcademyScreen() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setError(false);
     supabase
       .from('courses')
       .select('id, name, description, course_type, web_link, video_link')
       .eq('in_learning_academy', true)
       .eq('is_hidden', false)
       .order('display_order', { ascending: true, nullsFirst: false })
-      .then(({ data }) => {
+      .then(({ data, error: loadError }) => {
+        setError(!!loadError);
         setCourses(data ?? []);
         setLoading(false);
       });
-  }, []);
+  }, [attempt]);
 
   return (
     <View style={styles.container}>
@@ -93,7 +100,7 @@ export default function LearningAcademyScreen() {
         <Text style={styles.sectionTitle}>FreePass Courses provided by The Fountain Fund</Text>
         {loading ? (
           <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 20 }} />
-        ) : courses.length === 0 ? (
+        ) : error ? <LoadError label="Courses" onRetry={() => setAttempt((n) => n + 1)} /> : courses.length === 0 ? (
           <Text style={styles.emptyText}>No courses available yet.</Text>
         ) : (
           courses.map((c) => (
@@ -104,7 +111,7 @@ export default function LearningAcademyScreen() {
                 // Course links come from the database — treat them as web
                 // URLs only. Routing arbitrary DB text into the navigator
                 // produced "Unmatched Route" screens for scheme-less URLs.
-                const link = c.web_link || c.video_link;
+                const link = courseLink(c);
                 if (link) openWebUrl(link);
                 else router.push(`/course/${c.id}` as never);
               }}

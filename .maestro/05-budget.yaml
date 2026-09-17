@@ -1,7 +1,9 @@
 appId: org.thefountainfund.freepass.app
 name: Budget tool records an expense
 ---
-- launchApp
+- launchApp:
+    clearState: true
+- assertVisible: "QUICK ACCESS"
 - tapOn: ".*Budget.*"
 - tapOn: ".*Add.*"
 - assertVisible: "Add Expense"

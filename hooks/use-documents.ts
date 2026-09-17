@@ -149,11 +149,12 @@ export function useDocuments(userId: string | null) {
         .from(BUCKET)
         .remove([doc.storage_path]);
       if (storageError) throw storageError;
-      const { error: rowError } = await supabase
+      const { data: removed, error: rowError } = await supabase
         .from('user_documents')
         .delete()
-        .eq('id', doc.id);
+        .eq('id', doc.id).select('id');
       if (rowError) throw rowError;
+      if (!removed?.length) throw new Error('The document could not be removed. Please reload and try again.');
       setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
     },
     [],
@@ -164,11 +165,12 @@ export function useDocuments(userId: string | null) {
       id: string,
       updates: { name?: string; category?: DocumentCategory; notes?: string | null },
     ) => {
-      const { error } = await supabase
+      const { data: changed, error } = await supabase
         .from('user_documents')
         .update(updates)
-        .eq('id', id);
+        .eq('id', id).select('id');
       if (error) throw error;
+      if (!changed?.length) throw new Error('The document could not be updated. Please reload and try again.');
       setDocuments((prev) =>
         prev.map((d) => (d.id === id ? { ...d, ...updates } as UserDocument : d)),
       );

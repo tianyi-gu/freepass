@@ -1,0 +1,21 @@
+appId: org.thefountainfund.freepass.app
+name: Failed login resolves with an inline retry
+---
+- launchApp:
+    clearState: true
+- runFlow: helpers/prepare-signup.yaml
+- tapOn: "LOG IN"
+- tapOn: "Enter your email..."
+- inputText: "invalid-login@freepass-audit.example"
+- pressKey: Enter
+- tapOn: "Enter your password..."
+- inputText: "Definitely-not-a-real-password-2026"
+- pressKey: Enter
+- tapOn:
+    text: "LOG IN"
+    index: 0
+- extendedWaitUntil:
+    visible: "Couldn't log you in"
+    timeout: 25000
+- assertVisible: "Try logging in again"
+- assertVisible: "Welcome Back"

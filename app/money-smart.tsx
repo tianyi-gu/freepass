@@ -6,7 +6,7 @@ import { FreepassColors } from '@/constants/theme';
 import { openWebUrl } from '@/lib/links';
 
 const BANZAI_URL = 'https://fountainfund.banzai.org/wellness';
-const FDIC_CATALOG_URL = 'https://catalog.fdic.gov/';
+const FDIC_CATALOG_URL = 'https://playmoneysmart.fdic.gov/';
 
 const MONEY_SMART_COURSES = [
   { title: 'Your Income and Expenses', desc: 'Track and understand your money coming in and money going out.' },
@@ -52,7 +52,7 @@ export default function MoneySmartScreen() {
             style={styles.ctaBtn}
             onPress={() => openWebUrl(FDIC_CATALOG_URL)}
             android_ripple={{ color: FreepassColors.primaryDark }}>
-            <Text style={styles.ctaText}>CREATE ACCOUNT</Text>
+            <Text style={styles.ctaText}>OPEN FDIC MONEY SMART</Text>
           </Pressable>
         </View>
 
@@ -60,7 +60,7 @@ export default function MoneySmartScreen() {
           <Text style={styles.sectionTitle}>Choosing a Course:</Text>
           <Text style={styles.body}>
             The FDIC offers a range of Money Smart courses — the topics below are common ones.
-            Pick whichever is most relevant to your situation. The buttons open the FDIC catalog,
+            Pick whichever is most relevant to your situation. The buttons open the FDIC Money Smart site,
             where you can find each course and the current full list.
           </Text>
           <Pressable
@@ -71,7 +71,7 @@ export default function MoneySmartScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.courseListTitle}>Course topics (each opens the FDIC catalog):</Text>
+        <Text style={styles.courseListTitle}>Course topics (each opens the FDIC Money Smart site):</Text>
         {MONEY_SMART_COURSES.map((c, i) => (
           <View key={i} style={styles.courseRow}>
             <Pressable style={styles.courseBtn} onPress={() => openWebUrl(FDIC_CATALOG_URL)}>

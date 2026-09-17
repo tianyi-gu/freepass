@@ -13,7 +13,7 @@
       "bundleIdentifier": "org.thefountainfund.freepass.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSMicrophoneUsageDescription": "FreePass uses the microphone so you can speak to Casey instead of typing. Voice recordings are transcribed and are not kept."
+        "NSMicrophoneUsageDescription": "With your permission, FreePass sends your Casey recording to OpenAI for transcription. The recording is then deleted from your phone."
       }
     },
     "android": {
@@ -64,7 +64,8 @@
         }
       ],
       "expo-web-browser",
-      "expo-font"
+      "expo-font",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,154 +1,58 @@
-# FreePass Privacy Policy — source text for the hosted policy
+# FreePass Privacy Policy
 
-> **Status:** Hosted at https://freepass-privacy.vercel.app (repo
-> `tianyi-gu/freepass-privacy`, file `index.html`). Written 2026-08-10;
-> revised 2026-09-10 after App Review rejected build 7 under Guidelines
-> 5.1.1(i)/5.1.2(i). This revision adds: how data is collected, every use of
-> the data, OpenAI (text-to-speech) as a recipient, the in-app AI consent
-> notice, retention, and the statement that third parties must protect data to
-> the same standard. Keep this file and `index.html` identical in substance,
-> and keep both in sync with `constants/ai-consent.ts` (the in-app notice).
-> Placeholders in [brackets] need real values before the next publish.
+**Updated:** September 17, 2026
+**Contact:** tianyi@asterialabs.ai (FreePass app team, on behalf of The Fountain Fund)
 
----
+FreePass helps people returning from incarceration find resources, events, education, and support in Philadelphia. This policy explains what the app collects, why, who receives it, and your choices.
 
-**Effective date:** September 2026
-**Contact:** [privacy contact email], The Fountain Fund, [address]
+## Information and its use
 
-FreePass is a free app from The Fountain Fund that helps people returning
-from incarceration find resources, events, and support in Philadelphia.
-Your trust matters to us, and we collect only what the app needs to work.
+- **Account details:** your email, display name, password, and optional ZIP code are used to create and protect your account and provide recovery. Supabase handles authentication and stores password hashes. Native session credentials are stored in the device's secure credential storage in the new OpenAI release.
+- **Optional survey answers:** answers about the support you need are stored with your account, or locally before sign-in, to remember your preferences. You can skip questions. Selected answers are sent to Casey only with the separate personalization choice described below.
+- **Documents:** photos you choose or take are uploaded to a private Supabase storage bucket. Other users cannot read them. Authorized infrastructure administrators may access account data when necessary to operate or support the service. Do not upload documents you do not want the service to process.
+- **Public contributions:** community posts, questions, and answers are visible with your chosen display name. Feedback is restricted to its author and staff in the updated backend. Reports and block lists support moderation. Resource and event submissions are reviewed before publication.
+- **Location:** with device permission, the app uses your location to sort nearby resources on your device. It does not intentionally store your precise location in the FreePass database. Opening external maps sends the selected destination to the map provider.
+- **Budget:** budget and expense entries are stored on your device, separately by app account. They are not sent to Casey or the FreePass database.
+- **Casey conversation and audio:** handled as described below. Chats are held in app memory and are not saved as a conversation history in the FreePass database.
+- **Service and abuse prevention:** providers receive ordinary connection information, such as an IP address, when you use their services. Casey's backend keeps keyed, non-reversible identifiers and request counters for rate limiting, not raw IP addresses or conversation text in that table. These counters expire after two days and are removed on subsequent requests. Infrastructure providers may retain operational/security logs under their own terms.
 
-## What we collect
+This information comes from your inputs, device permissions, and service requests. FreePass does not buy personal data, sell it, or use it for advertising. The app does not include advertising or third-party analytics tracking SDKs.
 
-- **Account information** — your name, email address, password (stored as a
-  secure hash by our database provider, Supabase), and ZIP code if you share
-  it.
-- **Survey answers** — optional questions during sign-up about what kind of
-  help you're looking for (housing, work, education, and similar). Every
-  question can be skipped.
-- **Documents you save** — photos of IDs, certificates, or paperwork you
-  choose to store in My Documents. These are kept in a private storage area
-  that only your signed-in account can access.
-- **Messages and posts** — questions, answers, and community board posts you
-  publish are visible to other FreePass users, along with the display name
-  you chose.
-- **Casey conversations** — messages you type or speak to Casey, our AI
-  assistant, and Casey's replies. These are not stored on FreePass servers;
-  they exist on your device while the chat is open and are shared with the
-  AI services described below only after you agree.
-- **Location** — only if you allow it, and only while using the app, to show
-  resources near you. Your location is used on your device and is not stored
-  on our servers.
-- **Budget entries** — stay on your device only; we never receive them.
+## Casey and third-party AI
 
-## How we collect it
+Before Casey sends anything to an AI provider, the app explains the data, recipients, and purpose and asks you to agree. Declining keeps Casey off while the rest of FreePass remains available. You can revoke consent in **Account → Privacy**. Revocation stops new AI requests and cancels requests still pending in the app; it cannot undo data already received by a provider.
 
-Everything above that is about you comes directly from you: what you type or
-choose in the app (the account form, the survey, posts and questions, your
-messages to Casey), the photos you pick or take for My Documents, your
-microphone only when you tap the microphone button in Casey, and your
-device's location only when you allow it. The one exception is Casey's
-replies, which are generated by the AI service in response to your messages
-and are handled together with them. We do not buy or receive data about you
-from other companies, and the app contains no advertising or analytics
-trackers.
+**In the new OpenAI release (consent version 2):**
 
-## How we use your information
+- Your message and a limited recent conversation are sent through FreePass's Supabase backend to **OpenAI**. OpenAI selects entries from the FreePass directory or an authored response category. FreePass supplies the displayed wording and directory contact details. AI can still select an unsuitable entry, and directory records may be out of date; contact organizations to confirm services and availability.
+- If you use the microphone, your recording is sent through the same backend to **OpenAI** for transcription. The transcript appears in the input box for you to review and send. The recording is deleted from the app's cache after transcription or cancellation.
+- If you use a speaker button or Auto-read, Casey's reply text is sent to **OpenAI** for generated speech. The generated voice is artificial. Temporary speech files are cached on the device and deleted when the Casey screen is destroyed; the app may also use device speech synthesis.
+- Personalization is off unless you separately agree inside Casey. With that choice, selected survey answers, including a name you provided, may accompany the request. **How long you have been home and whether you have a caseworker are excluded.** Documents and budget entries are never included.
 
-- To create your account, keep you signed in, and let you reset your password.
-- To personalize the resources and suggestions shown to you (survey answers
-  and ZIP code) — in the app, and in Casey only if you agree to that inside
-  the chat.
-- To store the documents you save and show them back to you.
-- To show your posts and questions to other users under your display name.
-- To show resources near you (location, processed on your device).
-- To answer you through Casey, our AI assistant (see the next section).
-- To keep the community safe: reports you submit and users you block are used
-  for moderation by Fountain Fund staff.
-- To respond to feedback and support requests you send us.
+**Earlier TestFlight builds (consent version 1):** chat requests use **Google Gemini**, with **Groq** as fallback; microphone transcription uses **Groq**, and spoken replies use **OpenAI**. Those builds show their own provider disclosure. Update to the new release for the OpenAI-only Casey path.
 
-We do not use your information for advertising, and we do not sell it.
+We do not intentionally log AI request/response bodies in our backend or sell conversations. Chat calls request `store:false`, disabling retrievable OpenAI Responses storage. This is **not** a promise of zero provider retention: OpenAI's API security and abuse-monitoring retention rules still apply. Provider processing is governed by applicable service and data-processing terms, including [OpenAI's API data controls](https://developers.openai.com/api/docs/guides/your-data), [Google's Gemini API terms](https://ai.google.dev/gemini-api/terms), and [Groq's privacy policy](https://groq.com/privacy-policy).
 
-## How Casey (the AI assistant) uses data
+## Providers and external links
 
-Casey is powered by outside AI services. **Before you can use Casey, the app
-shows you a notice listing exactly what is shared and with whom, and Casey
-stays off until you tap "I agree."** You can turn Casey off again at any time
-in **Account → Privacy**; nothing further is sent after that.
+**Supabase** operates the database, authentication, private file storage, and Casey backend. AI providers receive only the information described above, after consent. We require service providers processing data on our behalf to provide the same or equal protection described by this policy under their applicable data-processing terms. Provider retention and lawful-disclosure obligations are not overridden by an in-app setting.
 
-When Casey is on:
+**Google/Gmail** delivers account-confirmation and password-recovery emails. Google receives the recipient email address, message contents (including verification links or codes), and email delivery metadata. Deleting a FreePass account does not automatically remove email copies from sender or recipient mailboxes. Google's processing and retention are described in [Google's privacy policy](https://policies.google.com/privacy).
 
-- **Your messages** to Casey, and Casey's replies in that conversation, are
-  sent to **Google (Gemini)** to generate an answer. If Google is unavailable,
-  the same conversation is sent to **Groq** (running the Llama model) instead.
-- **Your voice** — if you tap the microphone, the audio recording is sent to
-  **Groq** (Whisper) to be turned into text and is then deleted from your
-  phone. The text appears in your message box for you to review before you
-  send it.
-- **Casey's replies as speech** — if you tap the speaker button or turn on
-  Auto-read, the text of Casey's reply is sent to **OpenAI** to be turned into
-  spoken audio.
-- **Your name and survey answers** — only if you separately agree to
-  personalization inside the chat (it is off until you say yes). They are then
-  included with your messages so Casey can suggest more relevant resources.
-  Two survey answers are never sent: how long you have been home and whether
-  you have a caseworker.
+Courses, organization websites, email, phone, and maps links open outside FreePass. Those services have their own policies. FreePass does not control their availability or collect information you submit directly to them. We do not voluntarily share private documents or survey responses with employers, parole/probation authorities, or law enforcement; legally required disclosures may apply.
 
-We send only what Casey needs to answer you. These providers process the data
-on our behalf to provide the service, under their API terms, and we require
-that they protect your data to at least the same standard described in this
-policy. They may hold the data briefly for security and abuse monitoring under
-their own terms. We do not use your Casey conversations for advertising and do
-not sell them.
+## Retention and deletion
 
-## What we never do
+Account information, survey answers, saved resources, and document files remain until account deletion. Use **Account → Delete Account** while signed in. The updated deletion flow first removes actual document files through the Storage API, then deletes the account and associated private records. If file removal fails, the account remains so you can retry. You can also contact the app team to request help.
 
-- We do not sell your information.
-- We do not use advertising or tracking SDKs.
-- We do not share your documents, survey answers, or identity with parole,
-  probation, law enforcement, or employers, except if the law requires it.
+Public posts, questions, and answers may remain after deletion with the display name replaced by “Deleted user.” Text you personally included in a public post is not automatically redacted; delete or edit such posts before account deletion, or contact us for help. Reports may remain for moderation with the reporter association removed. Provider backups and security logs, where present, follow provider retention schedules and are not promised to disappear immediately.
 
-## Who can see what
-
-- Your documents, survey answers, and saved resources: only your account.
-- Your public posts and questions: all app users, under your display name.
-- Fountain Fund staff: content you report, resource/event submissions
-  awaiting review, and feedback you send.
-- Service providers that run our infrastructure: Supabase (database and
-  storage); Google, Groq, and OpenAI (AI processing, only after you agree, as
-  described above). Every third party that receives your data must provide
-  the same or equal protection for it as this policy describes, and may use it
-  only to provide the service to us.
-
-## How long we keep it
-
-Your account information, survey answers, saved resources, and documents are
-kept until you delete your account or ask us to delete them. Voice recordings
-are deleted from your phone as soon as they are transcribed. Casey
-conversations are not kept after you leave the chat. Community posts remain
-after account deletion but no longer show your name.
+Logging out clears FreePass's personal local data, including local budgets, pending answers, and AI consent. Conversations in memory are cleared when the session ends or the app screen is destroyed; they may remain while navigating within the same app session. Device backups, OS behavior, and provider retention are outside the app's immediate deletion controls.
 
 ## Your choices
 
-- You decide whether to use Casey. Turn its data sharing on or off any time in
-  **Account → Privacy**, and turn personalization on or off inside the chat.
-- You can turn off microphone and location access in your phone's Settings.
-- You can skip every survey question, and change your answers later in
-  **Account → Retake Survey**.
+You can browse without an account, skip survey questions, decline AI, decline personalization, revoke microphone/location/photo permissions in device settings, edit or remove your public contributions, and delete your account. Casey is not an emergency service; call 911 for immediate danger or call/text 988 for suicide and crisis support in the US.
 
-## Deleting your account
+## Children and changes
 
-You can delete your account any time in **Account → Delete Account**. This
-permanently removes your profile, survey answers, saved resources, and all
-stored documents. Community posts you made remain but no longer show your
-name. You can also email [privacy contact email] to request deletion.
-
-## Children
-
-FreePass is not directed to children under 13 [confirm age policy — the App
-Store rating is 17+].
-
-## Changes
-
-If this policy changes, we'll update the date above and note it in the app.
+FreePass is intended for adults and is not directed at children under 13. Contact us if a child's personal information was provided. We will update this page when practices change and request new in-app consent when AI recipients or sharing change materially.

@@ -11,14 +11,14 @@
 export const AI_CONSENT_STORAGE_KEY = '@freepass_ai_consent';
 
 // Bump when the disclosure text or the set of providers/data changes.
-export const AI_CONSENT_VERSION = 1;
+export { CASEY_CONSENT_VERSION as AI_CONSENT_VERSION } from '@/lib/casey-contract';
 
 export const PRIVACY_POLICY_URL = 'https://freepass-privacy.vercel.app';
 
 export type AiDisclosureItem = { title: string; detail: string };
 
 // What leaves the device. Keep in sync with app/(drawer)/casey.tsx —
-// buildGeminiPayload / buildGroqMessages (messages + optional profile block),
+// requestCasey (messages + optional profile opt-in),
 // stopAndTranscribe (voice recording), fetchOpenAiSpeech (reply text).
 export const AI_DATA_SENT: AiDisclosureItem[] = [
   {
@@ -40,23 +40,14 @@ export const AI_DATA_SENT: AiDisclosureItem[] = [
 // Who receives it. Names must match the services actually called.
 export const AI_PROVIDERS: AiDisclosureItem[] = [
   {
-    title: 'Google (Gemini)',
-    detail: "Reads your messages and writes Casey's replies.",
-  },
-  {
-    title: 'Groq',
-    detail:
-      'Backup for writing replies when Google is unavailable, and turns your voice recordings into text.',
-  },
-  {
     title: 'OpenAI',
     detail:
-      "Turns Casey's replies into spoken audio when you tap the speaker button or turn on Auto-read.",
+      "Reads your conversation to select resources from the FreePass directory, turns microphone recordings into text, and turns Casey's replies into audio when you use the speaker or Auto-read. Requests pass through FreePass's Supabase backend.",
   },
 ];
 
 export const AI_PURPOSE_TEXT =
-  'This information is used only so Casey can understand you, suggest resources from the FreePass directory, and read replies aloud. FreePass does not sell your information or use it for advertising. Each company processes it under its own privacy terms and is required to protect it. Nothing is sent to these companies until you agree.';
+  'This information is used to help Casey understand your request, select directory entries, and provide voice features. FreePass does not sell your information or use it for advertising. OpenAI processes API data under its own terms, including retention for abuse monitoring; we request that chat responses are not stored as retrievable conversations. Nothing is sent to OpenAI until you agree.';
 
 export const AI_CHOICE_TEXT =
   'If you say no, Casey stays off, but everything else in FreePass still works. You can change your mind any time in Account → Privacy.';

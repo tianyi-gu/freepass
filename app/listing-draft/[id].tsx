@@ -30,7 +30,7 @@ export default function ListingDraftScreen() {
           </Text>
         ) : (
           <Text style={{ fontSize: 13, color: FreepassColors.textSecondary, textAlign: 'center', marginTop: 8 }}>
-            Draft resources require a staff-accessible data policy before they can be previewed here.
+            This draft is unavailable or you do not have permission to view it.
           </Text>
         )}
         <Pressable onPress={() => router.back()} style={{ marginTop: 12 }}>

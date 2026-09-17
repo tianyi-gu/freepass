@@ -1,3 +1,4 @@
+import { LoadError } from '@/components/load-error';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -44,7 +45,7 @@ const NativeMarker = NativeMaps?.Marker;
 
 export default function MapViewScreen() {
   const insets = useSafeAreaInsets();
-  const { resources, loading } = useResources();
+  const { resources, loading, error, refetch } = useResources();
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'granted' | 'denied'>('idle');
   const [searchQuery, setSearchQuery] = useState('');
@@ -186,7 +187,7 @@ export default function MapViewScreen() {
           {!loading && ` (${sortedResources.length})`}
         </Text>
 
-        {loading || locationStatus === 'loading' ? (
+        {error ? <LoadError label="Resources" onRetry={refetch} /> : loading || locationStatus === 'loading' ? (
           <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 40 }} />
         ) : sortedResources.length === 0 ? (
           <View style={styles.emptyState}>

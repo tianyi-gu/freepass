@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useUser } from '@/contexts/user-context';
 
-const BUDGET_KEY = '@freepass_budget';
-const EXPENSES_KEY = '@freepass_expenses';
+
 
 export interface Expense {
   id: string;
@@ -57,20 +57,43 @@ export const CATEGORY_COLORS: Record<ExpenseCategory, string> = {
 };
 
 export function useBudget() {
+  const { user } = useUser();
+  const owner = user?.id ?? 'guest';
+  const budgetKey = `@freepass_budget:${owner}`;
+  const expensesKey = `@freepass_expenses:${owner}`;
   const [monthlyBudget, setMonthlyBudgetState] = useState(0);
   const [expenses, setExpensesState] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [loadVersion, setLoadVersion] = useState(0);
+  const expensesRef = useRef<Expense[]>([]);
+  const writesRef = useRef<Promise<void>>(Promise.resolve());
+  const reload = useCallback(() => setLoadVersion((n) => n + 1), []);
 
   useEffect(() => {
     async function load() {
+      setIsLoading(true);
+      setLoadError(false);
       try {
-        const [budgetStr, expensesStr] = await Promise.all([
-          AsyncStorage.getItem(BUDGET_KEY),
-          AsyncStorage.getItem(EXPENSES_KEY),
+        let [budgetStr, expensesStr] = await Promise.all([
+          AsyncStorage.getItem(budgetKey),
+          AsyncStorage.getItem(expensesKey),
         ]);
+        // Previous releases cleared these unscoped values on logout, so any
+        // remaining legacy budget belongs to the current device session.
+        if (budgetStr === null && expensesStr === null) {
+          [budgetStr, expensesStr] = await Promise.all([AsyncStorage.getItem('@freepass_budget'), AsyncStorage.getItem('@freepass_expenses')]);
+          const writes: [string, string][] = [];
+          if (budgetStr !== null) writes.push([budgetKey, budgetStr]);
+          if (expensesStr !== null) writes.push([expensesKey, expensesStr]);
+          if (writes.length) {
+            await AsyncStorage.multiSet(writes);
+            await AsyncStorage.multiRemove(['@freepass_budget', '@freepass_expenses']);
+          }
+        }
         if (budgetStr) {
           const parsed = parseFloat(budgetStr);
-          if (!isNaN(parsed)) setMonthlyBudgetState(parsed);
+          if (Number.isFinite(parsed) && parsed >= 0) setMonthlyBudgetState(parsed);
         }
         if (expensesStr) {
           try {
@@ -86,49 +109,56 @@ export function useBudget() {
                   typeof e === 'object' &&
                   typeof e.id === 'string' &&
                   typeof e.amount === 'number' &&
-                  isFinite(e.amount) &&
+                  isFinite(e.amount) && e.amount >= 0 &&
+                  EXPENSE_CATEGORIES.includes(e.category) &&
+                  Number.isFinite(Date.parse(e.date)) &&
                   typeof e.description === 'string' &&
                   typeof e.date === 'string',
               );
+              expensesRef.current = valid;
               setExpensesState(valid);
               if (valid.length !== parsed.length) {
-                await AsyncStorage.setItem(EXPENSES_KEY, JSON.stringify(valid));
+                await AsyncStorage.setItem(expensesKey, JSON.stringify(valid));
               }
             }
           } catch {
             // Corrupted expenses data — start fresh rather than crashing
-            await AsyncStorage.removeItem(EXPENSES_KEY);
+            await AsyncStorage.removeItem(expensesKey);
           }
         }
       } catch (err) {
+        setLoadError(true);
         if (__DEV__) console.error('[useBudget] load failed:', err);
       } finally {
         setIsLoading(false);
       }
     }
     load();
-  }, []);
+  }, [budgetKey, expensesKey, loadVersion]);
 
   const setMonthlyBudget = useCallback(async (amount: number) => {
+    await AsyncStorage.setItem(budgetKey, amount.toString());
     setMonthlyBudgetState(amount);
-    await AsyncStorage.setItem(BUDGET_KEY, amount.toString());
-  }, []);
+  }, [budgetKey]);
 
-  // Persist expenses to AsyncStorage whenever they change (after initial load)
-  useEffect(() => {
-    if (!isLoading) {
-      AsyncStorage.setItem(EXPENSES_KEY, JSON.stringify(expenses));
-    }
-  }, [expenses, isLoading]);
+  // Serialize mutations and publish state only after durable storage succeeds.
+  const updateExpenses = useCallback((update: (current: Expense[]) => Expense[]) => {
+    const pending = writesRef.current.then(async () => {
+      const next = update(expensesRef.current);
+      await AsyncStorage.setItem(expensesKey, JSON.stringify(next));
+      expensesRef.current = next;
+      setExpensesState(next);
+    });
+    writesRef.current = pending.catch(() => {});
+    return pending;
+  }, [expensesKey]);
 
   const addExpense = useCallback((expense: Omit<Expense, 'id'>) => {
     const newExpense: Expense = { ...expense, id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}` };
-    setExpensesState((prev) => [newExpense, ...prev]);
-  }, []);
+    return updateExpenses((prev) => [newExpense, ...prev]);
+  }, [updateExpenses]);
 
-  const deleteExpense = useCallback((id: string) => {
-    setExpensesState((prev) => prev.filter((e) => e.id !== id));
-  }, []);
+  const deleteExpense = useCallback((id: string) => updateExpenses((prev) => prev.filter((e) => e.id !== id)), [updateExpenses]);
 
   const getMonthExpenses = useCallback(
     (year: number, month: number) => {
@@ -175,6 +205,8 @@ export function useBudget() {
     monthlyBudget,
     expenses,
     isLoading,
+    loadError,
+    reload,
     setMonthlyBudget,
     addExpense,
     deleteExpense,

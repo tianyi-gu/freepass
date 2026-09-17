@@ -1,7 +1,9 @@
 appId: org.thefountainfund.freepass.app
 name: Casey AI replies to a housing question
 ---
-- launchApp
+- launchApp:
+    clearState: true
+- assertVisible: "QUICK ACCESS"
 - tapOn: ".*Casey.*"
 # The AI data-sharing decision is persisted per device, so make the
 # precondition deterministic whatever state a previous run (or manual
@@ -19,8 +21,6 @@ name: Casey AI replies to a housing question
       visible: "Before you chat with Casey"
     commands:
       - assertVisible: "Who receives it"
-      - assertVisible: ".*Google \\(Gemini\\).*"
-      - assertVisible: ".*Groq.*"
       - assertVisible: ".*OpenAI.*"
       # The notice is taller than the screen on most phones; the accept
       # button is below the fold.
@@ -34,6 +34,7 @@ name: Casey AI replies to a housing question
 - tapOn: "Send message"
 - extendedWaitUntil:
     visible:
-      text: ".*ousing.*"
+      text: ".*These entries in the FreePass directory may be useful.*"
     timeout: 45000
 - assertNotVisible: ".*having trouble connecting right now.*"
+- assertVisible: ".*Please call ahead to confirm services.*"

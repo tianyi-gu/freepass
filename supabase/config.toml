@@ -1,0 +1,6 @@
+project_id = "freepass"
+
+[functions.casey]
+# Handler accepts the public project key for intentional guest access, or
+# verifies a signed-in user's JWT with Auth. Durable limits apply to both.
+verify_jwt = false

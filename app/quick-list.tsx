@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { LoadError } from '@/components/load-error';
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
@@ -14,7 +15,7 @@ export default function QuickListScreen() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { user } = useUser();
-  const { resources: allResources, loading } = useResources();
+  const { resources: allResources, loading, error, refetch } = useResources();
   const { isSaved, toggleSave } = useSavedResources();
   const isStaff = !!user && !user.isGuest && user.isStaff === true;
 
@@ -104,7 +105,7 @@ export default function QuickListScreen() {
 
         {loading ? (
           <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 20 }} />
-        ) : resources.length === 0 ? (
+        ) : error ? <LoadError label="Resources" onRetry={refetch} /> : resources.length === 0 ? (
           <View style={styles.emptyState}>
             <IconSymbol name="magnifyingglass" size={40} color={FreepassColors.lightGray} />
             <Text style={styles.emptyText}>No resources found.</Text>

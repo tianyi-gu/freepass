@@ -35,7 +35,7 @@ export default function LoanInquiryScreen() {
         <Text style={styles.body}>
           The Fountain Fund makes low-interest loans specifically for people who have been
           incarcerated. Having a record is not a barrier here — it&apos;s who the program is for,
-          and no one is turned away because of the type of conviction or how long they served.
+          The Fountain Fund says it does not discriminate based on the type of conviction or length of incarceration; staff determine individual eligibility.
         </Text>
 
         <Text style={styles.sectionTitle}>What The Fountain Fund looks at</Text>
@@ -54,8 +54,7 @@ export default function LoanInquiryScreen() {
         <Text style={styles.sectionTitle}>Current terms and how to apply</Text>
         <Text style={styles.body}>
           For current loan amounts, interest rates, and the full inquiry process, use the link at
-          the top of this page or visit fountainfund.org. The details there are always the most
-          up to date — when in doubt, ask a Fountain Fund staff member.
+          the top of this page or visit fountainfund.org. Confirm the current requirements and terms directly with a Fountain Fund staff member.
         </Text>
 
         <Pressable

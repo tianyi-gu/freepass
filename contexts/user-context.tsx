@@ -5,6 +5,7 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, 
 import { AI_CONSENT_STORAGE_KEY } from '@/constants/ai-consent';
 import { withTimeout } from '@/lib/network';
 import { supabase } from '@/lib/supabase';
+import { cancelCaseyRequests } from '@/lib/casey-client';
 
 const GUEST_STORAGE_KEY = '@freepass_guest';
 // Survey answers collected before the user has an authenticated session
@@ -30,6 +31,7 @@ const LOCAL_DATA_KEYS = [
   '@freepass_budget',
   '@freepass_expenses',
   '@freepass_casey_share_profile',
+  '@freepass_casey_autospeak',
   AI_CONSENT_STORAGE_KEY,
 ];
 
@@ -105,6 +107,7 @@ async function stashPendingAnswers(answers: Record<string, string | string[]>): 
     await AsyncStorage.setItem(PENDING_SURVEY_KEY, JSON.stringify({ ...existing, ...answers }));
   } catch (err) {
     if (__DEV__) console.error('[UserContext] stashPendingAnswers failed:', err);
+    throw new Error('Your answers could not be saved on this device. Please try again.');
   }
 }
 
@@ -139,7 +142,8 @@ async function flushPendingLocalData(userId: string): Promise<void> {
         }
         const zip = pending?.zip_code;
         if (typeof zip === 'string' && zip.trim()) {
-          await supabase.from('profiles').update({ zip_code: zip.trim() }).eq('id', userId);
+          const { error: zipError } = await supabase.from('profiles').update({ zip_code: zip.trim() }).eq('id', userId);
+          if (zipError) return;
         }
       }
       await AsyncStorage.removeItem(PENDING_SURVEY_KEY);
@@ -151,7 +155,8 @@ async function flushPendingLocalData(userId: string): Promise<void> {
         .from('profiles')
         .update({ onboarding_complete: true })
         .eq('id', userId);
-      if (!error) await AsyncStorage.removeItem(PENDING_ONBOARDING_KEY);
+      if (error) return;
+      await AsyncStorage.removeItem(PENDING_ONBOARDING_KEY);
     }
 
     await AsyncStorage.removeItem(PENDING_OWNER_KEY);
@@ -383,7 +388,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           ...user,
           surveyAnswers: { ...user.surveyAnswers, ...answers },
         };
-        AsyncStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
+        await AsyncStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(updated));
         setUser(updated);
       }
       return;
@@ -400,7 +405,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase
         .from('survey_answers')
         .upsert(upserts, { onConflict: 'user_id,question_id' });
-      if (error && __DEV__) console.error('[UserContext] saveSurveyAnswers failed:', error);
+      if (error) throw error;
     }
 
     if (typeof answers.zip_code === 'string' && answers.zip_code.trim()) {
@@ -408,10 +413,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
         .from('profiles')
         .update({ zip_code: answers.zip_code.trim() })
         .eq('id', user.id);
-      if (error && __DEV__) console.error('[UserContext] zip_code update failed:', error);
+      if (error) throw error;
     }
 
-    setUser((prev) => prev ? {
+    setUser((prev) => prev && prev.id === user.id ? {
       ...prev,
       surveyAnswers: { ...prev.surveyAnswers, ...answers },
     } : prev);
@@ -425,6 +430,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         await AsyncStorage.setItem(PENDING_ONBOARDING_KEY, 'true');
       } catch (err) {
         if (__DEV__) console.error('[UserContext] pending onboarding stash failed:', err);
+        throw new Error('Your progress could not be saved. Please try again.');
       }
       return;
     }
@@ -434,44 +440,60 @@ export function UserProvider({ children }: { children: ReactNode }) {
         .from('profiles')
         .update({ onboarding_complete: true })
         .eq('id', user.id);
-      if (error && __DEV__) console.error('[UserContext] completeOnboarding failed:', error);
+      if (error) throw error;
     }
 
-    setUser((prev) => prev ? { ...prev, onboardingComplete: true } : prev);
+    setUser((prev) => prev && prev.id === user.id ? { ...prev, onboardingComplete: true } : prev);
   }, [user]);
 
   const logOut = useCallback(async () => {
+    cancelCaseyRequests();
+    profileLoadSeq.current += 1;
     // Clear everything personal from the device, not just the guest profile —
     // budgets, stashed survey answers, and Casey consent must not leak to the
     // next person who uses a shared phone.
-    await AsyncStorage.multiRemove(LOCAL_DATA_KEYS).catch(() => {});
-    await supabase.auth.signOut();
+    const ownedKeys = (await AsyncStorage.getAllKeys()).filter((key) => key.startsWith('@freepass_budget:') || key.startsWith('@freepass_expenses:'));
+    await AsyncStorage.multiRemove([...LOCAL_DATA_KEYS, ...ownedKeys]);
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    if (error) throw error;
     setUser(null);
   }, []);
 
   const deleteAccount = useCallback(async () => {
-    // Best-effort removal of document files through the storage API first;
-    // the delete_account() SQL function is the authoritative backstop.
-    if (user && !user.isGuest) {
-      try {
-        const { data: files } = await supabase.storage.from('documents').list(user.id);
-        if (files && files.length > 0) {
-          await supabase.storage
-            .from('documents')
-            .remove(files.map((f) => `${user.id}/${f.name}`));
+    if (!user || user.isGuest) throw new Error('Please sign in first.');
+    cancelCaseyRequests();
+    // Storage API removes the real object. The SQL function refuses deletion
+    // if any object metadata remains, so failures preserve a retryable account.
+    let batches = 0;
+    const removeFolder = async (folder: string, depth = 0): Promise<void> => {
+      if (depth > 10) throw new Error('Document cleanup needs support. Please contact us.');
+      while (true) {
+        if (++batches > 200) throw new Error('Document cleanup is incomplete. Please retry deletion.');
+        const { data: files, error } = await supabase.storage.from('documents').list(folder, { limit: 100 });
+        if (error) throw error;
+        if (!files?.length) break;
+        const paths: string[] = [];
+        for (const file of files) {
+          if (!file.id) await removeFolder(`${folder}/${file.name}`, depth + 1);
+          else paths.push(`${folder}/${file.name}`);
         }
-      } catch (err) {
-        if (__DEV__) console.error('[UserContext] storage cleanup failed:', err);
+        if (paths.length) {
+          const { error: removalError } = await supabase.storage.from('documents').remove(paths);
+          if (removalError) throw removalError;
+        }
+        // Empty virtual folders disappear once their objects are removed.
       }
-    }
+    };
+    await removeFolder(user.id);
 
     const { error } = await supabase.rpc('delete_account');
     if (error) throw error;
 
-    await AsyncStorage.multiRemove(LOCAL_DATA_KEYS).catch(() => {});
+    const ownedKeys = (await AsyncStorage.getAllKeys()).filter((key) => key.startsWith('@freepass_budget:') || key.startsWith('@freepass_expenses:'));
+    await AsyncStorage.multiRemove([...LOCAL_DATA_KEYS, ...ownedKeys]).catch(() => {});
     // The auth user no longer exists, so the sign-out call may fail — the
     // local session still needs clearing either way.
-    await supabase.auth.signOut().catch(() => {});
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
     setUser(null);
   }, [user]);
 

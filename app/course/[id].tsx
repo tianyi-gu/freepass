@@ -3,8 +3,10 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LoadError } from '@/components/load-error';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { courseLink } from '@/lib/course-content';
 import { openWebUrl } from '@/lib/links';
 import { supabase } from '@/lib/supabase';
 
@@ -30,6 +32,8 @@ export default function CourseViewScreen() {
   const [course, setCourse] = useState<Course | null>(null);
   const [tasks, setTasks] = useState<CourseTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!id) {
@@ -37,21 +41,24 @@ export default function CourseViewScreen() {
       return;
     }
     let cancelled = false;
+    setLoading(true);
+    setError(false);
     Promise.all([
-      supabase.from('courses').select('*').eq('id', id).maybeSingle(),
+      supabase.from('courses').select('*').eq('id', id).eq('is_hidden', false).maybeSingle(),
       supabase.from('course_tasks').select('*').eq('course_id', id).order('sort_order'),
     ])
       .then(([courseRes, tasksRes]) => {
         if (cancelled) return;
+        setError(!!(courseRes.error || tasksRes.error));
         setCourse(courseRes.data);
         setTasks(tasksRes.data ?? []);
         setLoading(false);
       })
       .catch(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) { setError(true); setLoading(false); }
       });
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, attempt]);
 
   if (loading) {
     return (
@@ -60,6 +67,8 @@ export default function CourseViewScreen() {
       </View>
     );
   }
+
+  if (error) return <View style={[styles.container, { justifyContent: 'center', padding: 20 }]}><LoadError label="Course" onRetry={() => setAttempt((n) => n + 1)} /></View>;
 
   if (!course) {
     return (
@@ -106,10 +115,10 @@ export default function CourseViewScreen() {
           </Pressable>
         )}
 
-        {course.web_link && (
+        {courseLink(course) && (
           <Pressable
             style={styles.reviewBtn}
-            onPress={() => openWebUrl(course.web_link)}
+            onPress={() => openWebUrl(courseLink(course))}
             android_ripple={{ color: FreepassColors.primaryDark }}>
             <IconSymbol name="globe" size={20} color={FreepassColors.white} />
             <Text style={styles.reviewBtnText}>OPEN COURSE LINK</Text>
