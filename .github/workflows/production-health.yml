@@ -1,0 +1,31 @@
+name: Production health
+on:
+  schedule:
+    - cron: '17 * * * *'
+    - cron: '37 9 * * *'
+  workflow_dispatch:
+    inputs:
+      live_ai:
+        description: Include one synthetic live Casey model check
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: production-health
+  cancel-in-progress: false
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check production services
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          CHECK_CASEY_MODEL: ${{ github.event.schedule == '37 9 * * *' || inputs.live_ai == true }}
+        run: node scripts/check-production-health.mjs
