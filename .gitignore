@@ -46,3 +46,9 @@ app-example
 # Apple signing credentials (never commit)
 credentials.json
 credentials/
+
+# Browser automation output can include signed-in URLs
+.playwright-mcp/
+
+# Workspace notes and local audit artifacts (may contain credentials)
+.context/

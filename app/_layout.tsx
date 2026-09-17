@@ -5,7 +5,7 @@ import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AiConsentProvider } from '@/contexts/ai-consent-context';
-import { UserProvider } from '@/contexts/user-context';
+import { UserProvider, useUser } from '@/contexts/user-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const unstable_settings = {
@@ -20,7 +20,19 @@ export default function RootLayout() {
       <UserProvider>
       <AiConsentProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
+      <SessionStack />
+      <StatusBar style="auto" />
+    </ThemeProvider>
+    </AiConsentProvider>
+    </UserProvider>
+    </SafeAreaProvider>
+  );
+}
+
+function SessionStack() {
+  const { user } = useUser();
+  return (
+      <Stack key={user?.id ?? 'signed-out'} screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(drawer)" />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         <Stack.Screen name="category-search" />
@@ -47,10 +59,5 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="documents" />
       </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
-    </AiConsentProvider>
-    </UserProvider>
-    </SafeAreaProvider>
   );
 }

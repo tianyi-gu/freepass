@@ -3,6 +3,7 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, 
 
 import { AI_CONSENT_STORAGE_KEY, AI_CONSENT_VERSION } from '@/constants/ai-consent';
 import { useUser } from '@/contexts/user-context';
+import { cancelCaseyRequests } from '@/lib/casey-client';
 
 // Informed consent for sending data to the third-party AI services behind
 // Casey (Google Gemini, Groq, OpenAI). Nothing may be sent to any of them
@@ -98,6 +99,7 @@ export function AiConsentProvider({ children }: { children: ReactNode }) {
         decidedAt: new Date().toISOString(),
         owner,
       };
+      if (status === 'declined') cancelCaseyRequests();
       // Update state first so the UI (and the send guards) react immediately
       // even if the disk write is slow or fails.
       setStored(next);
@@ -115,12 +117,12 @@ export function AiConsentProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AiConsentValue>(
     () => ({
-      status: stored === undefined ? 'loading' : stored === null ? 'unknown' : stored.status,
-      decidedAt: stored?.decidedAt || null,
+      status: stored === undefined ? 'loading' : stored === null || stored.owner !== owner ? 'unknown' : stored.status,
+      decidedAt: stored?.owner === owner ? stored.decidedAt : null,
       accept,
       decline,
     }),
-    [stored, accept, decline],
+    [stored, owner, accept, decline],
   );
 
   return <AiConsentContext.Provider value={value}>{children}</AiConsentContext.Provider>;

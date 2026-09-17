@@ -1,7 +1,6 @@
 appId: org.thefountainfund.freepass.app
 name: Signup then onboarding survey (validates pending-answer fix)
-env:
-  EMAIL: freepass.e2e.20260706@gmail.com
+# Supply MAESTRO_EMAIL and MAESTRO_PASSWORD for an isolated test account.
 ---
 - launchApp:
     clearState: true
@@ -13,11 +12,11 @@ env:
 - pressKey: Enter
 - waitForAnimationToEnd
 - tapOn: "Enter your email..."
-- inputText: ${EMAIL}
+- inputText: ${MAESTRO_EMAIL}
 - pressKey: Enter
 - waitForAnimationToEnd
 - tapOn: "Create a password..."
-- inputText: "E2eTest!2026pass"
+- inputText: ${MAESTRO_PASSWORD}
 - pressKey: Enter
 - waitForAnimationToEnd
 - scrollUntilVisible:

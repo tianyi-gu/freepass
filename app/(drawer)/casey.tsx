@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
+import { useIsFocused } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Speech from 'expo-speech';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -24,359 +25,18 @@ import { FreepassColors } from '@/constants/theme';
 import { useAiConsent } from '@/contexts/ai-consent-context';
 import { useUser } from '@/contexts/user-context';
 import { supabase } from '@/lib/supabase';
+import { cancelCaseyRequests, CaseyRequestError, requestCasey } from '@/lib/casey-client';
+import { CASEY_CRISIS_REPLY, CASEY_MAX_HISTORY, CASEY_MAX_MESSAGE, isCrisisMessage } from '@/lib/casey-contract';
 
-// DATA-SHARING CONSENT (App Review guideline 5.1.1(i)/5.1.2(i)): every call
-// below that leaves the device for an AI provider — Gemini/Groq chat, Groq
-// Whisper transcription, OpenAI TTS — is reachable only while
-// useAiConsent().status === 'accepted'. The consent screen is rendered in
-// place of the chat until then, and sendMessage/toggleListening/speakText
-// re-check the flag defensively. If you add a new provider or send new data,
-// update constants/ai-consent.ts and bump AI_CONSENT_VERSION.
-
-const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_KEY;
-const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
-
-const GEMINI_API_BASE =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-
-// Groq is used as an automatic backup for the chat when Gemini is unavailable
-// (e.g. depleted billing / quota). Speech-to-text also uses the same Groq key.
-const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
-// llama-3.3-70b-versatile was retired by Groq (404 as of 2026-09) — that left
-// the fallback dead while Gemini was out of credit, so Casey failed entirely.
-// Check `GET https://api.groq.com/openai/v1/models` before changing this.
-const GROQ_CHAT_MODEL = 'openai/gpt-oss-120b';
-
-// Abort provider calls that hang on a bad cell connection instead of letting
-// the platform default (60s+) freeze the chat behind a spinner.
-const REQUEST_TIMEOUT_MS = 20000;
-
-// Only the most recent turns are sent to the model. The directory block
-// dominates the prompt anyway; unbounded history grows cost quadratically and
-// lets an early wrong answer keep re-conditioning later replies.
-const HISTORY_LIMIT = 12;
-
-// Hard cap on a voice recording so a forgotten live mic can't upload
-// minutes of ambient audio.
+// Provider keys live in the Supabase edge function, never in the app bundle.
 const MAX_RECORDING_MS = 60000;
-
-// Persisted user choices
 const AUTO_SPEAK_KEY = '@freepass_casey_autospeak';
 const SHARE_PROFILE_KEY = '@freepass_casey_share_profile';
-
-const SYSTEM_PROMPT = `You are Casey, a warm and supportive reentry resource assistant for FreePass, a Philadelphia app helping formerly incarcerated individuals find support in Philadelphia.
-
-Your goal is to have a short, guided conversation before recommending resources. Follow this flow:
-
-1. If the user's message is vague (e.g. "hi", "help", "I need help"), ask ONE clarifying question to understand their most urgent need. Example: "Of course! To point you in the right direction — are you looking for help with housing, employment, mental health, legal support, or something else?"
-
-2. If the user names a category (e.g. "I want a job", "housing"), ask ONE follow-up to personalize. Example for jobs: "Got it! Do you have a specific type of work in mind, or are you open to any opportunities right now?"
-
-3. Once you have enough context (after at most 2 clarifying exchanges), recommend 2-3 specific organizations from the provided list. For each one include:
-  - The org name
-  - One sentence on why it fits their specific situation
-  - The phone number
-
-Rules:
-- Only recommend organizations from the directory below — never invent or guess at organizations, phone numbers, hours, or websites. If a detail is marked "not listed", say you don't have it and suggest calling to ask.
-- Directory details can go out of date. When you share an org, remind the user to call ahead to confirm hours and services.
-- If the user talks about wanting to hurt themselves or someone else, being in danger, abuse at home, or a mental health emergency, drop the resource flow immediately. Tell them they can call or text 988 (the Suicide & Crisis Lifeline, free, 24/7), and to call 911 if they are in immediate danger. Be gentle and take as many sentences as you need — the length limit below does not apply in a crisis.
-- You are not a lawyer, doctor, or financial advisor. Do not answer questions about parole or probation conditions, court cases, immigration, medications, diagnoses, or whether to take a loan or financial product. Say plainly that you can't advise on that, and point them to a relevant organization from the directory or to 211.
-- Stay on the topic of finding support and resources in Philadelphia. If asked about unrelated things, gently steer back.
-- Keep every message to 3-4 sentences max (except in a crisis).
-- Be warm, human, and encouraging — never clinical or bureaucratic
-- The directory below is the complete list of FreePass resources. If nothing in it matches the user's need, say so honestly and suggest they call 211 — don't stretch a poor match
-- If the user's profile below is provided, use it to personalize from the start — don't re-ask things you already know (their name, location, needs, housing/work situation). Lead with what's most relevant to them, but still confirm briefly before recommending.`;
-
-// Maps onboarding survey question IDs to short, readable labels for Casey's
-// context. Deliberately excludes time_home and has_caseworker — they add
-// little routing value and are the most sensitive fields to send off-device.
-const SURVEY_LABELS: Record<string, string> = {
-  preferred_name: 'Preferred name',
-  zip_code: 'Area / ZIP',
-  immediate_needs: 'Looking for help with',
-  employment_status: 'Work situation',
-  work_interests: 'Work interests',
-  housing_status: 'Housing situation',
-  financial_help: 'Wants financial help with',
-  education_level: 'Education',
-  learning_interest: 'Interested in learning',
-  support_system: 'Has a support system',
-};
-
-// Builds a concise profile block from the user's onboarding survey answers so
-// Casey can personalize. Returns '' when there's nothing useful to include.
-function buildUserContext(
-  displayName: string | undefined,
-  answers: Record<string, string | string[]> | undefined,
-): string {
-  const lines: string[] = [];
-  if (displayName) lines.push(`Name: ${displayName}`);
-
-  for (const [id, label] of Object.entries(SURVEY_LABELS)) {
-    const value = answers?.[id];
-    if (!value) continue;
-    const text = Array.isArray(value) ? value.join(', ') : value;
-    if (text && text.trim()) lines.push(`${label}: ${text.trim()}`);
-  }
-
-  if (lines.length === 0) return '';
-  return `Here is what the user shared about themselves during sign-up. Use it to personalize, but don't read it back to them verbatim:\n${lines.join('\n')}`;
-}
-
-type Resource = {
-  name: string;
-  address: string | null;
-  city: string | null;
-  description: string | null;
-  phone: string | null;
-  website: string | null;
-  hours: string | null;
-  tags: string[];
-};
-
-type Message = {
-  id: string;
-  role: 'user' | 'bot';
-  text: string;
-  // Synthetic messages (opening, errors, crisis cards) are shown in the UI
-  // but never sent back to the model as conversation history.
-  synthetic?: boolean;
-};
-
+type Message = { id: string; role: 'user' | 'bot'; text: string; synthetic?: boolean };
 const OPENING_MESSAGE: Message = {
-  id: 'opening',
-  role: 'bot',
-  synthetic: true,
-  text: "Hi, I'm Casey. I'm so glad you're here. I can help you find resources in Philadelphia — whether it's a job, housing, legal help, or anything else. What's on your mind? Just so you know: I can make mistakes, so double-check details like phone numbers before you rely on them.",
+  id: 'opening', role: 'bot', synthetic: true,
+  text: "Hi, I'm Casey. I can help you find support in the FreePass directory. What would help most right now? Directory details may be out of date, so please call ahead to confirm services and hours. My spoken voice is AI-generated.",
 };
-
-// Deterministic crisis screen — never leave this to the model. Numbers here
-// are national, stable lines only.
-const CRISIS_PATTERNS: RegExp[] = [
-  /suicid/i,
-  /kill\s+(myself|me|himself|herself|themselves)/i,
-  /end\s+(my\s+life|it\s+all)/i,
-  /hurt\s+(myself|himself|herself)/i,
-  /self[-\s]?harm/i,
-  /want(?:\s+to|na)\s+die/i,
-  /better\s+off\s+dead/i,
-  /no\s+reason\s+to\s+(live|keep\s+going)/i,
-  /don'?t\s+want\s+to\s+(live|be\s+here)/i,
-  /overdos/i,
-  /(hitting|beating|abusing|hurting)\s+me\b/i,
-  /domestic\s+violence/i,
-  /abusive\s+(partner|relationship|home|boyfriend|girlfriend|husband|wife)/i,
-  /kill\s+(him|her|them|someone)/i,
-];
-
-function isCrisisMessage(text: string): boolean {
-  return CRISIS_PATTERNS.some((re) => re.test(text));
-}
-
-const CRISIS_REPLY =
-  "It sounds like you may be going through something really serious right now, and I want you to talk to a real person, not just an app. You can call or text 988 any time, day or night — that's the Suicide & Crisis Lifeline, it's free, and the people there can help. If you're in immediate danger, call 911. If home isn't safe, the National Domestic Violence Hotline is 1-800-799-7233. You matter, and you don't have to handle this alone. I'm still here if you want help finding other resources.";
-
-function buildContext(resources: Resource[]): string {
-  if (resources.length === 0) {
-    return 'The resource directory could not be loaded right now. Do not invent or recommend any organization — apologize and suggest the user browse the Resources tab or call 211.';
-  }
-  return resources
-    .map(
-      (r) =>
-        `Org: ${r.name} | Location: ${[r.address, r.city].filter(Boolean).join(', ') || 'Location not listed'} | Services: ${(r.tags || []).join(', ') || 'Not tagged'} | Phone: ${r.phone || 'Phone not listed'} | Hours: ${r.hours || 'Hours not listed'} | Website: ${r.website || 'Website not listed'} | ${r.description || 'No description listed'}`
-    )
-    .join('\n');
-}
-
-// Leaner directory for the Groq fallback. Groq's free tier caps requests at
-// 8,000 tokens per minute and the full directory alone is ~11k tokens, so
-// the fallback was failing with HTTP 413 on every message. Descriptions and
-// websites are dropped (the largest fields); name, location, services, phone
-// and hours are what a recommendation needs. Measured Sept 2026: ~6.5k tokens.
-function buildCompactContext(resources: Resource[]): string {
-  if (resources.length === 0) return buildContext(resources);
-  return (
-    'Compact directory (descriptions omitted — recommend by services and location, and tell the user to call for details):\n' +
-    resources
-      .map(
-        (r) =>
-          `${r.name} | ${[r.address, r.city].filter(Boolean).join(', ') || 'Location not listed'} | ${(r.tags || []).join(', ') || 'Not tagged'} | ${r.phone || 'Phone not listed'} | ${r.hours || 'Hours not listed'}`
-      )
-      .join('\n')
-  );
-}
-
-// Groq rejected the request for its per-minute token budget (HTTP 413/429).
-// Distinguished from a connectivity failure so the user gets an honest
-// "busy, try in a minute" rather than "trouble connecting".
-class RateLimitError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RateLimitError';
-  }
-}
-
-type GeminiPart = { text: string };
-type GeminiContent = { role: string; parts: GeminiPart[] };
-type GeminiPayload = {
-  system_instruction: { parts: GeminiPart[] };
-  contents: GeminiContent[];
-  generationConfig: {
-    maxOutputTokens: number;
-    temperature: number;
-    thinkingConfig: { thinkingBudget: number };
-  };
-};
-
-function buildSystemInstruction(resourceContext: string, userContext: string): string {
-  const profileBlock = userContext ? `\n\n${userContext}` : '';
-  return `${SYSTEM_PROMPT}${profileBlock}\n\nHere is the complete FreePass directory of Philadelphia reentry resources:\n\n${resourceContext}`;
-}
-
-// Recent, real conversation turns only — no synthetic UI messages.
-function recentHistory(history: Message[]): Message[] {
-  return history.filter((m) => !m.synthetic).slice(-HISTORY_LIMIT);
-}
-
-function buildGeminiPayload(
-  history: Message[],
-  currentUserText: string,
-  resourceContext: string,
-  userContext: string
-): GeminiPayload {
-  const contents: GeminiContent[] = recentHistory(history).map((msg) => ({
-    role: msg.role === 'user' ? 'user' : 'model',
-    parts: [{ text: msg.text }],
-  }));
-
-  contents.push({ role: 'user', parts: [{ text: currentUserText }] });
-
-  return {
-    system_instruction: {
-      parts: [{ text: buildSystemInstruction(resourceContext, userContext) }],
-    },
-    contents,
-    generationConfig: {
-      maxOutputTokens: 1024,
-      temperature: 0.4,
-      // Routing a need to 2-3 rows of a provided list doesn't benefit from
-      // extended thinking; it just adds latency and output-rate token cost.
-      thinkingConfig: { thinkingBudget: 0 },
-    },
-  };
-}
-
-type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
-
-function buildGroqMessages(
-  history: Message[],
-  currentUserText: string,
-  resourceContext: string,
-  userContext: string
-): ChatMessage[] {
-  const messages: ChatMessage[] = [
-    { role: 'system', content: buildSystemInstruction(resourceContext, userContext) },
-  ];
-
-  for (const msg of recentHistory(history)) {
-    messages.push({
-      role: msg.role === 'user' ? 'user' : 'assistant',
-      content: msg.text,
-    });
-  }
-
-  messages.push({ role: 'user', content: currentUserText });
-  return messages;
-}
-
-async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-// Gemini refused to answer for safety reasons. Must NOT be retried on Groq —
-// that would bypass the safety filter on exactly the messages it caught.
-class SafetyBlockError extends Error {
-  constructor() {
-    super('Gemini safety block');
-    this.name = 'SafetyBlockError';
-  }
-}
-
-// Primary: Gemini. Throws on any failure so the caller can fall back to Groq —
-// except SafetyBlockError, which the caller must handle without falling back.
-async function fetchGeminiReply(
-  history: Message[],
-  text: string,
-  context: string,
-  userContext: string
-): Promise<string> {
-  const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-  if (!apiKey) throw new Error('Missing EXPO_PUBLIC_GEMINI_API_KEY.');
-
-  const res = await fetchWithTimeout(`${GEMINI_API_BASE}?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(buildGeminiPayload(history, text, context, userContext)),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
-
-  const finishReason = json?.candidates?.[0]?.finishReason;
-  if (
-    json?.promptFeedback?.blockReason ||
-    finishReason === 'SAFETY' ||
-    finishReason === 'PROHIBITED_CONTENT'
-  ) {
-    throw new SafetyBlockError();
-  }
-
-  const reply = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!reply) throw new Error('Empty Gemini response');
-  return reply;
-}
-
-// Backup: Groq. Used automatically when Gemini is unavailable.
-async function fetchGroqReply(
-  history: Message[],
-  text: string,
-  context: string,
-  userContext: string
-): Promise<string> {
-  if (!GROQ_API_KEY) throw new Error('Missing EXPO_PUBLIC_GROQ_KEY.');
-
-  const res = await fetchWithTimeout(GROQ_CHAT_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${GROQ_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: GROQ_CHAT_MODEL,
-      messages: buildGroqMessages(history, text, context, userContext),
-      max_tokens: 1024,
-      temperature: 0.4,
-      // gpt-oss is a reasoning model; routing a need to 2-3 directory rows
-      // doesn't benefit from long deliberation, and users are waiting.
-      reasoning_effort: 'low',
-    }),
-  });
-  const json = await res.json();
-  if (res.status === 413 || res.status === 429) {
-    throw new RateLimitError(json?.error?.message ?? `HTTP ${res.status}`);
-  }
-  if (!res.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
-
-  const reply = json?.choices?.[0]?.message?.content;
-  if (!reply) throw new Error('Empty Groq response');
-  return reply;
-}
 
 type VoiceGender = 'female' | 'male';
 
@@ -403,69 +63,20 @@ function formatForSpeech(text: string): string {
     .replace(/\b(988|911|211)\b/g, (m) => m.split('').join(' '));
 }
 
-// Primary TTS: OpenAI gpt-4o-mini-tts — far more natural than device speech
-// synthesis. Device speech (above) remains the fallback when the key is
-// missing or the request fails, so voice keeps working offline.
-const OPENAI_TTS_URL = 'https://api.openai.com/v1/audio/speech';
-const OPENAI_TTS_MODEL = 'gpt-4o-mini-tts';
-const OPENAI_TTS_VOICES: Record<VoiceGender, string> = {
-  female: 'nova',
-  male: 'onyx',
-};
-const OPENAI_TTS_INSTRUCTIONS =
-  'Speak warmly and supportively, at a relaxed natural pace, like a friendly caseworker reassuring someone.';
-
-// Synthesizes speech with OpenAI and returns a local file URI for playback.
-// Written to the cache directory so replays of the same message are free.
-async function fetchOpenAiSpeech(
-  text: string,
-  gender: VoiceGender,
-  cacheKey: string,
-): Promise<string> {
-  if (!OPENAI_API_KEY) throw new Error('Missing EXPO_PUBLIC_OPENAI_API_KEY.');
-
-  const res = await fetchWithTimeout(OPENAI_TTS_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: OPENAI_TTS_MODEL,
-      voice: OPENAI_TTS_VOICES[gender],
-      input: text,
-      instructions: OPENAI_TTS_INSTRUCTIONS,
-      response_format: 'mp3',
-    }),
-  });
-  if (!res.ok) {
-    const json = await res.json().catch(() => null);
-    throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
-  }
-
-  // RN's fetch has no arrayBuffer support on all platforms; go through
-  // blob → data URL to get base64 for expo-file-system.
-  const blob = await res.blob();
-  const base64 = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error);
-    reader.onloadend = () => {
-      const dataUrl = reader.result as string;
-      resolve(dataUrl.slice(dataUrl.indexOf(',') + 1));
-    };
-    reader.readAsDataURL(blob);
-  });
-
+async function fetchOpenAiSpeech(text: string, gender: VoiceGender, cacheKey: string, allowed: () => boolean): Promise<string> {
+  const { audio } = await requestCasey<{ audio: string }>({ action: 'speech', text, voice: gender }, allowed);
+  if (typeof audio !== 'string') throw new Error('Speech unavailable');
   const uri = `${FileSystem.cacheDirectory}casey-tts-${cacheKey}.mp3`;
-  await FileSystem.writeAsStringAsync(uri, base64, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
+  await FileSystem.writeAsStringAsync(uri, audio, { encoding: FileSystem.EncodingType.Base64 });
+  if (!allowed()) {
+    await FileSystem.deleteAsync(uri, { idempotent: true });
+    throw new Error('Speech cancelled');
+  }
   return uri;
 }
 
 export default function CaseyScreen() {
   const { user } = useUser();
-  const [resources, setResources] = useState<Resource[]>([]);
   const [resourcesStatus, setResourcesStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [messages, setMessages] = useState<Message[]>([OPENING_MESSAGE]);
   const [input, setInput] = useState('');
@@ -491,9 +102,7 @@ export default function CaseyScreen() {
   // in flight (a live recording, a reply still arriving). Async completions
   // must read the status as it is *now*, not as captured when they started.
   const aiAllowedRef = useRef(aiAllowed);
-  useEffect(() => {
-    aiAllowedRef.current = aiAllowed;
-  }, [aiAllowed]);
+  aiAllowedRef.current = aiAllowed;
 
   useEffect(() => {
     // Voice list can be empty on first call while the system warms up; a
@@ -599,11 +208,11 @@ export default function CaseyScreen() {
         const cacheKey = `${msgId}-${voiceGender}`;
         let uri = ttsFileCacheRef.current.get(cacheKey);
         if (!uri) {
-          uri = await fetchOpenAiSpeech(text, voiceGender, cacheKey);
+          uri = await fetchOpenAiSpeech(text, voiceGender, cacheKey, () => aiAllowedRef.current);
           ttsFileCacheRef.current.set(cacheKey, uri);
         }
         // Another speak/stop happened while we were synthesizing.
-        if (speakSeqRef.current !== seq) return;
+        if (speakSeqRef.current !== seq || !aiAllowedRef.current) return;
 
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: false,
@@ -626,7 +235,7 @@ export default function CaseyScreen() {
         });
       } catch (err) {
         if (__DEV__) console.warn('[Casey] OpenAI TTS failed, using device speech:', err);
-        if (speakSeqRef.current !== seq) return;
+        if (speakSeqRef.current !== seq || !aiAllowedRef.current) return;
         speakWithDevice(text);
       }
     },
@@ -635,6 +244,7 @@ export default function CaseyScreen() {
 
   // Audio recording ref for speech-to-text
   const recordingRef = useRef<Audio.Recording | null>(null);
+  const startingRecordingRef = useRef(false);
   const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
 
@@ -666,36 +276,22 @@ export default function CaseyScreen() {
       if (!aiAllowedRef.current) return;
 
       if (!uri) throw new Error('No recording URI');
-      if (!GROQ_API_KEY) throw new Error('Speech-to-text is not configured.');
-
-      const formData = new FormData();
-      formData.append('file', {
-        uri,
-        type: 'audio/m4a',
-        name: 'recording.m4a',
-      } as any);
-      formData.append('model', 'whisper-large-v3');
-      formData.append('language', 'en');
-
-      const res = await fetchWithTimeout('https://api.groq.com/openai/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
-        body: formData,
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
+      const audio = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      const json = await requestCasey<{ text: string }>({ action: 'transcribe', audio }, () => aiAllowedRef.current);
+      if (!aiAllowedRef.current) return;
 
       const transcript = json.text?.trim();
-      if (transcript) setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      if (transcript) setInput((prev) => (prev ? `${prev} ${transcript}` : transcript).slice(0, CASEY_MAX_MESSAGE));
     } catch (err: any) {
       if (__DEV__) console.error('[Casey] Transcription error:', err);
+      if (!aiAllowedRef.current) return;
       Alert.alert(
         'Voice input failed',
         "Sorry, I couldn't hear that. Please try again, or type your message instead.",
       );
     } finally {
       // Never leave audio of the user's voice sitting in the app cache.
+      uri = uri ?? recording.getURI();
       if (uri) FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
       setIsTranscribing(false);
     }
@@ -711,9 +307,12 @@ export default function CaseyScreen() {
     // Stop TTS if playing
     if (isSpeaking) stopSpeaking();
 
-    // Recordings are uploaded to Groq for transcription — not without consent.
+    // Recordings are sent through FreePass to OpenAI for transcription — not without consent.
     if (!aiAllowed) return;
 
+    if (startingRecordingRef.current) return;
+    startingRecordingRef.current = true;
+    let recording: Audio.Recording | null = null;
     // Start recording
     try {
       const { granted } = await Audio.requestPermissionsAsync();
@@ -722,26 +321,51 @@ export default function CaseyScreen() {
         return;
       }
 
+      if (!aiAllowedRef.current) return;
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
 
-      const recording = new Audio.Recording();
+      recording = new Audio.Recording();
       await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      await recording.startAsync();
+      if (!aiAllowedRef.current) {
+        await recording.stopAndUnloadAsync();
+        const uri = recording.getURI();
+        if (uri) await FileSystem.deleteAsync(uri, { idempotent: true });
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+        return;
+      }
       recordingRef.current = recording;
+      await recording.startAsync();
+      if (!aiAllowedRef.current || recordingRef.current !== recording) {
+        await recording.stopAndUnloadAsync().catch(() => {});
+        const uri = recording.getURI();
+        if (uri) await FileSystem.deleteAsync(uri, { idempotent: true });
+        if (recordingRef.current === recording) recordingRef.current = null;
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+        return;
+      }
       setIsListening(true);
       recordingTimerRef.current = setTimeout(() => {
         stopAndTranscribe();
       }, MAX_RECORDING_MS);
     } catch (err: any) {
       if (__DEV__) console.error('[Casey] Recording error:', err);
+      if (recordingRef.current === recording) recordingRef.current = null;
+      if (recording) {
+        await recording.stopAndUnloadAsync().catch(() => {});
+        const uri = recording.getURI();
+        if (uri) await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+      }
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
+      if (!aiAllowedRef.current) return;
       Alert.alert(
         'Microphone error',
         "Sorry, the microphone couldn't start. Please try again, or type your message instead.",
       );
+    } finally {
+      startingRecordingRef.current = false;
     }
   }, [isSpeaking, stopSpeaking, stopAndTranscribe, aiAllowed]);
 
@@ -749,20 +373,30 @@ export default function CaseyScreen() {
   // recording is discarded by stopAndTranscribe's own consent check (the
   // ref-sync effect above runs first, so it already sees the new value).
   useEffect(() => {
-    if (!aiAllowed && recordingRef.current) {
-      stopAndTranscribe();
+    if (!aiAllowed) {
+      cancelCaseyRequests();
+      stopSpeaking();
+      if (recordingRef.current) stopAndTranscribe();
     }
-  }, [aiAllowed, stopAndTranscribe]);
+  }, [aiAllowed, stopAndTranscribe, stopSpeaking]);
 
   // Clean up on unmount
   useEffect(() => {
+    const cachedFiles = ttsFileCacheRef.current;
     return () => {
+      aiAllowedRef.current = false;
+      cancelCaseyRequests();
       Speech.stop();
+      for (const uri of cachedFiles.values()) FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
       if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
       soundRef.current?.unloadAsync().catch(() => {});
       soundRef.current = null;
       if (recordingRef.current) {
-        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+        const recording = recordingRef.current;
+        recording.stopAndUnloadAsync().finally(() => {
+          const uri = recording.getURI();
+          if (uri) FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+        }).catch(() => {});
         recordingRef.current = null;
       }
     };
@@ -772,7 +406,7 @@ export default function CaseyScreen() {
     setResourcesStatus('loading');
     supabase
       .from('resources')
-      .select('name, address, city, description, phone, website, hours, tags')
+      .select('id').limit(1)
       .eq('is_published', true)
       .then(({ data, error }) => {
         if (error || !data) {
@@ -780,7 +414,6 @@ export default function CaseyScreen() {
           setResourcesStatus('error');
           return;
         }
-        setResources(data as Resource[]);
         setResourcesStatus('ready');
       });
   }, []);
@@ -790,7 +423,7 @@ export default function CaseyScreen() {
   }, [loadResources]);
 
   const sendMessage = async () => {
-    const text = input.trim();
+    const text = input.trim().slice(0, CASEY_MAX_MESSAGE);
     // aiAllowed: the chat UI isn't rendered without consent, but never rely on
     // the UI alone to keep personal data from reaching the providers.
     if (!text || loading || inFlightRef.current || !aiAllowed) return;
@@ -806,7 +439,7 @@ export default function CaseyScreen() {
     if (isCrisisMessage(text)) {
       setMessages((prev) => [
         ...prev,
-        { id: `${Date.now() + 1}`, role: 'bot', text: CRISIS_REPLY, synthetic: true },
+        { id: `${Date.now() + 1}`, role: 'bot', text: CASEY_CRISIS_REPLY, synthetic: true },
       ]);
       inFlightRef.current = false;
       return;
@@ -815,77 +448,27 @@ export default function CaseyScreen() {
     setLoading(true);
 
     try {
-      const surveyAnswers =
-        user && !user.isGuest && shareProfile === true ? user.surveyAnswers : undefined;
-      const userContext = buildUserContext(
-        user && !user.isGuest && shareProfile === true ? user.displayName : undefined,
-        surveyAnswers,
-      );
-
-      // The full published directory is small (~100 orgs, ~8k tokens), so send
-      // all of it and let the model match semantically. Keyword pre-filtering
-      // missed needs phrased differently from the tags (e.g. "somewhere to
-      // sleep" vs "housing") and padded misses with arbitrary orgs.
-      const context = buildContext(resources);
-
-      // Primary provider is Gemini; if it fails for availability reasons
-      // (e.g. quota / billing depleted), automatically fall back to Groq so
-      // the chat keeps working. Safety blocks are NOT availability failures
-      // and never fall back.
-      let reply: string;
-      try {
-        reply = await fetchGeminiReply(messages, text, context, userContext);
-      } catch (geminiErr) {
-        if (geminiErr instanceof SafetyBlockError) throw geminiErr;
-        if (__DEV__) console.warn('[Casey] Gemini failed, falling back to Groq:', geminiErr);
-        // Groq's free tier is capped at 8k tokens/minute: send the compact
-        // directory and only the last two exchanges so one message fits.
-        reply = await fetchGroqReply(
-          messages.slice(-4),
-          text,
-          buildCompactContext(resources),
-          userContext,
-        );
-      }
-
-      const replyId = (Date.now() + 1).toString();
-      setMessages((prev) => [
-        ...prev,
-        { id: replyId, role: 'bot', text: reply },
-      ]);
-
-      if (autoSpeak) speakText(reply, replyId);
-    } catch (err) {
-      if (err instanceof SafetyBlockError) {
-        setMessages((prev) => [
-          ...prev,
-          { id: `${Date.now() + 1}`, role: 'bot', text: CRISIS_REPLY, synthetic: true },
-        ]);
-      } else if (err instanceof RateLimitError) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            role: 'bot',
-            synthetic: true,
-            text: "I'm helping a lot of people right now and need a moment to catch up — please try me again in about a minute. In the meantime you can browse the Resources tab, or call 211 any time for help finding services.",
-          },
-        ]);
-      } else {
-        if (__DEV__) console.error('[Casey] Both providers failed:', err);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            role: 'bot',
-            synthetic: true,
-            text: "Sorry — I'm having trouble connecting right now. You can browse the Resources tab in the meantime, or call 211 any time for help finding services. Please try me again in a few minutes.",
-          },
-        ]);
-      }
+      const result = await requestCasey<{ reply: string }>({
+        action: 'chat', message: text,
+        history: messages.filter((m) => !m.synthetic).slice(-CASEY_MAX_HISTORY).map((m) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })),
+        personalize: !!user && !user.isGuest && shareProfile === true,
+      }, () => aiAllowedRef.current);
+      if (!aiAllowedRef.current) return;
+      if (typeof result.reply !== 'string' || !result.reply.trim()) throw new Error('Empty reply');
+      const replyId = String(Date.now() + 1);
+      setMessages((prev) => [...prev.slice(-39), { id: replyId, role: 'bot', text: result.reply }]);
+      if (autoSpeak) speakText(result.reply, replyId);
+    } catch (error) {
+      if (!aiAllowedRef.current) return;
+      const busy = error instanceof CaseyRequestError && error.code === 'busy';
+      setMessages((prev) => [...prev.slice(-39), {
+        id: String(Date.now() + 1), role: 'bot', synthetic: true,
+        text: busy ? "Casey has reached a usage limit. Please try again later. You can still browse Resources or call 211 for help finding services."
+          : "I couldn't reach Casey right now. Please try again, browse the Resources tab, or call 211 for help finding services.",
+      }]);
     } finally {
-      setLoading(false);
       inFlightRef.current = false;
+      setLoading(false);
     }
   };
 
@@ -1035,7 +618,7 @@ export default function CaseyScreen() {
             <Text style={styles.consentText}>
               Casey can use your name and survey answers (like the kind of help you&apos;re looking
               for) to personalize suggestions. If you say yes, they are included in what is sent to
-              the AI services you agreed to (Google Gemini, or Groq as backup). Share your survey
+              OpenAI through FreePass. Share your survey
               answers with Casey?
             </Text>
             <View style={styles.consentButtons}>
@@ -1060,11 +643,11 @@ export default function CaseyScreen() {
           <TextInput
             style={styles.input}
             value={input}
+            maxLength={CASEY_MAX_MESSAGE}
             onChangeText={setInput}
             placeholder={isListening ? 'Listening... tap mic to stop' : isTranscribing ? 'Transcribing...' : 'Message Casey...'}
             placeholderTextColor={isListening ? FreepassColors.accent : FreepassColors.textSecondary}
             multiline
-            maxLength={500}
             returnKeyType="send"
             blurOnSubmit
             onSubmitEditing={sendMessage}
@@ -1096,7 +679,7 @@ export default function CaseyScreen() {
         </View>
         <Text style={styles.disclaimer}>
           Casey can make mistakes — double-check phone numbers and hours before relying on them.
-          Messages are processed by outside AI services (Google, Groq, OpenAI); manage this in
+          Messages are processed by OpenAI through FreePass; manage this in
           Account → Privacy. Call 211 for urgent needs, or call/text 988 in a crisis.
         </Text>
       </KeyboardAvoidingView>

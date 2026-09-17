@@ -1,0 +1,31 @@
+appId: org.thefountainfund.freepass.app
+name: Casey consent can be declined, enabled, and revoked
+---
+- launchApp:
+    clearState: true
+- assertVisible: "QUICK ACCESS"
+- tapOn: ".*Casey.*"
+- assertVisible: "Before you chat with Casey"
+- scrollUntilVisible:
+    element: "Not now, keep Casey turned off"
+- tapOn: "Not now, keep Casey turned off"
+- assertVisible: "Casey is turned off"
+- assertNotVisible: "Message Casey..."
+- tapOn: "Review the AI notice and turn on Casey"
+- scrollUntilVisible:
+    element: "I agree, turn on Casey"
+- tapOn: "I agree, turn on Casey"
+- assertVisible: "Message Casey..."
+- tapOn: "Open menu"
+- tapOn:
+    text: ".*Account.*"
+    index: 0
+- scrollUntilVisible:
+    element: "Casey AI data sharing, currently On"
+- tapOn: "Casey AI data sharing, currently On"
+- tapOn: "Turn Off"
+- assertVisible: "Casey AI data sharing, currently Off"
+- tapOn: "Open menu"
+- tapOn: ".*Casey.*AI Assistant.*"
+- assertVisible: "Casey is turned off"
+- assertNotVisible: "Message Casey..."

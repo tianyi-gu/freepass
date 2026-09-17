@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LoadError } from '@/components/load-error';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
 import { useUser } from '@/contexts/user-context';
@@ -23,35 +24,23 @@ export default function StaffViewScreen() {
   const [drafts, setDrafts] = useState<{id: string; name: string; phone: string | null; email: string | null; created_at: string}[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!isStaff) {
-      setLoading(false);
-      return;
-    }
-    supabase
-      .from('questions')
-      .select('id, question, category, answers(count)')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        const mapped = (data ?? []).map((q: any) => ({
-          id: q.id,
-          question: q.question,
-          category: q.category,
-          answer_count: q.answers?.[0]?.count ?? 0,
-        }));
-        setQuestions(mapped.filter((q: Question) => q.answer_count === 0));
-        setLoading(false);
-      });
-
-    supabase
-      .from('resources')
-      .select('id, name, phone, email, created_at')
-      .eq('is_published', false)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setDrafts(data ?? []);
-      });
+  const [loadError, setLoadError] = useState(false);
+  const load = useCallback(async () => {
+    if (!isStaff) { setLoading(false); return; }
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const [questionResult, draftResult] = await Promise.all([
+        supabase.from('questions').select('id, question, category, answers(count)').order('created_at', { ascending: false }),
+        supabase.from('resources').select('id, name, phone, email, created_at').eq('is_published', false).order('created_at', { ascending: false }),
+      ]);
+      if (questionResult.error || draftResult.error || !questionResult.data || !draftResult.data) throw new Error('Staff information unavailable');
+      setQuestions(questionResult.data.map((q: any) => ({ id: q.id, question: q.question, category: q.category, answer_count: q.answers?.[0]?.count ?? 0 })).filter((q: Question) => q.answer_count === 0));
+      setDrafts(draftResult.data);
+    } catch { setLoadError(true); }
+    finally { setLoading(false); }
   }, [isStaff]);
+  useEffect(() => { void load(); }, [load]);
 
   if (!isStaff) {
     return (
@@ -90,7 +79,7 @@ export default function StaffViewScreen() {
         <Text style={styles.sectionLabel}>Resource User Feedback</Text>
         <Text style={styles.sectionTitle}>Unanswered Questions</Text>
 
-        {loading ? (
+        {loadError ? <LoadError label="Staff information" onRetry={load} /> : loading ? (
           <ActivityIndicator color={FreepassColors.accentLight} style={{ marginTop: 12 }} />
         ) : questions.length === 0 ? (
           <Text style={styles.emptyText}>All questions have been answered!</Text>
@@ -115,7 +104,7 @@ export default function StaffViewScreen() {
         )}
 
         <Text style={styles.sectionTitle}>Draft (New) Resources to Review</Text>
-        {drafts.length === 0 ? (
+        {loadError ? null : loading ? <ActivityIndicator color={FreepassColors.accentLight} /> : drafts.length === 0 ? (
           <Text style={styles.emptyText}>No draft resources pending review.</Text>
         ) : (
           drafts.map((draft) => (

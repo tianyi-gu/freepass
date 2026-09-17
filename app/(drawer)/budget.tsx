@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import { LoadError } from '@/components/load-error';
 import { FreepassHeader } from '@/components/freepass-header';
 import { FreepassTabBar } from '@/components/freepass-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -41,6 +42,8 @@ export default function BudgetScreen() {
     getCategoryTotals,
     getTopSpendingCategory,
     isLoading,
+    loadError,
+    reload,
   } = useBudget();
 
   const [showAddExpense, setShowAddExpense] = useState(false);
@@ -61,6 +64,7 @@ export default function BudgetScreen() {
 
   const now = new Date();
   const currentDay = now.getDate();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 
   const sortedCategories = useMemo(() => {
@@ -85,14 +89,14 @@ export default function BudgetScreen() {
       );
     }
     suggestions.push(
-      `You're $${overBy.toFixed(2)} over budget. Try to reduce daily spending by $${(overBy / Math.max(1, 30 - currentDay)).toFixed(2)} for the rest of the month.`,
+      `You're $${overBy.toFixed(2)} over budget. Try to reduce daily spending by $${(overBy / Math.max(1, daysInMonth - currentDay)).toFixed(2)} for the rest of the month.`,
     );
     return suggestions;
-  }, [isOverBudget, sortedCategories, topCategory, categoryTotals, currentTotal, monthlyBudget, currentDay]);
+  }, [isOverBudget, sortedCategories, topCategory, categoryTotals, currentTotal, monthlyBudget, currentDay, daysInMonth]);
 
-  const handleAddExpense = useCallback(() => {
+  const handleAddExpense = useCallback(async () => {
     const amount = parseFloat(expenseAmount);
-    if (isNaN(amount) || amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       Alert.alert('Invalid Amount', 'Please enter a valid amount.');
       return;
     }
@@ -100,13 +104,18 @@ export default function BudgetScreen() {
       Alert.alert('Missing Description', 'Please enter a description.');
       return;
     }
-    addExpense({
+    try {
+      await addExpense({
       amount,
       description: expenseDesc.trim(),
       category: expenseCategory,
       tag: expenseTag.trim() || undefined,
       date: new Date().toISOString(),
     });
+    } catch {
+      Alert.alert('Could not save expense', 'Your expense was not saved. Please try again.');
+      return;
+    }
     setExpenseAmount('');
     setExpenseDesc('');
     setExpenseCategory('Other');
@@ -114,13 +123,18 @@ export default function BudgetScreen() {
     setShowAddExpense(false);
   }, [expenseAmount, expenseDesc, expenseCategory, expenseTag, addExpense]);
 
-  const handleSetBudget = useCallback(() => {
+  const handleSetBudget = useCallback(async () => {
     const amount = parseFloat(budgetInput);
-    if (isNaN(amount) || amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       Alert.alert('Invalid Amount', 'Please enter a valid budget amount.');
       return;
     }
-    setMonthlyBudget(amount);
+    try {
+      await setMonthlyBudget(amount);
+    } catch {
+      Alert.alert('Could not save budget', 'Your budget was not saved. Please try again.');
+      return;
+    }
     setBudgetInput('');
     setShowSetBudget(false);
   }, [budgetInput, setMonthlyBudget]);
@@ -129,7 +143,7 @@ export default function BudgetScreen() {
     (id: string, desc: string) => {
       Alert.alert('Delete Expense', `Remove "${desc}"?`, [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteExpense(id) },
+        { text: 'Delete', style: 'destructive', onPress: () => { void deleteExpense(id).catch(() => Alert.alert('Could not delete expense', 'Please try again.')); } },
       ]);
     },
     [deleteExpense],
@@ -146,6 +160,12 @@ export default function BudgetScreen() {
       </View>
     );
   }
+
+  if (loadError) return <View style={styles.container}>
+    <FreepassHeader title="Budget" showMenu showBack={false} />
+    <LoadError label="Your saved budget" onRetry={reload} />
+    <FreepassTabBar activeTab="budget" />
+  </View>;
 
   return (
     <View style={styles.container}>

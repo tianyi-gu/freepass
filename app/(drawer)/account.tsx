@@ -24,7 +24,7 @@ function PrivacySection() {
     if (isOn) {
       Alert.alert(
         'Turn off Casey?',
-        'Casey will stop working until you turn it back on, and nothing more will be sent to Google, Groq, or OpenAI. Everything else in FreePass keeps working.',
+        'Casey will stop working until you turn it back on, and nothing more will be sent to OpenAI. Everything else in FreePass keeps working.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Turn Off', style: 'destructive', onPress: () => { aiConsent.decline(); } },

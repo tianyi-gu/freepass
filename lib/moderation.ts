@@ -23,7 +23,6 @@ const BLOCKED_WORDS = [
   'retard', 'retarded',
   'spic', 'wetback', 'chink', 'kike',
   'whore', 'slut',
-  'rape',
   'kys',
 ];
 

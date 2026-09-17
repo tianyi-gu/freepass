@@ -28,7 +28,7 @@ export default function AskQuestionScreen() {
       .select('id, question, category, upvotes, is_faq, answers(count)')
       // Feedback submitted through "Give Feedback" lands in this table; it's
       // meant for staff, not for the public Q&A list.
-      .not('category', 'eq', 'Feedback')
+      .or('category.is.null,category.neq.Feedback')
       .order('upvotes', { ascending: false })
       .then(({ data, error: err }) => {
         if (err) setError(err.message);

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -14,6 +14,7 @@ export default function OnboardingScreen() {
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [done, setDone] = useState(false);
+  const saving = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const scrollToTop = useCallback(() => {
@@ -39,7 +40,9 @@ export default function OnboardingScreen() {
   }, []);
 
   const handleNext = useCallback(async () => {
-    // Save answers for this step
+    if (saving.current) return;
+    saving.current = true;
+    try {
     await saveSurveyAnswers(answers);
 
     if (isLastStep) {
@@ -48,11 +51,15 @@ export default function OnboardingScreen() {
       setStepIndex((i) => i + 1);
       scrollToTop();
     }
+    } catch { Alert.alert('Could not save', 'Your answers could not be saved. Please check your connection and try again.'); }
+    finally { saving.current = false; }
   }, [answers, isLastStep, saveSurveyAnswers, scrollToTop]);
 
   const handleSkipAll = useCallback(async () => {
-    await completeOnboarding();
-    router.replace('/(drawer)');
+    try {
+      await completeOnboarding();
+      router.replace('/(drawer)');
+    } catch { Alert.alert('Could not finish', 'Please check your connection and try again.'); }
   }, [completeOnboarding]);
 
   if (done) {
@@ -61,14 +68,11 @@ export default function OnboardingScreen() {
         <IconSymbol name="checkmark.circle.fill" size={80} color={FreepassColors.accent} />
         <Text style={styles.doneTitle}>You&apos;re all set!</Text>
         <Text style={styles.doneBody}>
-          Your responses have been saved. We&apos;ll use them to show you the most relevant resources and support for your reentry journey.
+          Your responses have been saved. Casey can use selected answers to help find resources only if you separately agree to personalization.
         </Text>
         <Pressable
           style={styles.doneBtn}
-          onPress={async () => {
-            await completeOnboarding();
-            router.replace('/(drawer)');
-          }}
+          onPress={handleSkipAll}
           android_ripple={{ color: FreepassColors.primaryDark }}>
           <Text style={styles.doneBtnText}>Explore FreePass</Text>
         </Pressable>

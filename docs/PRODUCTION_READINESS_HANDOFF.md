@@ -1,261 +1,60 @@
-# FreePass Production Readiness Handoff
+# FreePass production audit — September 17, 2026
 
-Last updated: 2026-08-10
+**Release decision: not ready for public launch yet.** The OpenAI implementation, database hardening and content corrections are implemented and deployed where applicable. A new mobile build is being prepared. Email delivery, operations, directory review, and final-device acceptance remain gates. This replaces the older build-10/Gemini handoff; do not follow the old automated review-submission instructions.
 
-> **2026-08-10 update:** a full pre-launch audit and fix pass was completed.
-> See `docs/LAUNCH_CHECKLIST.md` for the current authoritative list of
-> remaining steps, and `scripts/production-launch-fixes.sql` for the DB
-> migration that MUST be applied before shipping this code. Notable changes
-> since the May snapshot below: account deletion, password reset, and
-> report/block moderation were added; community chat is no longer local-only
-> (posts live in `community_posts`); Casey gained crisis handling, a consent
-> gate, and timeouts; the fabricated loan-eligibility copy was removed; the
-> Maestro suite now targets the real bundle id. Parts of the May document
-> below are therefore stale — trust the checklist first.
+## Apple rejection status
 
-Original snapshot (2026-05-28):
+Apple's two reported problems were AI data-sharing consent (5.1.1/5.1.2) and indefinite login loading (2.1).
 
-This document captures the production-readiness audit and fix context for future agents working on the Hack4Impact x FreePass app. It intentionally separates code fixes from live Supabase/data work so future work does not accidentally claim completion when content or deployment is still required.
+- Casey now requires version-2 consent identifying OpenAI, the data sent, purpose, optional profile sharing, voice processing, and revocation. Declining leaves other app features available. Revocation cancels pending client requests and stops audio. Previously consented users must accept the new notice.
+- Login/network/bootstrap requests have deadlines and visible retry errors. The production database currently responds, but availability cannot be guaranteed by client timeouts.
+- The privacy policy is live at https://freepass-privacy.vercel.app. Its matching source change is in draft PR https://github.com/tianyi-gu/freepass-privacy/pull/2 and has already been deployed to production; merge that PR before any later main-branch redeployment.
+- ASC version 1.0 remains **Prepare for Submission**, with build **8** attached. Build **10** is processed but contains the old Google/Groq implementation. Neither is the release candidate for this audit. No App Review submission or public release was performed.
+- Age declaration was verified through ASC: 18+ override (17+ legacy tier), user-generated content and messaging enabled. Privacy labels are being corrected to cover saved ZIP codes and learning/saved-resource activity.
 
-## Current Summary
+## What changed
 
-The app is substantially closer to production-ready, but still needs client/content verification before final shipment. Code fixes have been made for the most visible broken flows: resource search/category matching, map web build failure, misleading resource/event submission states, onboarding persistence, Fountain Fund link, budget input visibility, and missing community board schema.
+### OpenAI and factual output
 
-The production Supabase patch has already been applied to project `ihlhrorrxcwsxnxqufpb` through the configured Supabase MCP server.
+`gpt-5.6-luna` handles directory routing through the Responses API with strict structured output and `store:false`. `gpt-transcribe` handles voice input and `gpt-4o-mini-tts` reads replies. The existing OpenAI key is now a Supabase Edge Function secret; new mobile code has no provider key. Obsolete public Google/Groq/OpenAI variables were removed from the production EAS environment.
 
-Post-patch verification:
+The model returns only known resource IDs and a small set of decisions. Server validation rejects fabricated IDs, duplicate IDs and invalid combinations. The app displays authored guidance and exact directory facts, never arbitrary model-written facts, phone numbers, eligibility or availability claims. Directory failures and provider failures show an error rather than fabricated fallback data. Crisis support has a deterministic local response.
 
-- `community_posts` table exists.
-- `resources.last_verified` column exists.
-- Known filler events with `example` or `test` titles were removed.
-- One resource still has `category_id = null`: `Community Behavioral Health`.
+This does **not** prove zero hallucinations: resource selection can still be wrong, source records can be stale, transcription can be mistaken, and crisis detection is not exhaustive. Voice transcription is shown for review before sending. The directory still requires ongoing staff verification. See [deployment and limits](audit/OPENAI_DEPLOYMENT.md).
 
-## Code Changes Made
+### Security and persistence
 
-### Resource Search, Categories, And Details
+The deployed migration prevents users from granting themselves staff privileges, editing others' Q&A through legacy upvote policies, reading others' feedback/private documents, seeing hidden courses, or bypassing block visibility rules. Voting is restricted to once per account. Server-side community text checks supplement reporting/blocking; they do not replace human moderation.
 
-- Added `lib/resource-utils.ts`.
-- Search now checks resource name, description, address, city, state, zip, phone, email, website, hours, category name, and tags.
-- Category browsing now matches resources by `category_id` when present and by tags when imported Adalo data did not populate `category_id`.
-- Resource detail pages use `maybeSingle()` and show actionable failure text for missing/unpublished/deleted resources instead of only a generic not-found state.
-- Staff draft resource routing now goes to `/listing-draft/[id]` instead of the published listing route.
+Account deletion first removes actual document objects via Storage, then deletes the account and private database rows; it refuses to declare success while document objects remain. Native authentication sessions use chunked Keychain/SecureStore storage. Private UI resets on identity changes; budget data is namespaced by account. Local budget mutations report storage failures rather than displaying false success.
 
-Key files:
+Casey verifies signed-in identities server-side, loads its own directory/profile allowlist, imposes body/message/audio/time limits, and stores HMAC usage counters without raw messages/IPs. Initial quotas are guest 6/minute and 40/day, signed-in 12/minute and 150/day, all actions combined; global 1,000/day. These are launch safeguards, not a capacity guarantee.
 
-- `lib/resource-utils.ts`
-- `hooks/use-resources.ts`
-- `app/quick-list.tsx`
-- `app/category-search.tsx`
-- `app/resource-types.tsx`
-- `app/listing/[id].tsx`
-- `app/listing-draft/[id].tsx`
-- `app/staff-view.tsx`
+### Public content
 
-### Map And Near Me
+The scan covered 103 original resource records and 47 course rows. Corrected stale PA CareerLink addresses/links, Horizon House's link, Help at Home's phone and unsupported program association, and Money Smart's missing course link. Quarantined one uncorroborated Cordelia Homes record; **102 resources remain published**. The 36 previously hidden courses are now blocked at database and direct-route level; 11 are visible. All five imported events are historical and the UI labels that honestly.
 
-- `app/map-view.tsx` no longer statically imports `react-native-maps` on web.
-- Web export now succeeds.
-- Native platforms still load `react-native-maps`.
-- If coordinates are missing, the screen now clearly says map pins are unavailable and keeps the searchable resource list plus directions actions.
+Website reachability is not factual verification. No resource had a full verification date, and this audit did not invent those dates. [Field-level source checks](audit/verified-content-changes.md) and [review inventory](audit/content-review.csv) record the evidence and remaining work.
 
-Remaining validation:
+## Verification evidence
 
-- Test native map rendering on iOS/Android device or simulator with location permission.
+Local ignored evidence is under `.context/audit/`; do not upload raw transcripts, browser dumps or credential-bearing test logs.
 
-### Event Uploads And Event Display
+- TypeScript, ESLint and **28 automated tests pass**, including malformed output, prompt injection boundaries, identity/consent checks, provider/directory failures, and request-body timeout.
+- **14/14 live model evaluation cases pass** against the real directory, including out-of-scope requests, fabricated-resource requests and crisis scenarios. This is a finite regression set, not universal accuracy proof.
+- Deployed Edge Function: real directory chat, speech generation and M4A transcription pass. Invalid consent returns 403; invalid identity returns 401. Forwarded-IP spoofing did not create a new allowance; forged Cloudflare IP was blocked at the gateway.
+- **12 live database/security assertions pass** using two isolated synthetic accounts. Test accounts, posts and files were cleaned up.
+- Xcode-signed Release simulator build succeeds; provider-key values were absent from the generated bundle. Unsigned builds initially failed SecureStore entitlements and are not counted as passing builds.
+- Seven native guest flows have passed: launch, resource search/details, event history/empty state, Casey consent plus real answer, budget expense, learning academy, and guest community access. Three first attempts hit an XCTest startup/AX error; independent clean launches passed.
+- Further final-build login/consent, iPad, and packaging checks are in progress; update this section with their exact result before release.
 
-- Event creation now requires a signed-in user and gives explicit review/pending messaging.
-- Event detail uses `maybeSingle()` and better error state text.
-- Event calendar and calendar view now display load errors instead of silently showing empty content.
-- Known filler/test/example events were removed from the generated migration SQL and blocked in future Adalo import scripts.
+## Remaining release gates
 
-Key files:
+1. **Configure production authentication email.** No custom SMTP is configured; Supabase's default mailer only serves team addresses and is limited to two emails/hour. Ordinary signup/password reset is not production-ready. The owner must supply a sender domain/provider and credentials; complete DNS/provider setup and verify real non-team signup confirmation, resend, password recovery and expired-code behavior. Keep confirmation enabled. See [email setup](audit/EMAIL_SETUP.md).
+2. **Set production operations.** The project is on Supabase Free with no dashboard backups. Prior auto-pause/IO incidents caused outages. Choose an appropriate production plan/compute, configure backups and a restore test, provider budgets/alerts, availability monitoring and support ownership. An upgrade alone does not prove IO headroom.
+3. **Approve and maintain real content.** Staff must verify published contact details/hours/services and program policy, decide whether to supply future events, and own resource submissions and community reports. The application cannot verify live vacancies or eligibility.
+4. **Rotate credentials exposed in older binaries before public launch**, coordinating other uses of the same key. Reusing the existing OpenAI key was authorized for this migration; it has not been blindly rotated. Removing EAS variables does not remove keys from already-distributed builds.
+5. **Accept the actual release build on physical iPhone/iPad.** Verify microphone/audio quality, camera/photo document upload/deletion, maps with location denied/granted, offline recovery, account deletion, accessibility, and the real email flows. Simulator/API evidence does not prove physical hardware or email delivery.
+6. **Finish App Store release deliberately.** Merge code and privacy-policy PRs, attach the new OpenAI build, refresh screenshots/review notes if needed, verify the reviewer account, then submit. Apple has not approved these changes. Never run an old script that attaches build 10 and submits automatically.
 
-- `app/add-event.tsx`
-- `hooks/use-events.ts`
-- `app/event/[id].tsx`
-- `app/(drawer)/event-calendar.tsx`
-- `app/calendar-view.tsx`
-- `scripts/migrate-adalo-data.mjs`
-- `scripts/generate-migration-sql.mjs`
-- `scripts/migrate-data.sql`
-
-Remaining validation:
-
-- Client must provide current/future event data. Before cleanup, live events were all in 2025 and stale as of 2026-05-28.
-
-### Resource Submission
-
-- Resource submission now requires sign-in.
-- Failed submission shows the actual Supabase error message instead of a vague generic error.
-- Submit button now shows a submitting state.
-
-Key file:
-
-- `app/add-resource.tsx`
-
-Deployment dependency:
-
-- Insert policy for draft resources is included in `scripts/production-readiness-fixes.sql` and has been applied to live Supabase.
-
-### Community Board
-
-- Added `community_posts` to `supabase-schema.sql`.
-- Added read/insert/delete RLS policies in both schema and production patch.
-- Community board screens now surface Supabase load/post errors.
-
-Key files:
-
-- `app/community-board.tsx`
-- `app/(drawer)/message-board.tsx`
-- `supabase-schema.sql`
-- `scripts/production-readiness-fixes.sql`
-
-### Fountain Fund Link
-
-- Updated link to `https://www.fountainfund.org/`.
-
-Key file:
-
-- `app/fountain-fund.tsx`
-
-### Budget Worksheet
-
-- Improved input contrast, cursor color, selection color, line height, and large budget input visibility.
-
-Key file:
-
-- `app/(drawer)/budget.tsx`
-
-### Onboarding And User Data
-
-- Survey answers now store JSON values correctly instead of stringifying them before inserting into a `jsonb` column.
-- Survey answers are loaded back into the user profile on session initialization/auth change.
-- Zip code answer updates the profile zip code when present.
-
-Key file:
-
-- `contexts/user-context.tsx`
-
-### Casey AI
-
-- Casey now reads `EXPO_PUBLIC_GEMINI_API_KEY`.
-- Missing Gemini config produces a clear message telling the user to use resource search or ask staff.
-- Resource context building now handles null phone/address/description fields without passing `"null"` into prompts.
-- `.env.example` now documents Gemini instead of Groq.
-
-Key files:
-
-- `app/(drawer)/casey.tsx`
-- `.env.example`
-
-Production caveat:
-
-- `EXPO_PUBLIC_GEMINI_API_KEY` is bundled into the client. For production, restrict the key appropriately or move Gemini calls behind a backend proxy.
-
-### Courses And Loan Inquiry
-
-- Course tasks now render `name`, matching the Supabase `course_tasks` schema.
-- Loan inquiry video placeholder now explicitly says the video is not configured in FreePass yet and directs users to Fountain Fund for current materials.
-
-Key files:
-
-- `app/course/[id].tsx`
-- `app/loan-inquiry.tsx`
-
-## Supabase Changes
-
-The file `scripts/production-readiness-fixes.sql` was added and applied to project `ihlhrorrxcwsxnxqufpb`.
-
-It does the following:
-
-- Adds `public.resources.last_verified`.
-- Backfills `public.resources.category_id` from tags when tags match category names.
-- Deletes known filler events:
-  - `Example resource 2`
-  - `Example Resource 3`
-  - `Collecting Resources (test)`
-- Adds insert policies for signed-in users submitting draft resources/events.
-- Creates `public.community_posts`.
-- Enables RLS and policies for community posts.
-
-Verification after applying:
-
-```sql
-select count(*) from public.resources where category_id is null;
--- 1
-
-select to_regclass('public.community_posts') is not null;
--- true
-
-select count(*) from public.events
-where title ilike '%example%' or title ilike '%test%';
--- 0
-
-select exists (
-  select 1
-  from information_schema.columns
-  where table_schema = 'public'
-    and table_name = 'resources'
-    and column_name = 'last_verified'
-);
--- true
-```
-
-Remaining data cleanup:
-
-- Categorize `Community Behavioral Health`, which currently has no tags and no category:
-  - Name: `Community Behavioral Health`
-  - Phone: `(215) 413-3100`
-  - Address: `801 Market St, Philadelphia, PA 19107, USA`
-  - Website: `cbhphilly.org/contact-list/`
-
-Do not auto-categorize this without client/staff confirmation.
-
-## Remaining Blockers And Questions
-
-### Client/Data Required
-
-- Verify resource phone numbers, addresses, descriptions, websites, and hours. The app can display and flag freshness, but it cannot know whether records are factually current.
-- Add current/future events. The old live data was stale.
-- Decide the correct category/tag for `Community Behavioral Health`.
-- Provide actual loan inquiry video/link if that feature is expected to be in-app.
-- Confirm whether submitted resources/events should stay draft until staff review or publish automatically.
-
-### Product/Engineering Required
-
-- Chat is still local-only. It clearly tells users messages do not persist. A real chat feature needs schema/API/product requirements.
-- Casey currently calls Gemini from the client. Production should ideally use a backend proxy if abuse, quota, or key exposure is a concern.
-- Native map behavior still needs iOS/Android device verification.
-- Old Adalo parity cannot be fully proven without access to the original Adalo app/feature list.
-
-## Checks Run
-
-These checks passed after the changes:
-
-```bash
-npx tsc --noEmit
-npm run lint
-npx expo export --platform web --output-dir /tmp/freepass-export
-```
-
-There is no `test` script in `package.json`.
-
-## MCP Context
-
-Supabase MCP was configured for the project:
-
-```bash
-codex mcp add supabase --url "https://mcp.supabase.com/mcp?project_ref=ihlhrorrxcwsxnxqufpb"
-codex mcp login supabase
-```
-
-The active session could not hot-load the MCP server, so a fresh `codex exec` sub-session was used to apply the SQL through the Supabase MCP. Future sessions should see the configured server normally.
-
-## Notes For Future Agents
-
-- Do not commit `.env`; it is gitignored and contains environment-specific values.
-- Do not invent resource categories, phone numbers, addresses, events, or videos.
-- Use `scripts/production-readiness-fixes.sql` as the record of applied production DB changes.
-- Keep changes small and verify after each step.
-- If adding real backend chat, define schema/RLS first; do not continue relying on local-only messages.
+Dependency audit still reports 19 transitive development/build-tool advisories (8 high, 11 moderate), chiefly Metro's image parser and legacy UUID consumers. Compatible fixes reduced the original findings; blindly overriding to incompatible major versions would break the build. Review the remaining toolchain upgrade separately and use only trusted build assets. `expo-av` is deprecated and needs migration before a future Expo SDK upgrade.

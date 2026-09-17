@@ -13,6 +13,8 @@ export function useSavedResources() {
 
   const fetch = useCallback(async () => {
     if (!user || user.isGuest) {
+      setSavedIds(new Set());
+      setSavedResources([]);
       setLoading(false);
       return;
     }

@@ -2,9 +2,11 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { LoadError } from '@/components/load-error';
 import { FreepassHeader } from '@/components/freepass-header';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FreepassColors } from '@/constants/theme';
+import { courseLink } from '@/lib/course-content';
 import { openWebUrl } from '@/lib/links';
 import { supabase } from '@/lib/supabase';
 
@@ -20,18 +22,23 @@ interface Course {
 export default function InterviewLibraryScreen() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setError(false);
     supabase
       .from('courses')
       .select('id, name, description, course_type, video_link, web_link')
       .eq('is_hidden', false)
       .order('display_order', { ascending: true, nullsFirst: false })
-      .then(({ data }) => {
+      .then(({ data, error: loadError }) => {
+        setError(!!loadError);
         setCourses(data ?? []);
         setLoading(false);
       });
-  }, []);
+  }, [attempt]);
 
   return (
     <View style={styles.container}>
@@ -50,7 +57,7 @@ export default function InterviewLibraryScreen() {
         <Text style={styles.sectionTitle}>Courses & Videos</Text>
         {loading ? (
           <ActivityIndicator color={FreepassColors.primary} style={{ marginTop: 20 }} />
-        ) : courses.length === 0 ? (
+        ) : error ? <LoadError label="Courses" onRetry={() => setAttempt((n) => n + 1)} /> : courses.length === 0 ? (
           <Text style={styles.emptyText}>No courses available yet.</Text>
         ) : (
           courses.map((course) => (

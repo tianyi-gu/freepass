@@ -33,13 +33,15 @@ export function FreepassHeader({
         {showMenu && (
           <Pressable
             onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+            accessibilityRole="button"
+            accessibilityLabel="Open menu"
             style={styles.menuButton}
             hitSlop={8}>
             <IconSymbol name="line.3.horizontal" size={24} color={FreepassColors.white} />
           </Pressable>
         )}
         {showBack && !showMenu && (
-          <Pressable onPress={handleBack} style={styles.backButton} hitSlop={8}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={handleBack} style={styles.backButton} hitSlop={8}>
             <IconSymbol name="chevron.left" size={20} color={FreepassColors.white} />
           </Pressable>
         )}
@@ -66,7 +68,7 @@ export function FreepassHeaderWithTitle({
     <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
       <View style={styles.left}>
         {showBack && (
-          <Pressable onPress={handleBack} style={styles.backButtonAlt} hitSlop={8}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={handleBack} style={styles.backButtonAlt} hitSlop={8}>
             <IconSymbol name="chevron.left" size={18} color={FreepassColors.white} />
           </Pressable>
         )}
@@ -91,7 +93,7 @@ export function FreepassHeaderSimple({
   return (
     <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}>
       {showBack && (
-        <Pressable onPress={handleBack} style={styles.backText} hitSlop={8}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={handleBack} style={styles.backText} hitSlop={8}>
           <IconSymbol name="chevron.left" size={18} color={FreepassColors.white} />
         </Pressable>
       )}

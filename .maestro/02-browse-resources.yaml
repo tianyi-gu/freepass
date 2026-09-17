@@ -1,7 +1,9 @@
 appId: org.thefountainfund.freepass.app
 name: Browse and search real resources
 ---
-- launchApp
+- launchApp:
+    clearState: true
+- assertVisible: "QUICK ACCESS"
 - tapOn: ".*Resources.*"
 - assertVisible: "Below are services in the FreePass directory."
 - tapOn: "Search Resources..."

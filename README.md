@@ -8,8 +8,8 @@ board, a private document vault, events, financial education courses, and a
 budget tool.
 
 > **New maintainer? Start with [`docs/HANDOFF.md`](docs/HANDOFF.md)** — it
-> covers the architecture, every external service and credential, the
-> operations runbook, and current App Store status.
+> links to current production-readiness evidence, deployment instructions,
+> and App Store status.
 > [`docs/LAUNCH_CHECKLIST.md`](docs/LAUNCH_CHECKLIST.md) tracks remaining
 > launch work.
 
@@ -20,17 +20,19 @@ budget tool.
 | App | Expo SDK 54, React 19, React Native 0.81, TypeScript |
 | Navigation | Expo Router (drawer + stack + tabs), typed routes |
 | Backend | Supabase — Postgres (RLS everywhere), Auth, Storage |
-| AI | Google Gemini 2.5 Flash (chat) with Groq Llama 3.3 fallback; Groq Whisper (speech-to-text); OpenAI gpt-4o-mini-tts (speech, device-voice fallback) |
+| AI | OpenAI gpt-5.6-luna (validated directory routing), gpt-transcribe (voice input), gpt-4o-mini-tts (speech); server-side Supabase Edge Function |
 | Builds | EAS Build + Submit (iOS; bundle `org.thefountainfund.freepass.app`) |
 | E2E | Maestro flows in `.maestro/` |
 
 ## Getting started
 
 ```bash
-npm install
-cp .env.example .env       # fill in Supabase + AI keys (see docs/HANDOFF.md)
+npm ci
+cp .env.example .env       # fill in the two public Supabase settings
 npx expo start             # dev server; press i for iOS simulator
 ```
+
+Deploy Casey and set its server-side OpenAI secret using [the deployment runbook](docs/audit/OPENAI_DEPLOYMENT.md). The mobile app must never contain a provider key. A local `FREEPASS_OPENAI_API_KEY` is only needed for opt-in live evaluations.
 
 The database schema is in `supabase-schema.sql` (fresh install) with
 incremental migrations in `scripts/` — see the handoff doc before touching
@@ -39,10 +41,12 @@ production.
 ## Verification
 
 ```bash
-npx tsc --noEmit           # typecheck
-npx expo lint              # ESLint
+npm run check             # TypeScript, ESLint, unit/security-contract tests
 npx expo-doctor            # project health
-maestro test .maestro/     # E2E (requires a simulator build; see handoff doc)
+# Run selected .maestro flows against a Release simulator build.
+# Flows 07/08 require MAESTRO_EMAIL and MAESTRO_PASSWORD in the environment.
+# Signup/email delivery requires configured production SMTP.
+# npm run evaluate:casey  # opt-in paid API evaluation with synthetic prompts
 ```
 
 ## Project layout
@@ -65,10 +69,12 @@ docs/                # HANDOFF, LAUNCH_CHECKLIST, privacy policy draft
 ## Releases (iOS)
 
 ```bash
-npx eas-cli build --platform ios --profile production --auto-submit
+eas build --platform ios --profile production
+# After validation, upload the specific build to TestFlight with eas submit.
+# App Review submission/public release are separate steps.
 ```
 
 Signing uses local credentials (`credentials.json` + `credentials/`, not in
 git) and an App Store Connect API key — locations and the full release
-runbook are in `docs/HANDOFF.md`. Android is not configured (no
+readiness gates are linked from `docs/HANDOFF.md`. Android is not configured (no
 `android.package`).

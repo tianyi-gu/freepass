@@ -6,8 +6,7 @@ name: Community board is readable as guest, posting requires sign-in
 - tapOn: ".*CREATE FREE ACCOUNT.*"
 - tapOn: "Continue as Guest"
 - assertVisible: "QUICK ACCESS"
-- tapOn:
-    point: "9%,10%"
+- tapOn: "Open menu"
 - waitForAnimationToEnd
 - tapOn: ".*Community Board.*"
 - assertVisible: "Community Board"
