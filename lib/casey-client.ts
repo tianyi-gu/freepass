@@ -1,14 +1,13 @@
 import { CASEY_CONSENT_VERSION } from './casey-contract';
 import { supabase } from './supabase';
 import { withTimeout } from './network';
+import { CaseyRequestError, readCaseyResponse } from './casey-response';
+export { CaseyRequestError } from './casey-response';
 
 const pending = new Set<AbortController>();
 export function cancelCaseyRequests() {
   for (const controller of pending) controller.abort();
   pending.clear();
-}
-export class CaseyRequestError extends Error {
-  constructor(public code: string) { super(code); }
 }
 
 export async function requestCasey<T>(body: Record<string, unknown>, allowed: () => boolean): Promise<T> {
@@ -29,9 +28,8 @@ export async function requestCasey<T>(body: Record<string, unknown>, allowed: ()
       },
       body: JSON.stringify({ ...body, consentVersion: CASEY_CONSENT_VERSION }),
     });
-    const result = await response.json();
+    const result = await readCaseyResponse(response);
     if (!allowed() || controller.signal.aborted) throw new CaseyRequestError('consent_required');
-    if (!response.ok) throw new CaseyRequestError(typeof result.error === 'string' ? result.error : 'temporarily_unavailable');
     return result as T;
   } finally {
     clearTimeout(timer);
