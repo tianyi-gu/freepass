@@ -37,6 +37,8 @@ We do not intentionally log AI request/response bodies in our backend or sell co
 
 **Supabase** operates the database, authentication, private file storage, and Casey backend. AI providers receive only the information described above, after consent. We require service providers processing data on our behalf to provide the same or equal protection described by this policy under their applicable data-processing terms. Provider retention and lawful-disclosure obligations are not overridden by an in-app setting.
 
+**Google/Gmail** delivers account-confirmation and password-recovery emails. Google receives the recipient email address, message contents (including verification links or codes), and email delivery metadata. Deleting a FreePass account does not automatically remove email copies from sender or recipient mailboxes. Google's processing and retention are described in [Google's privacy policy](https://policies.google.com/privacy).
+
 Courses, organization websites, email, phone, and maps links open outside FreePass. Those services have their own policies. FreePass does not control their availability or collect information you submit directly to them. We do not voluntarily share private documents or survey responses with employers, parole/probation authorities, or law enforcement; legally required disclosures may apply.
 
 ## Retention and deletion

@@ -9,7 +9,8 @@ Updated September 17, 2026. **Do not submit build 8 or 10 as the OpenAI release.
 - [x] Run unit, live model, database/security and native guest-flow checks.
 - [x] Pass native login/retry, consent/revocation, session restoration and account deletion checks.
 - [x] Process and attach OpenAI build 13; update App Store labels, screenshots and reviewer notes.
-- [ ] Configure custom SMTP and verify signup/recovery email with ordinary non-team users.
+- [x] Configure custom SMTP and verify signup/recovery email with an ordinary non-team test account (12 live checks passed).
+- [ ] Complete release-device, additional-recipient-domain and time-expired-code email acceptance; monitor Gmail delivery limits.
 - [ ] Establish production capacity, backups/restore, monitoring, budgets and support/moderation ownership.
 - [ ] Staff-verify directory records and current program information; supply future events if desired.
 - [ ] Rotate provider credentials exposed in old TestFlight binaries after checking shared uses.
