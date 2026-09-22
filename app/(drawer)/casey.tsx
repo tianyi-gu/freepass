@@ -31,7 +31,6 @@ import { CASEY_CRISIS_REPLY, CASEY_MAX_HISTORY, CASEY_MAX_MESSAGE, isCrisisMessa
 // Provider keys live in the Supabase edge function, never in the app bundle.
 const MAX_RECORDING_MS = 60000;
 const AUTO_SPEAK_KEY = '@freepass_casey_autospeak';
-const SHARE_PROFILE_KEY = '@freepass_casey_share_profile';
 type Message = { id: string; role: 'user' | 'bot'; text: string; synthetic?: boolean };
 const OPENING_MESSAGE: Message = {
   id: 'opening', role: 'bot', synthetic: true,
@@ -88,16 +87,16 @@ export default function CaseyScreen() {
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [installedVoices, setInstalledVoices] = useState<Speech.Voice[]>([]);
   // null = user hasn't decided yet (banner shows); false = declined
-  const [shareProfile, setShareProfile] = useState<boolean | null>(false);
+  const [shareProfile, setShareProfile] = useState<boolean | null>(null);
   const inFlightRef = useRef(false);
 
   // Device-level consent to send data to the AI providers. Until accepted, the
   // chat UI is replaced by the notice and none of the network paths run.
   const aiConsent = useAiConsent();
-  const aiAllowed = aiConsent.status === 'accepted';
   // After declining, the user can ask to see the full notice again from the
   // "Casey is turned off" panel; re-enabling always requires re-reading it.
   const [showConsentNotice, setShowConsentNotice] = useState(false);
+  const aiAllowed = aiConsent.status === 'accepted' && !showConsentNotice;
   // Consent can be revoked from Account → Privacy while this screen has work
   // in flight (a live recording, a reply still arriving). Async completions
   // must read the status as it is *now*, not as captured when they started.
@@ -116,9 +115,6 @@ export default function CaseyScreen() {
     AsyncStorage.getItem(AUTO_SPEAK_KEY)
       .then((v) => setAutoSpeak(v === 'yes'))
       .catch(() => {});
-    AsyncStorage.getItem(SHARE_PROFILE_KEY)
-      .then((v) => setShareProfile(v === null ? null : v === 'yes'))
-      .catch(() => {});
   }, []);
 
   const setAndStoreAutoSpeak = useCallback((value: boolean) => {
@@ -126,9 +122,8 @@ export default function CaseyScreen() {
     AsyncStorage.setItem(AUTO_SPEAK_KEY, value ? 'yes' : 'no').catch(() => {});
   }, []);
 
-  const setAndStoreShareProfile = useCallback((value: boolean) => {
+  const setProfilePermission = useCallback((value: boolean) => {
     setShareProfile(value);
-    AsyncStorage.setItem(SHARE_PROFILE_KEY, value ? 'yes' : 'no').catch(() => {});
   }, []);
 
   // Best installed en-US voice for the requested gender. Prefers
@@ -377,6 +372,7 @@ export default function CaseyScreen() {
   useEffect(() => {
     if (!aiAllowed) {
       cancelCaseyRequests();
+      setShareProfile(null);
       stopSpeaking();
       if (recordingRef.current) stopAndTranscribe();
     }
@@ -540,6 +536,13 @@ export default function CaseyScreen() {
   return (
     <View style={styles.container}>
       <FreepassHeader showMenu title="Casey" />
+      <View style={styles.privacyStrip}>
+        <Text style={styles.privacyText}>OpenAI receives your messages and optional audio via FreePass. Survey sharing is a separate choice.</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Review or turn off OpenAI sharing"
+          onPress={() => { cancelCaseyRequests(); setShowConsentNotice(true); }}>
+          <Text style={styles.privacyLink}>Review or turn off sharing</Text>
+        </Pressable>
+      </View>
       <View style={styles.voiceBar}>
         <IconSymbol name="speaker.wave.2.fill" size={16} color={FreepassColors.textSecondary} />
         <Text style={styles.voiceLabel}>Voice:</Text>
@@ -618,24 +621,23 @@ export default function CaseyScreen() {
         {showConsentBanner && (
           <View style={styles.consentBanner}>
             <Text style={styles.consentText}>
-              Casey can use your name and survey answers (like the kind of help you&apos;re looking
-              for) to personalize suggestions. If you say yes, they are included in what is sent to
-              OpenAI through FreePass. Share your survey
-              answers with Casey?
+              Share your preferred name, ZIP code, and answers about your needs, work, housing,
+              financial help, education, learning interests and support system with OpenAI for
+              personalized suggestions? This is optional and applies only to this session.
             </Text>
             <View style={styles.consentButtons}>
               <Pressable
                 style={styles.consentBtnPrimary}
                 accessibilityRole="button"
                 accessibilityLabel="Yes, use my survey answers to personalize"
-                onPress={() => setAndStoreShareProfile(true)}>
-                <Text style={styles.consentBtnPrimaryText}>Yes, personalize</Text>
+                onPress={() => setProfilePermission(true)}>
+                <Text style={styles.consentBtnPrimaryText}>Allow survey sharing</Text>
               </Pressable>
               <Pressable
                 style={styles.consentBtnSecondary}
                 accessibilityRole="button"
                 accessibilityLabel="No, don't share my survey answers"
-                onPress={() => setAndStoreShareProfile(false)}>
+                onPress={() => setProfilePermission(false)}>
                 <Text style={styles.consentBtnSecondaryText}>No thanks</Text>
               </Pressable>
             </View>
@@ -809,6 +811,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 15,
   },
+  privacyStrip: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: FreepassColors.cardBg, gap: 4 },
+  privacyText: { fontSize: 13, lineHeight: 18, color: FreepassColors.text },
+  privacyLink: { fontSize: 14, fontWeight: '700', color: FreepassColors.primary, textDecorationLine: 'underline', paddingVertical: 4 },
   voiceBar: {
     flexDirection: 'row',
     alignItems: 'center',

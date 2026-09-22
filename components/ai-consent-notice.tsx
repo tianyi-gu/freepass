@@ -6,7 +6,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import {
   AI_CHOICE_TEXT,
   AI_DATA_SENT,
-  AI_PROVIDERS,
+  AI_RETENTION_TEXT,
   AI_PURPOSE_TEXT,
   AiDisclosureItem,
   PRIVACY_POLICY_URL,
@@ -15,8 +15,8 @@ import { FreepassColors } from '@/constants/theme';
 import { openWebUrl } from '@/lib/links';
 
 // Button labels are referenced by the Maestro flows (.maestro/04-casey-chat.yaml).
-export const AI_CONSENT_ACCEPT_LABEL = 'I AGREE — TURN ON CASEY';
-export const AI_CONSENT_DECLINE_LABEL = 'Not now';
+export const AI_CONSENT_ACCEPT_LABEL = 'Allow sharing with OpenAI';
+export const AI_CONSENT_DECLINE_LABEL = "Don't allow";
 
 export async function openPrivacyPolicy(): Promise<void> {
   try {
@@ -52,58 +52,31 @@ export function AiConsentNotice({
   onDecline: () => void;
 }) {
   return (
-    <ScrollView
-      style={styles.flex}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.flex} contentContainerStyle={styles.content} showsVerticalScrollIndicator>
       <View style={styles.iconWrap}>
         <IconSymbol name="sparkles" size={28} color={FreepassColors.white} />
       </View>
-      <Text style={styles.title}>Before you chat with Casey</Text>
+      <Text style={styles.title} accessibilityRole="header">Share with OpenAI?</Text>
       <Text style={styles.lead}>
-        Casey is an AI helper. To answer you, FreePass has to send some of your information to
-        outside companies that run the AI. Here is exactly what that means, so you can decide.
+        Casey uses OpenAI, a third-party AI service. Nothing is sent to OpenAI until you allow sharing.
       </Text>
-
-      <Text style={styles.sectionTitle}>What gets sent</Text>
+      <Text style={styles.sectionTitle}>What OpenAI receives and why</Text>
       <DisclosureList items={AI_DATA_SENT} />
-
-      <Text style={styles.sectionTitle}>Who receives it</Text>
-      <DisclosureList items={AI_PROVIDERS} />
-
-      <Text style={styles.sectionTitle}>Why</Text>
-      <Text style={styles.body}>{AI_PURPOSE_TEXT}</Text>
-
-      <Text style={styles.sectionTitle}>Your choice</Text>
-      <Text style={styles.body}>{AI_CHOICE_TEXT}</Text>
-
-      <Pressable
-        onPress={openPrivacyPolicy}
-        accessibilityRole="link"
-        accessibilityLabel="Read the FreePass privacy policy"
-        style={styles.policyLink}>
-        <Text style={styles.policyLinkText}>Read our Privacy Policy</Text>
+      <Text style={[styles.body, styles.paragraph]}>{AI_PURPOSE_TEXT}</Text>
+      <Text style={[styles.body, styles.paragraph]}>{AI_RETENTION_TEXT}</Text>
+      <Pressable onPress={openPrivacyPolicy} accessibilityRole="link"
+        accessibilityLabel="Read the FreePass privacy policy" style={styles.policyLink}>
+        <Text style={styles.policyLinkText}>Privacy Policy — data use and protection</Text>
       </Pressable>
-
-      <Pressable
-        style={styles.acceptBtn}
-        onPress={onAccept}
-        accessibilityRole="button"
-        accessibilityLabel="I agree, turn on Casey"
-        android_ripple={{ color: FreepassColors.accentLight }}>
+      <Text style={styles.body}>{AI_CHOICE_TEXT}</Text>
+      <Pressable style={styles.acceptBtn} onPress={onAccept} accessibilityRole="button"
+        accessibilityLabel={AI_CONSENT_ACCEPT_LABEL} testID="ai-consent-allow">
         <Text style={styles.acceptBtnText}>{AI_CONSENT_ACCEPT_LABEL}</Text>
       </Pressable>
-      <Pressable
-        style={styles.declineBtn}
-        onPress={onDecline}
-        accessibilityRole="button"
-        accessibilityLabel="Not now, keep Casey turned off">
+      <Pressable style={styles.declineBtn} onPress={onDecline} accessibilityRole="button"
+        accessibilityLabel={AI_CONSENT_DECLINE_LABEL} testID="ai-consent-decline">
         <Text style={styles.declineBtnText}>{AI_CONSENT_DECLINE_LABEL}</Text>
       </Pressable>
-
-      <Text style={styles.crisisNote}>
-        Need help right now? Call 211 for local services, or call or text 988 in a crisis.
-      </Text>
     </ScrollView>
   );
 }
@@ -120,7 +93,7 @@ export function AiDisabledNotice({ onTurnOn }: { onTurnOn: () => void }) {
       </View>
       <Text style={styles.title}>Casey is turned off</Text>
       <Text style={[styles.body, styles.centered]}>
-        You chose not to share information with the AI companies that power Casey, so Casey is
+        You chose not to share information with OpenAI, so Casey is
         off. Everything else in FreePass works as usual, and you can turn Casey on any time.
       </Text>
       <Pressable
@@ -149,8 +122,12 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: {
     padding: 24,
-    paddingBottom: 40,
+    paddingBottom: 32,
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
   },
+  paragraph: { marginTop: 14 },
   disabledContent: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -251,8 +228,11 @@ const styles = StyleSheet.create({
   },
   declineBtn: {
     alignItems: 'center',
-    paddingVertical: 14,
-    marginTop: 8,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: FreepassColors.primary,
+    borderRadius: 12,
+    marginTop: 10,
     alignSelf: 'stretch',
   },
   declineBtnText: {

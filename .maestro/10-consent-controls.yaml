@@ -5,16 +5,16 @@ name: Casey consent can be declined, enabled, and revoked
     clearState: true
 - assertVisible: "QUICK ACCESS"
 - tapOn: ".*Casey.*"
-- assertVisible: "Before you chat with Casey"
+- assertVisible: "Share with OpenAI?"
 - scrollUntilVisible:
-    element: "Not now, keep Casey turned off"
-- tapOn: "Not now, keep Casey turned off"
+    element: "Don't allow"
+- tapOn: "Don't allow"
 - assertVisible: "Casey is turned off"
 - assertNotVisible: "Message Casey..."
 - tapOn: "Review the AI notice and turn on Casey"
 - scrollUntilVisible:
-    element: "I agree, turn on Casey"
-- tapOn: "I agree, turn on Casey"
+    element: "Allow sharing with OpenAI"
+- tapOn: "Allow sharing with OpenAI"
 - assertVisible: "Message Casey..."
 - tapOn: "Open menu"
 - tapOn:
