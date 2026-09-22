@@ -10,7 +10,7 @@ Updated September 22, 2026. **Build 14 was submitted and rejected on September 2
 - [x] Provide decline, in-chat review/revocation, Account privacy controls and continued non-AI access.
 - [x] Pass TypeScript, ESLint, 43 unit tests, iPhone/iPad browser consent checks and the native Release build.
 - [x] Complete native consent acceptance and live backend/reviewer checks for the replacement candidate.
-- [ ] Publish the matching updated policy and refresh reviewer instructions/evidence.
+- [x] Publish the matching updated policy and refresh reviewer instructions/evidence.
 - [x] Verify current published App Privacy declarations against the data inventory.
 - [ ] Merge the tested app candidate, upload its new build and verify Apple processing.
 - [ ] Resubmit the replacement build with revised reviewer instructions.

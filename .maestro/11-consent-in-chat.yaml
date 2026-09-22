@@ -1,0 +1,21 @@
+appId: org.thefountainfund.freepass.app
+name: Revised OpenAI notice and in-chat revocation
+---
+- launchApp:
+    clearState: true
+- assertVisible: "QUICK ACCESS"
+- tapOn: ".*Casey.*"
+- assertVisible: "Share with OpenAI?"
+- scrollUntilVisible:
+    element: "Allow sharing with OpenAI"
+- tapOn: "Allow sharing with OpenAI"
+- assertVisible: "Message Casey..."
+- assertVisible: "Review or turn off OpenAI sharing"
+- tapOn: "Review or turn off OpenAI sharing"
+- assertVisible: "Share with OpenAI?"
+- scrollUntilVisible:
+    element: "Don't allow"
+- tapOn: "Don't allow"
+- assertVisible: "Casey is turned off"
+- tapOn: "Browse resources instead"
+- assertNotVisible: "Casey is turned off"
