@@ -18,16 +18,16 @@ name: Casey AI replies to a housing question
       - tapOn: "Review the AI notice and turn on Casey"
 - runFlow:
     when:
-      visible: "Before you chat with Casey"
+      visible: "Share with OpenAI?"
     commands:
-      - assertVisible: "Who receives it"
+      - assertVisible: "What OpenAI receives and why"
       - assertVisible: ".*OpenAI.*"
       # The notice is taller than the screen on most phones; the accept
       # button is below the fold.
       - scrollUntilVisible:
-          element: "I agree, turn on Casey"
+          element: "Allow sharing with OpenAI"
           direction: DOWN
-      - tapOn: "I agree, turn on Casey"
+      - tapOn: "Allow sharing with OpenAI"
 - assertVisible: "Message Casey..."
 - tapOn: "Message Casey..."
 - inputText: "Where can I find housing help in Philadelphia?"

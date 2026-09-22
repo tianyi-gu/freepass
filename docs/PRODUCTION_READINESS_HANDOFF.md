@@ -1,4 +1,12 @@
-# FreePass production audit — September 17, 2026
+# FreePass production audit — current status September 22, 2026
+
+**Build 14 was rejected on September 21 for AI privacy disclosure/permission (5.1.1(i), 5.1.2(i)); it is not awaiting approval.** **Build 15 was resubmitted September 22 at 06:01 UTC and is WAITING_FOR_REVIEW**, with the revised disclosure, permission controls, live policy and native consent evidence. [The September 22 rejection audit](audit/PRIVACY_REJECTION_2026-09-22.md) and [launch checklist](LAUNCH_CHECKLIST.md) are the current release records.
+
+The audit below is retained as **historical September 17 evidence**. Its build-13 preparation/submission statements are superseded by the successful build-14 submission and subsequent rejection. Earlier successful tests do not mean Apple accepted the previous privacy UX. Public release remains manual and has not occurred.
+
+---
+
+# Historical production audit — September 17, 2026
 
 **Release decision: prepared for the owner-authorized merge and App Review preparation, with the follow-up limits below explicitly acknowledged.** The owner confirmed directory verification and credential/security work complete on September 17. Additional browser app, email expiry, voice and backup checks are in [release acceptance](audit/RELEASE_ACCEPTANCE.md) and [operations](audit/OPERATIONS.md). No physical device was available. Build 13 (`97817a46-ed17-4e27-802d-af9e52d36c23`) remains the signed candidate, processed **VALID** and attached to ASC version 1.0. Release timing is now **MANUAL**. No App Review submission or public release has been performed. No mobile implementation changed in the final operations pass; a new binary is not needed for these workflow/documentation changes.
 

@@ -61,8 +61,8 @@ function PrivacySection() {
         <IconSymbol name="chevron.right" size={20} color={FreepassColors.textSecondary} />
       </Pressable>
       <Text style={styles.sectionNote}>
-        Casey sends your messages (and voice, if you use the microphone) to outside AI services to
-        answer you. Turn it off here at any time.
+        Casey sends your messages and optional audio to OpenAI through FreePass’s Supabase backend.
+        Survey sharing needs separate permission. Turn AI sharing off here at any time.
       </Text>
     </View>
   );

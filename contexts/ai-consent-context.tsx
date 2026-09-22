@@ -4,9 +4,10 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, 
 import { AI_CONSENT_STORAGE_KEY, AI_CONSENT_VERSION } from '@/constants/ai-consent';
 import { useUser } from '@/contexts/user-context';
 import { cancelCaseyRequests } from '@/lib/casey-client';
+import { parseAiConsent, type StoredAiConsent } from '@/lib/ai-consent-record';
 
 // Informed consent for sending data to the third-party AI services behind
-// Casey (Google Gemini, Groq, OpenAI). Nothing may be sent to any of them
+// Casey (OpenAI, through FreePass's Supabase backend). Nothing may be sent to any of them
 // unless `status === 'accepted'`. The decision is stored on the device and:
 //  - is bound to the identity that gave it (auth user id, or one shared key
 //    for anonymous/guest browsing), so another account on a shared phone is
@@ -21,14 +22,6 @@ export type AiConsentStatus =
   | 'unknown'
   | 'accepted'
   | 'declined';
-
-type StoredConsent = {
-  version: number;
-  status: 'accepted' | 'declined';
-  decidedAt: string;
-  // Who decided: an auth user id, or GUEST_OWNER for anonymous/guest browsing.
-  owner: string;
-};
 
 interface AiConsentValue {
   status: AiConsentStatus;
@@ -48,26 +41,9 @@ function ownerKeyFor(user: { id: string; isGuest: boolean } | null): string {
   return user && !user.isGuest ? user.id : GUEST_OWNER;
 }
 
-async function readStoredConsent(owner: string): Promise<StoredConsent | null> {
+async function readStoredAiConsent(owner: string): Promise<StoredAiConsent | null> {
   try {
-    const raw = await AsyncStorage.getItem(AI_CONSENT_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<StoredConsent>;
-    if (
-      parsed &&
-      parsed.version === AI_CONSENT_VERSION &&
-      parsed.owner === owner &&
-      (parsed.status === 'accepted' || parsed.status === 'declined')
-    ) {
-      return {
-        version: parsed.version,
-        status: parsed.status,
-        decidedAt: typeof parsed.decidedAt === 'string' ? parsed.decidedAt : '',
-        owner: parsed.owner,
-      };
-    }
-    // Older version, someone else's decision, or malformed — treat as never asked.
-    return null;
+    return parseAiConsent(await AsyncStorage.getItem(AI_CONSENT_STORAGE_KEY), owner);
   } catch {
     return null;
   }
@@ -75,7 +51,7 @@ async function readStoredConsent(owner: string): Promise<StoredConsent | null> {
 
 export function AiConsentProvider({ children }: { children: ReactNode }) {
   const { user } = useUser();
-  const [stored, setStored] = useState<StoredConsent | null | undefined>(undefined);
+  const [stored, setStored] = useState<StoredAiConsent | null | undefined>(undefined);
 
   // Re-read whenever the identity changes: a decision only counts for the
   // person who made it.
@@ -83,7 +59,7 @@ export function AiConsentProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     setStored(undefined);
-    readStoredConsent(owner).then((value) => {
+    readStoredAiConsent(owner).then((value) => {
       if (!cancelled) setStored(value);
     });
     return () => {
@@ -93,7 +69,7 @@ export function AiConsentProvider({ children }: { children: ReactNode }) {
 
   const record = useCallback(
     async (status: 'accepted' | 'declined') => {
-      const next: StoredConsent = {
+      const next: StoredAiConsent = {
         version: AI_CONSENT_VERSION,
         status,
         decidedAt: new Date().toISOString(),

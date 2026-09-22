@@ -10,44 +10,17 @@
 
 export const AI_CONSENT_STORAGE_KEY = '@freepass_ai_consent';
 
-// Bump when the disclosure text or the set of providers/data changes.
-export { CASEY_CONSENT_VERSION as AI_CONSENT_VERSION } from '@/lib/casey-contract';
-
+// Disclosure version is independent of the unchanged backend request protocol.
+export { AI_CONSENT_VERSION } from '@/lib/ai-consent-record';
 export const PRIVACY_POLICY_URL = 'https://freepass-privacy.vercel.app';
-
 export type AiDisclosureItem = { title: string; detail: string };
 
-// What leaves the device. Keep in sync with app/(drawer)/casey.tsx —
-// requestCasey (messages + optional profile opt-in),
-// stopAndTranscribe (voice recording), fetchOpenAiSpeech (reply text).
 export const AI_DATA_SENT: AiDisclosureItem[] = [
-  {
-    title: 'Your messages',
-    detail: "What you type to Casey, and Casey's replies in the same conversation.",
-  },
-  {
-    title: 'Your voice',
-    detail:
-      'If you tap the microphone, the recording is sent to be turned into text, then deleted from your phone.',
-  },
-  {
-    title: 'Your name and survey answers',
-    detail:
-      'Only if you also say yes to personalization inside the chat. Two answers are never sent: how long you have been home and whether you have a caseworker.',
-  },
+  { title: 'Chat', detail: 'Your messages and recent Casey replies are sent to OpenAI to find resources in the FreePass directory.' },
+  { title: 'Microphone', detail: 'If you use it, your voice recording is sent to OpenAI to turn speech into text. You review the transcript before sending it as a message.' },
+  { title: 'Read aloud', detail: 'If you use a speaker button or Auto-read, reply text is sent to OpenAI to create an artificial voice.' },
+  { title: 'Optional survey sharing', detail: 'Off unless you separately allow it in this session. It includes your preferred name, ZIP code, needs, work, housing, financial-help, education, learning interests and support-system answers.' },
 ];
-
-// Who receives it. Names must match the services actually called.
-export const AI_PROVIDERS: AiDisclosureItem[] = [
-  {
-    title: 'OpenAI',
-    detail:
-      "Reads your conversation to select resources from the FreePass directory, turns microphone recordings into text, and turns Casey's replies into audio when you use the speaker or Auto-read. Requests pass through FreePass's Supabase backend.",
-  },
-];
-
-export const AI_PURPOSE_TEXT =
-  'This information is used to help Casey understand your request, select directory entries, and provide voice features. FreePass does not sell your information or use it for advertising. OpenAI processes API data under its own terms, including retention for abuse monitoring; we request that chat responses are not stored as retrievable conversations. Nothing is sent to OpenAI until you agree.';
-
-export const AI_CHOICE_TEXT =
-  'If you say no, Casey stays off, but everything else in FreePass still works. You can change your mind any time in Account → Privacy.';
+export const AI_PURPOSE_TEXT = 'OpenAI is a third-party AI provider. FreePass sends this data through its Supabase backend. Your documents, budget, account password, time since release and caseworker answer are not automatically included. Anything you type or record may contain personal information.';
+export const AI_RETENTION_TEXT = 'OpenAI may retain chat and speech-generation data for security and abuse prevention. Turning sharing off stops new requests; it cannot recall information already sent. See the privacy policy for retention details.';
+export const AI_CHOICE_TEXT = 'Allow FreePass to share the data described above with OpenAI? If you decline, Casey stays off and you can still use the rest of FreePass. Review or withdraw permission in Casey or Account → Privacy.';
