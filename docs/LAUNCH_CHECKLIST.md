@@ -1,6 +1,6 @@
 # FreePass launch checklist
 
-Updated September 22, 2026. **Build 14 was submitted and rejected on September 21 under 5.1.1(i)/5.1.2(i).** The earlier build-13 preparation notes are superseded. The revised privacy candidate requires a new binary. See [privacy rejection audit](audit/PRIVACY_REJECTION_2026-09-22.md) for current evidence and release status.
+Updated September 22, 2026. **Build 14 was submitted and rejected on September 21 under 5.1.1(i)/5.1.2(i).** The earlier build-13 preparation notes are superseded. **Build 15 is now VALID, attached and WAITING_FOR_REVIEW as of September 22 at 06:01 UTC.** See [privacy rejection audit](audit/PRIVACY_REJECTION_2026-09-22.md) for current evidence and release status.
 
 - [x] Replace Gemini/Groq with server-side OpenAI and strict directory-only decisions.
 - [x] Deploy the Edge Function, security migration and content corrections.
@@ -12,8 +12,9 @@ Updated September 22, 2026. **Build 14 was submitted and rejected on September 2
 - [x] Complete native consent acceptance and live backend/reviewer checks for the replacement candidate.
 - [x] Publish the matching updated policy and refresh reviewer instructions/evidence.
 - [x] Verify current published App Privacy declarations against the data inventory.
-- [ ] Merge the tested app candidate, upload its new build and verify Apple processing.
-- [ ] Resubmit the replacement build with revised reviewer instructions.
+- [x] Prepare tested [app PR #7](https://github.com/tianyi-gu/freepass/pull/7) for the authorized merge; the linked GitHub status records the merge result.
+- [x] Upload build 15 and verify Apple processing as VALID.
+- [x] Resubmit build 15 with revised reviewer instructions and the native consent screenshot; live status is WAITING_FOR_REVIEW.
 - [x] Keep App Store release timing **Manual**.
 - [ ] Release manually after Apple approves and the owner decides to launch.
 

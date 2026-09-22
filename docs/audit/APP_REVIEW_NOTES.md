@@ -1,6 +1,6 @@
 # App Review notes for the revised privacy candidate
 
-Updated September 22, 2026. Build 14 was rejected September 21; these notes describe its replacement and must accompany the new binary. Reviewer credentials remain only in App Store Connect.
+Updated September 22, 2026. Build 14 was rejected September 21. These notes are saved in App Store Connect with replacement build 15, resubmitted September 22 and WAITING_FOR_REVIEW. Reviewer credentials remain only in App Store Connect.
 
 ---
 

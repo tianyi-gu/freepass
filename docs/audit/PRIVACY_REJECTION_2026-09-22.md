@@ -1,6 +1,6 @@
 # Apple AI privacy rejection — September 22, 2026
 
-Apple rejected version 1.0 (14) on September 21 under 5.1.1(i)/5.1.2(i). Submission `3932e741-cb6a-4d67-a125-43c8044a9189` is unresolved; the replacement is being prepared. Public release stays manual. Build 14 already contained an OpenAI consent gate; the reviewer did not provide an exact bypass/reproduction. This change addresses clarity, discoverability and repeat consent without claiming a proven root cause.
+Apple rejected version 1.0 (14) on September 21 under 5.1.1(i)/5.1.2(i). Build **15** was resubmitted on September 22 at 06:01 UTC; both version 1.0 and submission `3932e741-cb6a-4d67-a125-43c8044a9189` are **WAITING_FOR_REVIEW**. Public release stays manual. Build 14 already contained an OpenAI consent gate; the reviewer did not provide an exact bypass/reproduction. This change addresses clarity, discoverability and repeat consent without claiming a proven root cause.
 
 ## Requirement evidence
 
@@ -31,8 +31,8 @@ Local evidence: `.context/audit/privacy-v3-{check.log,browser-results.json,backe
 ## Release record
 
 - Privacy site: PR [freepass-privacy #3](https://github.com/tianyi-gu/freepass-privacy/pull/3); preview deployment and mobile layout passed. Merged; production HTTPS 200 and the revised text verified September 22.
-- Replacement app: PR [freepass #7](https://github.com/tianyi-gu/freepass/pull/7); GitHub validation passed. Build 15 (`e1d9794a-51b9-4ec5-b363-e84ffa35b64f`) finished from `08f88bde3229d121208e1a2be1f7c8169180cc6f` and was uploaded to Apple. The actual IPA has the revised permission/withdrawal/survey strings, 12 privacy manifests and no checked provider-key values. Apple processing and final resubmission are pending.
+- Replacement app: PR [freepass #7](https://github.com/tianyi-gu/freepass/pull/7); GitHub validation passed. Build 15 (`e1d9794a-51b9-4ec5-b363-e84ffa35b64f`) finished from `08f88bde3229d121208e1a2be1f7c8169180cc6f` and was uploaded to Apple. The actual IPA has the revised permission/withdrawal/survey strings, 12 privacy manifests and no checked provider-key values. Apple processed it **VALID** (ASC build `d02d3005-4b32-464f-9649-28975fc1b831`) and it is attached to version 1.0. Later commits change only tests/documentation; mobile implementation matches the inspected IPA. The linked app PR records its merge status.
 - App Review notes updated to the build-15 instructions. The actual native iPad notice screenshot is attached and processed COMPLETE (attachment `5032b3af-6245-47e5-b18c-674bf1f57ab2`). Apple permits one review attachment; the screenshot includes the entire disclosure and both choices.
-- Resubmission: pending. The rejected build 14 must not be resubmitted unchanged.
+- Resubmission: completed September 22 at 06:01 UTC. Apple submission and version state both **WAITING_FOR_REVIEW**, with build **15** and release type **MANUAL**. This replaces rejected build 14; it is neither approval nor public release. Receipt: `.context/audit/build15-submitted.json`.
 
 Physical-device microphone/camera quality, full VoiceOver acceptance and the operational follow-ups in the launch checklist remain outside these privacy regression checks. Passing them does not guarantee Apple approval or error-free AI resource selection.

@@ -1,6 +1,6 @@
 # FreePass production audit — current status September 22, 2026
 
-**Build 14 was rejected on September 21 for AI privacy disclosure/permission (5.1.1(i), 5.1.2(i)); it is not awaiting approval.** A revised disclosure, permission controls, policy and tests are being prepared in a replacement binary. [The September 22 rejection audit](audit/PRIVACY_REJECTION_2026-09-22.md) and [launch checklist](LAUNCH_CHECKLIST.md) are the current release records.
+**Build 14 was rejected on September 21 for AI privacy disclosure/permission (5.1.1(i), 5.1.2(i)); it is not awaiting approval.** **Build 15 was resubmitted September 22 at 06:01 UTC and is WAITING_FOR_REVIEW**, with the revised disclosure, permission controls, live policy and native consent evidence. [The September 22 rejection audit](audit/PRIVACY_REJECTION_2026-09-22.md) and [launch checklist](LAUNCH_CHECKLIST.md) are the current release records.
 
 The audit below is retained as **historical September 17 evidence**. Its build-13 preparation/submission statements are superseded by the successful build-14 submission and subsequent rejection. Earlier successful tests do not mean Apple accepted the previous privacy UX. Public release remains manual and has not occurred.
 
